@@ -312,6 +312,10 @@ function resetStore(patch) {
     reviewersMode: "peers",
     meetingsState: "ready",
     meetings: [],
+    attachments: [
+      { id: "u-text", name: "spec.md", kind: "text", mime: "text/markdown", bytes: 12 },
+      { id: "u-image", name: "chart.png", kind: "image", mime: "image/png", bytes: 34 },
+    ],
   });
 
   const calls = [];
@@ -354,6 +358,8 @@ function resetStore(patch) {
     assert.equal(body.workspace, "C:\\demo\\ws", "workspace sent when known");
     assert.equal(body.reviewers, undefined, "peers mode omits reviewers");
     assert.equal(body.arbiter, undefined, "no arbiter by default");
+    assert.deepEqual(body.attachments, ["u-text", "u-image"], "attachment ids ride the create call");
+    assert.deepEqual(store.get().attachments, [], "pending attachments are cleared once the meeting owns them");
 
     assert.equal(store.get().view, "detail");
     assert.equal(store.get().detailId, "m-new");
@@ -777,6 +783,104 @@ const COMPLETED_MEETING = {
   delete window.showSaveFilePicker;
   store.set({ exportState: "idle", exportError: null, exportInfo: null, exportText: null, exportCopied: false });
   assert.ok(calls.length > 0, "export used the page API");
+}
+
+// ---------------------------------------------------------------------------
+// Topic attachments: upload, remove, text-only warning, detail listing
+// ---------------------------------------------------------------------------
+{
+  const models = [
+    { key: "a/model-1", provider: "a", providerName: "A", model: "model-1", label: "Model One" },
+    { key: "b/model-2", provider: "b", providerName: "B", model: "model-2", label: "Model Two" },
+  ];
+  resetStore({
+    boot: "ready",
+    workspaceId: "C:\\demo\\ws",
+    catalog: "ready",
+    models,
+    catalogLimits: { maxAnswerers: 8, maxReviewers: 8, maxRounds: 5, attachments: { maxFiles: 2, maxFileBytes: 1_000 } },
+    selected: ["a/model-1", "b/model-2"],
+    topic: "附件测试",
+    meetingsState: "ready",
+    meetings: [],
+  });
+
+  const calls = [];
+  const previousFetch = globalThis.fetch;
+  globalThis.fetch = async (url, options) => {
+    calls.push({ url: String(url), options });
+    if (String(url).startsWith("/api/roundtable/upload/remove")) {
+      return { ok: true, status: 200, json: async () => ({ ok: true, data: { removed: ["u1"] } }) };
+    }
+    if (String(url) === "/api/roundtable/upload" && options && options.method === "POST") {
+      return {
+        ok: true,
+        status: 201,
+        json: async () => ({ ok: true, data: { attachments: [{ id: "u1", name: "spec.md", kind: "text", mime: "text/markdown", bytes: 4 }], limits: { maxFiles: 2 } } }),
+      };
+    }
+    return { ok: false, status: 404, json: async () => ({ ok: false, error: { code: "nf", message: "nf" } }) };
+  };
+  globalThis.FileReader = class FakeFileReader {
+    readAsDataURL(file) {
+      this.result = `data:${file.type || ""};base64,${Buffer.from(file.content || "").toString("base64")}`;
+      queueMicrotask(() => this.onload());
+    }
+  };
+  try {
+    await actions.addAttachments([{ name: "spec.md", type: "text/markdown", size: 4, content: "# hi" }]);
+    assert.equal(store.get().uploading, false);
+    assert.deepEqual(store.get().attachments.map((item) => item.id), ["u1"], "uploaded attachment stored");
+    const upload = calls.find((call) => call.url === "/api/roundtable/upload");
+    const body = JSON.parse(upload.options.body);
+    assert.equal(body.workspace, "C:\\demo\\ws");
+    assert.equal(body.files[0].name, "spec.md");
+    assert.equal(body.files[0].data, Buffer.from("# hi").toString("base64"), "file bytes are base64 encoded");
+
+    let tree = page();
+    const row = findAll(tree, (n) => n.props && n.props["data-roundtable-attachment"] === "u1")[0];
+    assert.ok(row, "attachment row rendered in setup");
+    assert.ok(JSON.stringify(row).includes("spec.md"), "attachment name shown");
+    assert.ok(findAll(tree, (n) => n.props && n.props["data-roundtable-add-file"])[0], "add-file control rendered");
+
+    findByTestId(tree, "remove-attachment:u1").props.onClick();
+    assert.equal(store.get().attachments.length, 0, "removing drops it from the pending list");
+    await Promise.resolve();
+    assert.ok(calls.some((call) => call.url === "/api/roundtable/upload/remove"), "server is asked to drop the upload");
+
+    // A text-only route is called out once both an image and its capability are known.
+    store.set({
+      attachments: [{ id: "u2", name: "chart.png", kind: "image", mime: "image/png", bytes: 10 }],
+      capabilities: { "a/model-1": false, "b/model-2": true },
+    });
+    tree = page();
+    const warning = findAll(tree, (n) => n.props && n.props["data-roundtable-capability-warning"])[0];
+    assert.ok(warning, "text-only warning rendered for an attached image");
+    assert.ok(JSON.stringify(warning.children).includes("Model One"), "the model that cannot see images is named");
+    assert.ok(!JSON.stringify(warning.children).includes("Model Two"), "image-capable models are not listed");
+  } finally {
+    globalThis.fetch = previousFetch;
+    delete globalThis.FileReader;
+  }
+
+  // Detail view lists the attachments the meeting was started with.
+  resetStore({
+    view: "detail",
+    detailId: "m-attach",
+    detailState: "ready",
+    meeting: {
+      ...COMPLETED_MEETING,
+      id: "m-attach",
+      attachments: [
+        { id: "u3", name: "数据表.csv", kind: "text", mime: "text/csv", bytes: 2048 },
+        { id: "u4", name: "diagram.png", kind: "image", mime: "image/png", bytes: 4096 },
+      ],
+    },
+  });
+  const detailTree = page();
+  assert.ok(findAll(detailTree, (n) => n.props && n.props["data-roundtable-meeting-attachments"])[0], "detail attachment card rendered");
+  assert.ok(JSON.stringify(detailTree).includes("数据表.csv"), "text attachment listed");
+  assert.ok(JSON.stringify(detailTree).includes("diagram.png"), "image attachment listed");
 }
 
 // ---------------------------------------------------------------------------

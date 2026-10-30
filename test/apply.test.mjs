@@ -346,11 +346,14 @@ test("apply serves the page API once Connection is available", async () => {
     });
     module.apply(fake.ctx, { language: "zh" });
     assert.deepEqual([...fake.routes.keys()].sort(), [
+      "/api/roundtable/capabilities",
       "/api/roundtable/catalog",
       "/api/roundtable/meeting",
       "/api/roundtable/meeting/cancel",
       "/api/roundtable/meeting/export",
       "/api/roundtable/meetings",
+      "/api/roundtable/upload",
+      "/api/roundtable/upload/remove",
       "/api/roundtable/workspaces",
     ]);
 

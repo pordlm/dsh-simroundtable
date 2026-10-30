@@ -340,11 +340,14 @@ test("the page API serves workspaces, catalog, meetings, detail and export", asy
     });
 
     assert.deepEqual([...routes.keys()].sort(), [
+      "/api/roundtable/capabilities",
       "/api/roundtable/catalog",
       "/api/roundtable/meeting",
       "/api/roundtable/meeting/cancel",
       "/api/roundtable/meeting/export",
       "/api/roundtable/meetings",
+      "/api/roundtable/upload",
+      "/api/roundtable/upload/remove",
       "/api/roundtable/workspaces",
     ]);
     assert.deepEqual(routes.get("/api/roundtable/meetings").methods, ["GET", "POST"]);

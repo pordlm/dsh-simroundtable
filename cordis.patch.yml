@@ -15,4 +15,9 @@
         maxRounds: 5
         maxConcurrentMeetings: 3
         meetingHistoryLimit: 100
+        attachmentMaxFiles: 8
+        attachmentMaxFileBytes: 8388608
+        attachmentMaxTotalBytes: 25165824
+        attachmentTextCharsPerFile: 20000
+        attachmentTextCharsTotal: 60000
         language: auto
