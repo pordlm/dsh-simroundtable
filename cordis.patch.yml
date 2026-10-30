@@ -1,0 +1,18 @@
+- insert:
+    - id: dsh-simroundtable
+      name: 'dsh-simroundtable'
+      config:
+        answerMaxTokens: 16384
+        reviewMaxTokens: 16384
+        arbiterMaxTokens: 16384
+        childTimeoutMs: 300000
+        runTimeoutMs: 900000
+        catalogTimeoutMs: 20000
+        subagentProvider: spawn
+        maxConcurrentChildren: 4
+        maxAnswerChars: 12000
+        stageInputChars: 8000
+        maxRounds: 5
+        maxConcurrentMeetings: 3
+        meetingHistoryLimit: 100
+        language: auto

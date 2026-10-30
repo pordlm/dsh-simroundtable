@@ -1,0 +1,204 @@
+# dsh-simroundtable
+
+[English summary](#english-summary) · [MIT License](LICENSE)
+
+> 一个 **DeepSeek Harness（DSH）** 圆桌讨论插件：把不同 provider 的模型请到同一张桌子上——先各自独立作答，再互相修订，匿名评审后由裁决模型给出最终答案。
+>
+> 三种入口：会话命令 `/roundtable`、模型工具 `roundtable`、Web 左栏独立页面「圆桌会议」。
+
+---
+
+## 它做什么
+
+一场圆桌固定四步：
+
+1. **独立作答**：每个作答模型只拿到同一个话题，彼此看不到对方的回答。
+2. **互评修订**（0–N 轮，可选）：每轮把所有答案匿名发给每个作答模型，各自重写自己的答案；看不到作者与 provider。
+3. **匿名评审**：评审模型只看到 `答案 A/B/C…`，输出结构化排名，以及共识 / 矛盾 / 盲点。
+4. **裁决**：裁决模型综合全部答案与评审意见，输出最终 Markdown。
+
+每个参与者都是一个**全新的子 Agent**，通过 `agentOptions: { provider, model, maxTokens }` 显式指定路由，因此同一桌可以混用任意已注册 provider 的模型。子 Agent 默认只被允许 `web_search` / `web_fetch`，不会继承 `write` / `edit` / `subagent` 等工具。
+
+结果里始终保留：全部答案、聚合排名、共识/矛盾/盲点、最终答案，以及**失败与降级说明**（自评、单 provider、自动裁决等），不做粉饰。
+
+---
+
+## 环境要求
+
+- DSH `>= 0.2.1-rc.4`，使用 `web` profile（页面入口依赖 Web 客户端槽位）。
+- Node.js `>= 20`。
+- 至少 2 个可用模型；同 provider 也可以，但跨 provider 更能暴露分歧。
+
+## 安装
+
+```powershell
+# 1. 克隆到任意目录（下面以 D:\plugins 为例）
+git clone https://github.com/pordlm/dsh-simroundtable.git D:\plugins\dsh-simroundtable
+
+# 2a. 在 DSH 会话里用插件管理工具安装本地目录（需要 danger-full-access 审批）
+plugin_manager install_bundle "D:\plugins\dsh-simroundtable"
+
+# 2b. 或手动装进当前 profile
+cd "$env:USERPROFILE\.dsh\profiles\web"
+pnpm add "file:D:\plugins\dsh-simroundtable"
+
+# 3. 确认已登记
+plugin_manager list_plugins
+```
+
+安装后，先在官方「插件」页把 `dsh-simroundtable` 的开关**关一次再开**：宿主半边（命令、工具、`/api/roundtable/*`）会随官方热重载进入正在运行的进程。
+
+> **客户端半边没有出现？** 少数实例里，上游 `dsh-client-modules` 会把“进程内首次启用”时的瞬时包解析失败永久缓存成 `null`（没有失效逻辑），左栏入口与页面因此不会被组合。这时**完整退出并重开一次 DSH** 即可；之后升级同样先试关→开，没有再重启。
+
+---
+
+## 使用
+
+### 1. 独立页面（推荐）
+
+左栏「圆桌会议」→ 主区域 `roundtable` 页面。它不绑定当前会话：
+
+| 区域 | 能力 |
+|---|---|
+| 工作区 | 从 `GET /workspaces` 读取，会议记录落在所选工作区的 `.roundtable/` |
+| 阵容 | 从 `GET /catalog` 读取全部 provider/模型；作答 2–8 个（默认每个 provider 一个）、评审 1–8 个（默认 = 作答者）、裁决 1 个（默认第一位作答者） |
+| 轮次 | 讨论 0–`maxRounds` 轮（默认 1） |
+| 进度 | 阶段条 + 成员状态 + 实时记录（默认 1.2 s 轮询，连续失败后停止） |
+| 结果 | 最终答案置顶，可展开答案、讨论、匿名评审、排名表、失败/限制 |
+| 历史 | 列表 + 详情；页面刷新或宿主重启后仍可打开 |
+| 操作 | 取消进行中的会议、导出 Markdown |
+
+### 2. 会话命令
+
+- `/roundtable`：弹出选择卡，话题也在卡里填写。
+- `/roundtable 你的话题`：跳过话题卡，只选阵容与轮次。
+
+命令结果在会话里按普通 Markdown 正文渲染（`conversation.chat.commandview`），不会塞进默认的命令卡片。
+
+### 3. 模型工具
+
+`roundtable` 工具供 Agent 自行发起一场圆桌，参数与页面一致（话题、作答/评审/裁决模型、轮数）。
+
+---
+
+## 导出与持久化
+
+- **会议记录**：`<workspace>/.roundtable/<meeting-id>.json`，原子写入；运行中的会议在宿主重启后标记为 `interrupted`，不会伪装成完成。
+- **导出顺序**（逐级回退）：
+  1. 同源 `GET /api/roundtable/meeting/export` 触发浏览器下载；
+  2. 系统保存对话框（5 s 内未 settle 视为不可用，避免无限等待）；
+  3. 服务端写入 `<workspace>/.roundtable/exports/roundtable-<id>.md`，返回实际路径与字节数；
+  4. 全失败时在页面展示只读 Markdown + 复制按钮，保证内容不丢。
+- 同一工作区并发会议数受 `maxConcurrentMeetings` 限制，超出直接报错而不是排队。
+
+---
+
+## 配置
+
+默认值写在 `cordis.patch.yml`，也可以在插件配置里覆盖：
+
+| 键 | 默认值 | 说明 |
+|---|---|---|
+| `answerMaxTokens` | `16384` | 单次作答/修订的输出上限 |
+| `reviewMaxTokens` | `16384` | 单次评审的输出上限 |
+| `arbiterMaxTokens` | `16384` | 裁决输出上限 |
+| `childTimeoutMs` | `300000` | 单个子 Agent 的超时（5 分钟） |
+| `runTimeoutMs` | `900000` | 整场圆桌的超时（15 分钟） |
+| `catalogTimeoutMs` | `20000` | 查询单个 provider 模型目录的超时；各 provider 并发查询 |
+| `subagentProvider` | `spawn` | 子 Agent provider；要求不继承父上下文、支持 `agentOptions` |
+| `maxConcurrentChildren` | `4` | 同时运行的子 Agent 上限 |
+| `maxAnswerChars` | `12000` | 注入评审/裁决提示词的答案截断长度 |
+| `stageInputChars` | `8000` | 讨论/评审/裁决阶段单条答案的截断长度 |
+| `maxRounds` | `5` | 页面允许的最大讨论轮数（命令仍限 0–2） |
+| `maxConcurrentMeetings` | `3` | 同一工作区同时进行的会议数上限 |
+| `meetingHistoryLimit` | `100` | 历史列表最多返回的条数 |
+| `language` | `auto` | `auto` 跟随 Web locale；也可强制 `zh` / `en` |
+
+> 推理型模型会先花 completion 预算“思考”。`*MaxTokens` 建议保持 ≥ 4096；预算过小可能出现空回复，插件会做重试与降级，但质量会下降。
+
+---
+
+## HTTP API
+
+页面与宿主之间的接口都是 Connection 的**精确 Fetch 路由**（不支持动态段，因此详情用查询参数），统一信封：
+
+```json
+{ "ok": true, "data": {} }
+{ "ok": false, "error": { "code": "meeting-not-found", "message": "…" } }
+```
+
+| 方法 | 路径 | 作用 |
+|---|---|---|
+| GET | `/api/roundtable/workspaces` | 工作区列表 |
+| GET | `/api/roundtable/catalog` | provider/模型目录（并发查询、单 provider 超时不影响整体） |
+| GET | `/api/roundtable/meetings?workspace=` | 历史列表 |
+| POST | `/api/roundtable/meetings` | 创建并启动一场会议 |
+| GET | `/api/roundtable/meeting?id=` | 会议详情（含进度、记录、评审、终稿） |
+| POST | `/api/roundtable/meeting/cancel` | 取消进行中的会议 |
+| GET/POST | `/api/roundtable/meeting/export` | 导出 Markdown（GET 下载，POST 写工作区） |
+
+---
+
+## 数据与隐私
+
+- 会议记录、导出文件只落在**本机工作区**的 `.roundtable/`，不上传到任何第三方服务。
+- 提示词只包含话题、答案与评审所需内容；provider 凭据由 Harness 管理，插件不读取也不记录。
+- 子 Agent 的工具集被限制为 `web_search` / `web_fetch`，无法读写工作区文件。
+
+---
+
+## 设计说明与已知取舍
+
+- **结构化输出优先**：评审与裁决优先走 `outputSchema`（`structured_output` 工具）；模型没调用时回退到“从文本里提取平衡 JSON 对象”。
+- **排名先写**：评审要求先输出 `ranking`，再写评语，避免推理耗尽输出预算导致排名缺失。
+- **截断可恢复**：回复被长度上限截断时，从文本里抢救已有投票并标注“已恢复排名”；漏掉的答案按面板顺序补全并标注“已归一化”。
+- **失败不中止**：某个答案/评审/裁决失败会列在结果末尾；裁决失败时回退到聚合排名第一的答案。
+- **诚实的限制**：评审模型可能同时是作答模型（自评），裁决模型也可能作答（偏向自己版本）——这些都以 `limitations` 明示，不隐藏。
+- **精确路由**：`GET` 与 `POST` 共用 `/meetings` 一条注册；详情用 `?id=`，避免动态段。
+- **客户端重载**：宿主半边可热重载；客户端半边在个别实例上受上游包解析负缓存影响，需要一次完整重启（见上文安装说明）。
+
+### 与早期 council 插件的接口差异
+
+本插件按 DSH 0.2 的接口实现，主要差异：
+
+| 早期写法 | 本插件 |
+|---|---|
+| `ctx.settings.get("locale")` | `ctx.settings.describe()` 读 `locale.preference`，失败回退 `Intl` |
+| `ctx.on("settings/updated", …)` | `ctx.on("settings/document-updated", (namespace) => …)` |
+| `ctx.subagents.start({ … })` | `ctx.subagents.startActivation({ childId, delivery: "caller", signal, request })` |
+| `provider.capabilities.toolFilter` | 在全局 `agent/created` 里对子 Agent 调用 `tools.restrict({ allow })` + `guard` |
+| 仅命令结果 | 额外注册 `sidebar.panellist` / `main` / `conversation.chat.commandview` |
+
+---
+
+## 开发
+
+```powershell
+npm run check   # node --check 核心模块
+npm test        # 4 个测试文件（配置、目录/排名/格式化、会议持久化、页面与 API）
+```
+
+测试不依赖网络与真实凭据。手动真实模型探针位于 `test/manual/`，会消耗 token，默认不参与 `npm test`；配置方式见 [test/manual/README.md](test/manual/README.md)。
+
+```text
+lib/copy.js      中英文案 + locale 探测
+lib/core.js      目录聚合、自动选桌、排名、格式化/导出、配置校验
+lib/prompts.js   四阶段提示词 + 紧凑排名/纯文本裁决兜底 + JSON Schema
+lib/engine.js    圆桌引擎：子 Agent 调度、四阶段流水线、事件钩子、失败降级
+lib/meetings.js  会议管理器：校验、落盘、进度、取消、崩溃恢复、导出
+lib/api.js       /api/roundtable/* 路由 + JSON 信封
+lib/index.js     插件 apply：命令、工具、生命周期接线
+lib/client.js    独立页面 + 左栏入口 + commandview
+```
+
+---
+
+## English summary
+
+`dsh-simroundtable` is a DeepSeek Harness plugin that seats models from different providers at one table: independent answers → peer revision → anonymous review → a final arbiter. It ships as a `/roundtable` command, a `roundtable` model tool, and a dedicated Web page with live progress, history, cancellation and Markdown export. Meetings are persisted per workspace under `.roundtable/`; nothing leaves the machine.
+
+Requires DSH `>= 0.2.1-rc.4` (web profile) and Node `>= 20`. Install the folder as a DSH bundle, then toggle the plugin off/on; if the Web entry does not appear, restart DSH once.
+
+## License
+
+[MIT](LICENSE)

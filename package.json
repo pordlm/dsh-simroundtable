@@ -1,0 +1,58 @@
+{
+  "name": "dsh-simroundtable",
+  "version": "0.2.1",
+  "type": "module",
+  "description": "Cross-provider roundtable for DeepSeek Harness: independent answers, peer revision, anonymous review, and a final arbiter — as a command, a model tool, and a dedicated Web page.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pordlm/dsh-simroundtable.git"
+  },
+  "homepage": "https://github.com/pordlm/dsh-simroundtable#readme",
+  "keywords": [
+    "dsh",
+    "deepseek-harness",
+    "plugin",
+    "roundtable",
+    "multi-agent",
+    "llm",
+    "review",
+    "arbitration"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "lib/*.js",
+    "locale/*.json",
+    "icon.svg",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "check": "node --check lib/index.js && node --check lib/client.js && node --check lib/engine.js && node --check lib/meetings.js",
+    "test": "node --test test/core.test.mjs test/apply.test.mjs test/meetings.test.mjs test/client.test.mjs"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-chat"
+      ]
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh-llm": ">=0.2.1-rc.4"
+  }
+}
