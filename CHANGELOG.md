@@ -4,6 +4,34 @@ All notable changes to this project. The format loosely follows
 [Keep a Changelog](https://keepachangelog.com/), and the project uses semantic
 versioning.
 
+## 0.5.0
+
+- Round-table stage: the meeting detail page now shows a long-table Live2D
+  scene above the transcript. Seats follow the answerer roster (up to 8), the
+  member who is currently answering performs the shared "speaking" motion while
+  everyone else idles on their own randomized rhythm, and a speech bubble shows
+  that member's latest answer (cleaned and truncated to 80 characters). Clicking
+  a nameplate switches the bubble to that seat. The model's built-in `idle` and
+  every prop motion are suppressed — `c_0120` only exposes visual changes on
+  `ParamAngle*` / `ParamBodyAngle*`, so speaking is conveyed by nod/lean + bubble.
+- New `lib/stage.js`: because plugins get no static directory URL, stage assets
+  are served through exact Connection fetch routes under
+  `/api/roundtable/stage/*` (three runtime scripts, table/chair art, moc3,
+  physics3, textures) plus a server-side trimmed `model3.json` that drops
+  motions, expressions and display info. Binaries are cached for a week, the
+  descriptor is `no-store`.
+- The stage is laid out in fixed 760×430 design units (the detail column is
+  760 px wide) and scaled down with `transform` below that, so nameplates stay
+  readable; seat spacing keeps a deliberate gap between chairs and characters.
+- `preview/longtable.html`: chairs and characters are no longer squeezed
+  edge-to-edge — spacing now budgets a gap from the slot width
+  (`gapChair ≈ 0.13·step`, `gapChar ≈ 0.06·step`), fixing the 8-seat layout
+  where chairs used to overlap into one dark plank.
+- New `test/stage.test.mjs` and matching route-list updates in
+  `test/apply.test.mjs` / `test/meetings.test.mjs` (45 tests total);
+  `npm run check` now also checks `lib/api.js` and `lib/stage.js`.
+- `package.json` `files` now ships `assets/table-long.png` and `assets/chairs/`.
+
 ## 0.4.0
 
 - License changed from MIT to **GPL-3.0-or-later** for the code; terms for the
