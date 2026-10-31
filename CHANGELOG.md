@@ -4,6 +4,22 @@ All notable changes to this project. The format loosely follows
 [Keep a Changelog](https://keepachangelog.com/), and the project uses semantic
 versioning.
 
+## Unreleased
+
+- Stage frame is no longer a fixed 760×430: `stageLayout()` derives the height
+  from the seat count (438 px at two seats, 318 px at eight) and grows the
+  characters as the row gets crowded, letting hair and shoulders touch from five
+  seats on. Eight seats used to be 99 px people on a 430 px frame with half of
+  it empty; they are now 125 px people on a 318 px frame, and the table band
+  follows the character height so people stay about 1.1x the desk tall at any
+  seat count.
+- Nameplates at narrow seats (step < 130 px) now show the model name only, at
+  9 px with the colour dot dropped, so eight real model names fit instead of
+  being cut to `DeepSee…`; the full `model · provider` label stays in the
+  tooltip and in the bubble header.
+- Bubbles at crowded tables get wider instead of shorter (184–236 px, four
+  lines at 10.5 px), and are clamped inside the frame.
+
 ## 0.5.0
 
 - Round-table stage: the meeting detail page now shows a long-table Live2D

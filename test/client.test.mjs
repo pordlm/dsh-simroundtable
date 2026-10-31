@@ -1032,4 +1032,35 @@ const plateText = (node) => {
   assert.equal(plateText(plates[1]), "model-1-long · prov1", "wide plates keep the provider suffix");
 }
 
+{
+  // Adaptive height: a crowded table gets a shorter frame and bigger people,
+  // instead of the same 430px frame with half of it empty above the heads.
+  const frameHeight = (count) => {
+    resetStore({ view: "detail", detailId: `stage-${count}`, detailState: "ready", meeting: stageMeeting(count) });
+    const tree = page();
+    const frame = findAll(tree, (n) => n.props && n.props["data-roundtable-stage-frame"])[0];
+    assert.ok(frame, `frame rendered for ${count} seats`);
+    return Number(String(frame.props.style.height).replace("px", ""));
+  };
+  const two = frameHeight(2);
+  const eight = frameHeight(8);
+  assert.ok(two >= 420, `two seats keep a tall frame (${two})`);
+  assert.ok(eight <= 340 && eight >= 280, `eight seats fit a short frame (${eight})`);
+  assert.ok(eight < two, "the frame shrinks as seats are added");
+}
+
+{
+  // The compact frame must still hold the widest bubble it can produce.
+  const live = stageMeeting(8);
+  live.status = "running";
+  live.transcript[0] = { ...live.transcript[0], text: "" }; // in flight → speaking
+  resetStore({ view: "detail", detailId: "stage-8", detailState: "ready", meeting: live });
+  const tree = page();
+  const bubble = findAll(tree, (n) => n.props && n.props["data-roundtable-bubble"])[0];
+  assert.ok(bubble, "the active seat shows a bubble");
+  const top = Number(String(bubble.props.style.top).replace("px", ""));
+  assert.ok(top >= 4, `bubble stays inside the frame (top ${top})`);
+  assert.equal(bubble.props.style.fontSize, "10.5px", "compact bubbles use the smaller type");
+}
+
 console.log("client.test.mjs: all assertions passed");

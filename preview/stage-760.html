@@ -2,11 +2,11 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<title>stage 760×430 harness</title>
+<title>stage 760 harness (adaptive height)</title>
 <style>
   html,body{margin:0;background:#0b0f18;color:#e8eef8;font:14px/1.5 "Segoe UI","Microsoft YaHei",sans-serif}
-  #host{position:relative;width:760px;height:430px;overflow:hidden;background:#0a0d14;display:flex;justify-content:center}
-  #inner{position:relative;flex:0 0 auto;width:760px;height:430px;transform-origin:50% 0;
+  #host{position:relative;width:760px;overflow:hidden;background:#0a0d14;display:flex;justify-content:center}
+  #inner{position:relative;flex:0 0 auto;width:760px;transform-origin:50% 0;
     background:radial-gradient(120% 90% at 50% 0%,#1a2333 0%,#121826 45%,#0a0d14 100%);overflow:hidden}
   .plate{position:absolute;transform:translate(-50%,0);padding:2px 8px;border-radius:999px;
     background:rgba(10,15,24,.74);border:1px solid rgba(140,170,220,.28);color:#cfe0ff;font-size:10.5px;
@@ -24,38 +24,46 @@
 </head>
 <body>
 <div id="host"><div id="inner">
-  <div id="canvasLayer" style="position:absolute;left:0;top:0;width:760px;height:430px;pointer-events:none"></div>
+  <div id="canvasLayer" style="position:absolute;left:0;top:0;width:760px;pointer-events:none"></div>
 </div></div>
 <script src="../assets/vendor/live2dcubismcore.min.js"></script>
 <script src="../assets/vendor/pixi.min.js"></script>
 <script src="../assets/vendor/cubism4.min.js"></script>
 <script>
-const W=760,H=430,TABLE_TOP=273,TABLE_H=168,BASE_Y=312,ASPECT=.85,MARGIN=22;
+const W=760,ASPECT=.85,MARGIN=22;
+const H_MAX=440,H_MIN=280,TOP_PAD_RATIO=.66,TOP_PAD_MIN=122,PLATE_GAP=39,TABLE_RATIO=.88;
 const HUES=["#4da3ff","#7d6bff","#ff9d4d","#3ddc97","#ff6b8a","#5ad2e6","#c084fc","#f5c542"];
 const PHONE_PARTS=["Part106","Part6","Part107"];
 const PHONE_PARAMS=["phone","phone2","phone3","phone4","phone5","phone6","phone7","phone8"];
-const NAMES={2:["DeepSeek-V3.2","Qwen3-Max"],3:["DeepSeek-V3.2","Qwen3-Max","Kimi-K2"],8:["DeepSeek-V3.2","Qwen3-Max","GLM-4.6","Kimi-K2","Claude","GPT","Gemini","Doubao"]};
+const NAMES={2:["DeepSeek-V3.2","Qwen3-Max"],3:["DeepSeek-V3.2","Qwen3-Max","Kimi-K2"],
+  5:["DeepSeek-V3.2","Qwen3-Max","GLM-4.6","Kimi-K2","Doubao"],
+  8:["DeepSeek-V3.2","Qwen3-Max","GLM-4.6","Kimi-K2","Claude","GPT","Gemini","Doubao"]};
 
 function layout(count){
   const usable=W-MARGIN*2, step=usable/count;
   const gapChair=Math.round(Math.max(4,Math.min(26,step*.13)));
   const gapChar=Math.round(Math.max(2,Math.min(14,step*.06)));
-  const charSlot=step-gapChar, maxH=200-count*11;
-  const charH=Math.round(Math.max(96,Math.min(maxH,charSlot/ASPECT)));
+  const overlap=count>=6?.24:count>=5?.12:0;
+  const widthBudget=step-gapChar+step*overlap, heightCap=200-count*6;
+  const charH=Math.round(Math.max(96,Math.min(widthBudget/ASPECT,heightCap)));
+  const topPad=Math.max(Math.round(charH*TOP_PAD_RATIO),TOP_PAD_MIN);
+  const baseY=topPad+charH, tableTop=baseY-PLATE_GAP, tableH=Math.round(charH*TABLE_RATIO);
+  const stageH=Math.round(Math.max(H_MIN,Math.min(H_MAX,tableTop+tableH)));
   const xs=[];for(let i=0;i<count;i++)xs.push(MARGIN+step*(i+.5));
   const chairW=Math.round(Math.min((charH*1.15*2)/3,step-gapChair));
-  return {count,step,xs,charH,chairW,chairH:Math.round(chairW*1.5)};
+  return {count,step,xs,charH,chairW,chairH:Math.round(chairW*1.5),topPad,baseY,tableTop,tableH,stageH,
+    wideBubble:count>=6,bubbleLines:count>=6?4:5};
 }
 function wobble(){return{bobPeriod:3000+Math.random()*2200,bobAmp:1.1+Math.random()*1.3,swayPeriod:4200+Math.random()*3200,
   swayAmp:.7+Math.random()*1.1,turnPeriod:5200+Math.random()*4800,turnAmp:2.2+Math.random()*4,phase:Math.random()*Math.PI*2};}
-function frame(models,wobbles,t,active){
+function frame(models,wobbles,t,active,baseY){
   for(let i=0;i<models.length;i++){const m=models[i];if(!m)continue;const w=wobbles[i];const sp=i===active;
     let nod,lean,turn,breath;
     if(sp){const s=t/1000;nod=7*Math.sin(s*3.1);lean=3.2*Math.sin(s*1.55);turn=1.5*Math.sin(s*1.1);
-      breath=.5+.5*Math.sin(s*1.7);m.y=BASE_Y-3;m.rotation=0;}
+      breath=.5+.5*Math.sin(s*1.7);m.y=baseY-3;m.rotation=0;}
     else{nod=1.4*Math.sin(t/w.bobPeriod+w.phase*.7);lean=w.swayAmp*Math.sin(t/w.swayPeriod+w.phase);
       turn=w.turnAmp*Math.sin(t/w.turnPeriod+w.phase*1.7);breath=.5+.5*Math.sin(t/w.bobPeriod+w.phase);
-      m.y=BASE_Y+Math.sin(t/w.bobPeriod+w.phase)*w.bobAmp;m.rotation=Math.sin(t/(w.swayPeriod*.8)+w.phase)*.003;}
+      m.y=baseY+Math.sin(t/w.bobPeriod+w.phase)*w.bobAmp;m.rotation=Math.sin(t/(w.swayPeriod*.8)+w.phase)*.003;}
     try{const core=m.internalModel.coreModel;
       core.setParameterValueById('ParamAngleX',turn);core.setParameterValueById('ParamAngleY',nod);
       core.setParameterValueById('ParamBodyAngleZ',lean);core.setParameterValueById('ParamMouthOpenY',0);
@@ -77,17 +85,20 @@ function dropPhone(m){
   const active=Number(q.has('active')?q.get('active'):0);
   const topic=q.get('topic')||'如果模型可以投票，谁最适合做这个项目的技术负责人？';
   const text=q.get('text')||'我倾向先定义清楚「技术负责人」的产出，再谈人选：接口层稳定、评审意见能落地、出事敢背锅，这三条比模型名气重要得多。';
-  const L=layout(count), xs=L.xs, charH=L.charH;
+  const L=layout(count), xs=L.xs, charH=L.charH, H=L.stageH, baseY=L.baseY;
   const inner=document.getElementById('inner');
+  const host=document.getElementById('host');
+  host.style.height=H+'px';inner.style.height=H+'px';
+  document.getElementById('canvasLayer').style.height=H+'px';
   const names=NAMES[count]||NAMES[8];
 
   const chairLayer=document.createElement('div');
-  chairLayer.style.cssText='position:absolute;left:0;top:0;width:760px;height:430px;pointer-events:none';
+  chairLayer.style.cssText=`position:absolute;left:0;top:0;width:760px;height:${H}px;pointer-events:none`;
   inner.insertBefore(chairLayer, document.getElementById('canvasLayer'));
   xs.forEach((x,i)=>{
     const img=document.createElement('img');
     img.src='../assets/chairs/chair-long-back.png';
-    img.style.cssText=`position:absolute;left:${Math.round(x-L.chairW/2)}px;top:${BASE_Y-Math.round(L.chairH*.78)}px;`
+    img.style.cssText=`position:absolute;left:${Math.round(x-L.chairW/2)}px;top:${baseY-Math.round(L.chairH*.78)}px;`
       +`width:${L.chairW}px;opacity:.92;filter:brightness(.58) saturate(.75);pointer-events:none`;
     chairLayer.appendChild(img);
   });
@@ -98,35 +109,40 @@ function dropPhone(m){
   document.getElementById('canvasLayer').appendChild(app.view);
 
   const table=document.createElement('div');
-  table.style.cssText=`position:absolute;left:0;top:${TABLE_TOP}px;width:${W}px;height:${TABLE_H}px;`
+  table.style.cssText=`position:absolute;left:0;top:${L.tableTop}px;width:${W}px;height:${L.tableH}px;`
     +`background:url("../assets/table-long.png") center/100% 100% no-repeat;`
     +`filter:drop-shadow(0 14px 18px rgba(0,0,0,.5));pointer-events:none`;
   inner.appendChild(table);
 
   const tt=document.createElement('div');
-  tt.style.cssText=`position:absolute;left:220px;top:${TABLE_TOP+64}px;width:320px;text-align:center;`
+  tt.style.cssText=`position:absolute;left:220px;top:${L.tableTop+Math.round(L.tableH*.41)}px;width:320px;text-align:center;`
     +`color:#f3ead8;text-shadow:0 2px 10px rgba(0,0,0,.65);pointer-events:none`;
   tt.innerHTML=`<div style="font-size:9px;letter-spacing:.32em;color:#c9a86a;font-weight:600;margin-bottom:3px">TOPIC</div>`
     +`<div style="font-size:12.5px;line-height:1.55;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${topic}</div>`;
   inner.appendChild(tt);
 
-  const bubbleW=Math.round(Math.min(206,Math.max(150,L.step*1.5)));
+  const bubbleW=L.wideBubble?Math.round(Math.max(184,Math.min(236,L.step*2.2)))
+    :Math.round(Math.min(206,Math.max(150,L.step*1.5)));
   xs.forEach((x,i)=>{
     const p=document.createElement('div');
     p.className='plate';
-    p.style.left=x+'px';p.style.top=(TABLE_TOP+4)+'px';p.style.maxWidth=Math.round(L.step-12)+'px';p.style.boxSizing='border-box';
+    p.style.left=x+'px';p.style.top=(baseY-35)+'px';p.style.maxWidth=Math.round(L.step-12)+'px';p.style.boxSizing='border-box';
     if(i===active)p.style.borderColor=HUES[i%8],p.style.color='#fff';
-    if(L.step<130)p.style.fontSize='9.5px';
-    const plateLabel=L.step<130?String(names[i]).split('·')[0].trim():names[i];
-    p.innerHTML=`<span class="dot" style="background:${HUES[i%8]}"></span><span style="overflow:hidden;text-overflow:ellipsis">${plateLabel}</span>`;
+    const narrow=L.step<130;
+    if(narrow)p.style.fontSize='9px',p.style.padding='2px 6px';
+    const plateLabel=narrow?String(names[i]).split('·')[0].trim():names[i];
+    const dot=narrow?'':`<span class="dot" style="background:${HUES[i%8]}"></span>`;
+    p.innerHTML=dot+`<span style="overflow:hidden;text-overflow:ellipsis">${plateLabel}</span>`;
     inner.appendChild(p);
 
     if(i===active){
       const left=Math.max(bubbleW/2+6,Math.min(W-bubbleW/2-6,x));
       const b=document.createElement('div');
       b.className='bubble';
-      b.style.left=Math.round(left)+'px';b.style.top=(BASE_Y-charH-22)+'px';b.style.width=bubbleW+'px';
-      b.innerHTML=`<div class="who">${names[i]}</div><div class="body">${text}</div>`;
+      b.style.left=Math.round(left)+'px';b.style.top=Math.max(4,L.topPad-22)+'px';b.style.width=bubbleW+'px';
+      if(L.wideBubble)b.style.fontSize='10.5px',b.style.lineHeight='1.45';
+      b.innerHTML=`<div class="who">${names[i]}</div>`
+        +`<div class="body" style="-webkit-line-clamp:${L.bubbleLines}">${text}</div>`;
       inner.appendChild(b);
     }
   });
@@ -134,16 +150,22 @@ function dropPhone(m){
   const models=[],wobbles=xs.map(()=>wobble());
   await Promise.all(xs.map(async(x,i)=>{
     const m=await PIXI.live2d.Live2DModel.from('../assets/models/whale-girl/c_0120.model3.json',{autoInteract:false,autoUpdate:true});
-    m.scale.set(charH/m.height);m.anchor.set(.5,1);m.position.set(x,BASE_Y);m.zIndex=i;
+    m.scale.set(charH/m.height);m.anchor.set(.5,1);m.position.set(x,baseY);m.zIndex=i;
     app.stage.addChild(m);dropPhone(m);models[i]=m;
   }));
   const t0=performance.now();
-  const tick=()=>frame(models,wobbles,performance.now()-t0,active);
+  const tick=()=>frame(models,wobbles,performance.now()-t0,active,baseY);
   tick();app.ticker.add(tick);
 
   requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    const plateRects=[...inner.querySelectorAll('.plate')].map(p=>{const r=p.getBoundingClientRect();
+      return [Math.round(r.left),Math.round(r.right),Math.round(r.width)];});
+    const bubble=inner.querySelector('.bubble');
+    const br=bubble?bubble.getBoundingClientRect():null;
     document.body.dataset.debug=JSON.stringify({count,active,step:Math.round(L.step),charH,chairW:L.chairW,chairH:L.chairH,
-      bubbleW,xs:xs.map(Math.round),plateTops:xs.map((x,i)=>[Math.round(x),TABLE_TOP+4])});
+      stageH:H,topPad:L.topPad,baseY,tableTop:L.tableTop,tableH:L.tableH,bubbleW,
+      bubbleRect:br?[Math.round(br.top),Math.round(br.bottom),Math.round(br.left),Math.round(br.right)]:null,
+      plates:plateRects,xs:xs.map(Math.round)});
     window.__ready=true;
   }));
 })().catch(e=>{document.body.dataset.error=e.message;console.error(e)});
