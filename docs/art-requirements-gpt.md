@@ -347,5 +347,44 @@ python assets\_raw\build_gpt_model.py --parts assets\build\gpt-p2l\parts --out a
   只剩一条弧线，肉眼读作闭眼。
 - 当前 build：`{layers: 24, drawables: 29, deformers: 26, parameters: 20, atlasPages: 6}`，psd2live exit=0 / ~9s。
 
-仍缺：眉毛（母图没画，`eyebrow-l/-r` 是空层被跳过）、`mouth_open` 还是脚本画的占位（深红腔 +
-上排牙 + 舌），要不要重画由你定。
+眉毛与张口（母图都没有现成像素，都是脚本画的）：
+
+- `eyebrow-l/-r`：位置由睫毛实测 bbox 推——`base_y = lash_top − 26`，拱高 `0.16 × 眉长`，
+  朝向由"眼睛在内侧还是外侧"决定（`sign = -1 if eye_cx < face_cx else 1`，`face_cx = 1135`），
+  颜色 = 睫毛色 ×0.40 + 肤色 ×0.60、alpha ×0.72、0.6px 高斯。一次画成灰横条（太直太粗）和
+  一次把内外侧画反，都返工过。
+- `mouth_open`：中心 (1147,1016)、**40×54** 的蛋形（母图嘴只有 29×10，张口按"一个括号"的大小做，
+  不能再大——GPT 那版张口宽 123 是闭嘴的 3.5 倍，直接糊了半张脸）。
+
+## 10. 眼睛最终形态：**一张，不拆**
+
+拆成 `eyelash` + `irides` + `eyewhite` 三层的成品会读成"墨镜"：一条深色横棒浮在蓝色杏仁上方、
+两端还伸出翅膀。原因是母图的深色墨是**一整个包裹虹膜的厚杏仁**（沿上缘和外眼角一直包到虹膜下方），
+按"上睫毛"去截只能得到横棒。定稿做法：
+
+- `eye_alpha = max(lash_alpha, iris_alpha)`，再补眼睛周围 10px 内的**非肤色像素**
+  （`(b − r) >= -8`；肤色 b−r ≈ −29）。母图的眼白和眼下高光是近白（(960,900) 处就是 255,255,255），
+  既不是"暗"也不是"蓝"，不按这个条件补就会被丢掉 → 眼窝露皮肤，像玻璃假眼。
+- 只保留**最大的两个**连通块。按每只眼扩边框补色时，两条眼之间的蓝发丝会混进来（实测一个 947px 的
+  碎块），分左右后会被分到错误的一侧。
+- 底部近白的渐变要**削掉低 alpha**：`clip((a − 0.34) / 0.60)`，否则半透明白压在肤色上就是一圈苍白环。
+- 结果写进 `eyelash.png`（`-l`/`-r` 由 ingest 按连通块切），`irides.png` / `eyewhite.png` 留**全透明**，
+  PSD2Live 会跳过空层；`prep_parts_gpt.py` 的 PARTS 里也删掉了这两项。
+- 验收方式：抽样点对比（母图 vs 合成像素全等，误差 0），以及 `preview/_eye4x.png`（4× 上下对照）。
+
+## 11. 接进长桌舞台
+
+`preview/longtable.html` 里加了一张按名字查的模型表：
+
+```js
+const MODELS = {
+  GPT: { url: '../assets/build/gpt-p2l/p2l/gpt.model3.json', faceDx: 111, scale: 0.95 }
+};
+```
+
+- `faceDx: 111`：母图脸中心在 x=1135，比画布中线偏右 111px，`anchor(0.5,1)` 会让脸看着歪，
+  按 `-111 × seatH / 2048` 反向补偿。
+- `scale: 0.95`：这是半身像，头占画布 57%（鲸鱼娘的全身像只有 ~31%）。再缩小下巴就会掉到桌沿以下
+  （`下巴屏幕 y = 668 − 96.8 × scale`，桌沿 ≈585，所以要 > 0.91）；不缩小又比邻居大一号。
+- 舞台其余逻辑（呼吸/点头/发言）不用改：GPT 模型的 `ParamAngleX/Y/Z`、`ParamBodyAngleZ`、
+  `ParamMouthOpenY` 都真绑定了几何，比鲸鱼娘（嘴参数无效）反而更完整。

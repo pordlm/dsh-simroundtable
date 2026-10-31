@@ -66,6 +66,17 @@ const TABLE_TOP = 600;
 const BASE_Y = 668;               // 脚底基线，桌沿以下的部分被桌面遮住
 const NAMES = ["DeepSeek", "Qwen", "GLM", "Kimi", "Claude", "GPT", "Gemini", "Doubao"];
 const HUES  = ["#4da3ff", "#7d6bff", "#ff9d4d", "#3ddc97", "#ff6b8a", "#5ad2e6", "#c084fc", "#f5c542"];
+// 个别座位可以换自己的模型；没列出的座位继续用鲸鱼娘 c_0120
+const MODELS = {
+  GPT: {
+    url: '../assets/build/gpt-p2l/p2l/gpt.model3.json',
+    // 母图的脸中心在 x=1135（画布中线 1024 偏右 111px），anchor(0.5,1) 会让脸看着歪
+    faceDx: 111,
+    // 半身像：头占画布 57%（鲸鱼娘全身像只有 ~31%），略有缩小才和邻居齐平；
+    // 再小下巴就会掉到桌沿以下，所以 0.95 是"头不显得大 / 嘴还露在桌上"的折中
+    scale: 0.95
+  }
+};
 const LINES = [
   "我倾向先定义清楚「技术负责人」的产出，再谈人选。",
   "这个项目的瓶颈在联调，谁愿意盯日志谁上。",
@@ -170,10 +181,16 @@ window.addEventListener('resize', fit);
   let loaded = 0;
   await Promise.all(seats.map(async s => {
     try {
-      const model = await PIXI.live2d.Live2DModel.from('../assets/models/whale-girl/c_0120.model3.json', { autoInteract: false, autoUpdate: !freeze });
-      model.scale.set(charH / model.height);
+      const seatCfg = MODELS[NAMES[s.i % 8]] || {};
+      const modelUrl = seatCfg.url || '../assets/models/whale-girl/c_0120.model3.json';
+      const seatH = charH * (seatCfg.scale || 1);
+      const model = await PIXI.live2d.Live2DModel.from(modelUrl, { autoInteract: false, autoUpdate: !freeze });
+      model.scale.set(seatH / model.height);
       model.anchor.set(0.5, 1);
-      model.position.set(s.x, BASE_Y);
+      // 脸不在画布中线时按 1:1 像素补偿，让脸回到座位正中
+      const faceDx = seatCfg.faceDx ? -seatCfg.faceDx * (seatH / model.height) : 0;
+      s.faceDx = faceDx;
+      model.position.set(s.x + faceDx, BASE_Y);
       model.zIndex = s.i;
       app.stage.addChild(model);
       if (keepIdle) model.motion('idle');
