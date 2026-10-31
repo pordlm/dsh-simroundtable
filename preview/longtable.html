@@ -72,9 +72,10 @@ const MODELS = {
     url: '../assets/build/gpt-p2l/p2l/gpt.model3.json',
     // 母图的脸中心在 x=1135（画布中线 1024 偏右 111px），anchor(0.5,1) 会让脸看着歪
     faceDx: 111,
-    // 半身像：头占画布 57%（鲸鱼娘全身像只有 ~31%），略有缩小才和邻居齐平；
-    // 再小下巴就会掉到桌沿以下，所以 0.95 是"头不显得大 / 嘴还露在桌上"的折中
-    scale: 0.95
+    // 半身像：头占画布 57%（鲸鱼娘全身像只有 ~31%），0.85 才和邻居齐平；
+    // 缩小后下巴会掉到桌沿以下，所以再整体上提 25px 补回来
+    scale: 0.85,
+    dy: -25
   }
 };
 const LINES = [
@@ -102,9 +103,13 @@ window.addEventListener('resize', fit);
   const keepIdle = q.get('idle') === '1';
   const keepPhones = q.get('phones') === '1';
   const freeze = q.get('freeze') === '1';
+  // 调试用：只加载指定座位的模型（8 个模型一起加载会拖慢无头截图）
+  const soloSeat = q.has('solo') ? Number(q.get('solo')) : null;
   const noChairs = q.get('nochairs') === '1';
   const count = Math.max(2, Math.min(8, Number(q.get('n') || 8)));
   const app = new PIXI.Application({ view: document.getElementById('seats'), width: STAGE_W, height: STAGE_H, backgroundAlpha: 0, antialias: true });
+  // 模型是并发加载的，不排序的话 zIndex 无效，相邻座位的尾巴会盖到别人脸上
+  app.stage.sortableChildren = true;
   const chairs = document.getElementById('chairs');
   const plates = document.getElementById('plates');
   const bubbles = document.getElementById('bubbles');
@@ -181,16 +186,20 @@ window.addEventListener('resize', fit);
   let loaded = 0;
   await Promise.all(seats.map(async s => {
     try {
+      if (soloSeat !== null && s.i !== soloSeat) { loaded++; return; }
       const seatCfg = MODELS[NAMES[s.i % 8]] || {};
       const modelUrl = seatCfg.url || '../assets/models/whale-girl/c_0120.model3.json';
       const seatH = charH * (seatCfg.scale || 1);
       const model = await PIXI.live2d.Live2DModel.from(modelUrl, { autoInteract: false, autoUpdate: !freeze });
-      model.scale.set(seatH / model.height);
+      const modelH = model.height;                 // 2048: 必须在 scale 之前读，之后读到的是缩放后的值
+      const k = seatH / modelH;
+      model.scale.set(k);
       model.anchor.set(0.5, 1);
       // 脸不在画布中线时按 1:1 像素补偿，让脸回到座位正中
-      const faceDx = seatCfg.faceDx ? -seatCfg.faceDx * (seatH / model.height) : 0;
+      const faceDx = seatCfg.faceDx ? -seatCfg.faceDx * k : 0;
       s.faceDx = faceDx;
-      model.position.set(s.x + faceDx, BASE_Y);
+      s.baseY = BASE_Y + (seatCfg.dy || 0);
+      model.position.set(s.x + faceDx, s.baseY);
       model.zIndex = s.i;
       app.stage.addChild(model);
       if (keepIdle) model.motion('idle');
@@ -209,6 +218,16 @@ window.addEventListener('resize', fit);
     } catch (e) { console.error('load failed', s.i, e); }
   }));
   document.getElementById('status').textContent = `模型 ${loaded}/${count} · 角色高 ${charH}px`;
+  if (q.get('debug') === '1') {
+    const d = document.createElement('div');
+    d.style.cssText = 'position:absolute;left:8px;top:8px;z-index:30;font:11px/1.5 monospace;color:#9fe;background:rgba(0,0,0,.6);padding:6px;max-width:1380px;white-space:pre-wrap';
+    d.textContent = `charH=${charH}\n` + seats.map(s => {
+      if (!s.model) return `${s.i} x=${Math.round(s.x)} (no model)`;
+      const b = s.model.getBounds();
+      return `${s.i} x=${Math.round(s.x)} mx=${Math.round(s.model.x)} baseY=${Math.round(s.baseY)} b=[${Math.round(b.left)}..${Math.round(b.right)}] w=${Math.round(b.width)}`;
+    }).join('\n');
+    document.getElementById('stage').appendChild(d);
+  }
 
   const t0 = performance.now();
   let frames = 0, lastFps = t0;
@@ -235,7 +254,7 @@ window.addEventListener('resize', fit);
         lean = 3.2 * Math.sin(sp * 1.55);
         turn = 1.5 * Math.sin(sp * 1.1);
         breath = 0.5 + 0.5 * Math.sin(sp * 1.7);
-        s.model.y = BASE_Y - 3;
+        s.model.y = (s.baseY ?? BASE_Y) - 3;
         s.model.rotation = 0;
       } else {
         // 待机：随机呼吸/摇摆/转头，每人节奏不同，避免整齐划一
@@ -243,7 +262,7 @@ window.addEventListener('resize', fit);
         lean = w.swayAmp * Math.sin(t / w.swayPeriod + w.phase);
         turn = w.turnAmp * Math.sin(t / w.turnPeriod + w.phase * 1.7);
         breath = 0.5 + 0.5 * Math.sin(t / w.bobPeriod + w.phase);
-        s.model.y = BASE_Y + Math.sin(t / w.bobPeriod + w.phase) * w.bobAmp;
+        s.model.y = (s.baseY ?? BASE_Y) + Math.sin(t / w.bobPeriod + w.phase) * w.bobAmp;
         s.model.rotation = Math.sin(t / (w.swayPeriod * 0.8) + w.phase) * 0.003;
       }
 

@@ -378,13 +378,25 @@ python assets\_raw\build_gpt_model.py --parts assets\build\gpt-p2l\parts --out a
 
 ```js
 const MODELS = {
-  GPT: { url: '../assets/build/gpt-p2l/p2l/gpt.model3.json', faceDx: 111, scale: 0.95 }
+  GPT: {
+    url: '../assets/build/gpt-p2l/p2l/gpt.model3.json',
+    faceDx: 111,   // 母图脸中心 x=1135，比画布中线偏右 111
+    scale: 0.85,   // 半身像比全身像的头大得多，要缩一档
+    dy: -25        // 缩完下巴会掉到桌沿以下，整体上提
+  }
 };
 ```
 
-- `faceDx: 111`：母图脸中心在 x=1135，比画布中线偏右 111px，`anchor(0.5,1)` 会让脸看着歪，
-  按 `-111 × seatH / 2048` 反向补偿。
-- `scale: 0.95`：这是半身像，头占画布 57%（鲸鱼娘的全身像只有 ~31%）。再缩小下巴就会掉到桌沿以下
-  （`下巴屏幕 y = 668 − 96.8 × scale`，桌沿 ≈585，所以要 > 0.91）；不缩小又比邻居大一号。
+- `faceDx`：按 `-111 × seatH / 2048` 反向补偿。**坑**：`model.height` 在 `scale.set()` 之后
+  读到的已经是缩放后的值，所以必须先 `const modelH = model.height;` 再算 `k = seatH / modelH`，
+  否则补偿量会被算成整整 111px（实测脸直接偏掉一个座位）。
+- `scale: 0.85`：头占画布 57%（鲸鱼娘全身像只有 ~31%）。n=8 时 `charH=182`，`seatH≈155`，
+  `下巴屏幕 y = baseY − 96.8 × 0.85 ≈ 561`，桌沿 ≈585 → 还留 24px 给下巴和嘴；
+  再小就整张脸埋到桌子后面（`scale` 0.58 实测只剩眼睛以上）。
+- `dy: -25`：缩小后下巴会正好压在桌沿上，整体上提 25px 补回来。
+- 另外加了 `app.stage.sortableChildren = true`：模型是 `Promise.all` 并发加载的，
+  不开排序 `zIndex` 无效，相邻座位的尾巴会盖到别人脸上。
+- 调试参数：`?solo=<座位号>` 只加载一个模型（8 个 4096 atlas 一起加载会把无头截图拖到超时）、
+  `?debug=1` 在左上角打出每个座位的 `x / mx / baseY / bounds`。
 - 舞台其余逻辑（呼吸/点头/发言）不用改：GPT 模型的 `ParamAngleX/Y/Z`、`ParamBodyAngleZ`、
   `ParamMouthOpenY` 都真绑定了几何，比鲸鱼娘（嘴参数无效）反而更完整。
