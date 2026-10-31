@@ -963,4 +963,73 @@ const COMPLETED_MEETING = {
   assert.ok(JSON.stringify(tree).includes("结论正文"), "the final answer text is in the DOM, not clipped out");
 }
 
+// ---------------------------------------------------------------------------
+// Stage: name plates drop the provider suffix when seats get narrow
+// ---------------------------------------------------------------------------
+function stageMeeting(count) {
+  const members = [];
+  for (let i = 0; i < count; i += 1) {
+    members.push({
+      key: `prov${i}/model-${i}`,
+      role: "answerer",
+      label: `model-${i}-long · prov${i}`,
+      status: "done",
+    });
+  }
+  return {
+    id: `stage-${count}`,
+    topic: "舞台排座",
+    status: "completed",
+    stage: "completed",
+    stageLabel: "已完成",
+    rounds: 1,
+    currentRound: 1,
+    createdAt: "2026-01-01T08:00:00Z",
+    progress: { stageIndex: 4, stageCount: 4, percent: 100, members },
+    transcript: members.map((m, i) => ({
+      seq: i + 1,
+      stage: "answering",
+      role: "answerer",
+      actorKey: m.key,
+      title: `${i + 1} 的回答`,
+      text: `第 ${i + 1} 位的回答正文。`,
+      at: "2026-01-01T08:01:00Z",
+    })),
+    reviews: [],
+    finalAnswer: null,
+    failures: [],
+  };
+}
+
+const plateText = (node) => {
+  const kids = node.props.children;
+  const list = Array.isArray(kids) ? kids : [kids];
+  const last = list[list.length - 1];
+  return String(list.length && last && last.props ? last.props.children : "");
+};
+
+{
+  // 8 seats → step ≈ 89.5 < 130, plates must show only the model name.
+  resetStore({ view: "detail", detailId: "stage-8", detailState: "ready", meeting: stageMeeting(8) });
+  const tree = page();
+  const plates = findAll(tree, (n) => n.props && n.props["data-roundtable-seat"]);
+  assert.equal(plates.length, 8, "eight seats are rendered at the table");
+  for (const [i, plate] of plates.entries()) {
+    const text = plateText(plate);
+    assert.equal(text, `model-${i}-long`, `seat ${i} plate drops the provider suffix`);
+    assert.equal(plate.props.title, `model-${i}-long · prov${i}`, "full label stays in the tooltip");
+  }
+  assert.ok(!JSON.stringify(plates.map((p) => p.props.children)).includes("· prov"), "no provider suffix in narrow plates");
+}
+
+{
+  // 2 seats → step ≈ 358 ≥ 130, plates keep the full label.
+  resetStore({ view: "detail", detailId: "stage-2", detailState: "ready", meeting: stageMeeting(2) });
+  const tree = page();
+  const plates = findAll(tree, (n) => n.props && n.props["data-roundtable-seat"]);
+  assert.equal(plates.length, 2, "two seats rendered");
+  assert.equal(plateText(plates[0]), "model-0-long · prov0", "wide plates keep the provider suffix");
+  assert.equal(plateText(plates[1]), "model-1-long · prov1", "wide plates keep the provider suffix");
+}
+
 console.log("client.test.mjs: all assertions passed");

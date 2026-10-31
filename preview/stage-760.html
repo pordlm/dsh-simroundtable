@@ -116,7 +116,9 @@ function dropPhone(m){
     p.className='plate';
     p.style.left=x+'px';p.style.top=(TABLE_TOP+4)+'px';p.style.maxWidth=Math.round(L.step-12)+'px';p.style.boxSizing='border-box';
     if(i===active)p.style.borderColor=HUES[i%8],p.style.color='#fff';
-    p.innerHTML=`<span class="dot" style="background:${HUES[i%8]}"></span><span style="overflow:hidden;text-overflow:ellipsis">${names[i]}</span>`;
+    if(L.step<130)p.style.fontSize='9.5px';
+    const plateLabel=L.step<130?String(names[i]).split('·')[0].trim():names[i];
+    p.innerHTML=`<span class="dot" style="background:${HUES[i%8]}"></span><span style="overflow:hidden;text-overflow:ellipsis">${plateLabel}</span>`;
     inner.appendChild(p);
 
     if(i===active){
