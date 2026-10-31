@@ -22,3 +22,7 @@ preview/l2d-test/
 .l2d-server.log
 *.psd
 *.p2lrt
+
+# headless Edge scratch profiles
+.edge-gpt/
+.edge-*/
