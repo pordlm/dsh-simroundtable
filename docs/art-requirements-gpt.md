@@ -289,10 +289,14 @@ python assets\_raw\build_gpt_model.py --parts assets\build\gpt-p2l\parts --out a
 
 ### 要交的件（4 张，其中 2 张是"画"不是"套"）
 
+> **现状：这 4 张已经不用你套了。** 睫毛、虹膜由 `assets/_raw/auto_face_parts.py` 直接从母图抠出
+> （暗墨迹框 + 玫蓝掩码 + 1.5px 柔边，无需人工套索），眼白、张口、闭眼由脚本生成。
+> 本节留下的是坐标表和"该长什么样"的标准——母图要是重画，这张表就是重新标定的起点。
+
 | # | 文件名 | 做法 | 要求 |
 |---|---|---|---|
 | 1 | `eyelash.png` | **套索** | 两条上睫毛线（含外眼角往下的飞线）。范围 `[880,795]–[1400,915]`。左右两张一张图即可，我按中线切；注意母图里睫毛与两侧头发相接，套的时候**不要带头发** |
-| 2 | `irides.png` | **套索 + 补画** | 两块蓝色虹膜。套下来后把**被睫毛压住的顶部补成完整圆**（直径 ≈100，圆心先用可见部分的 (998,881)/(1289,861)，补完上缘会到 y≈810）。不补的话眨眼时会露洞 |
+| 2 | `irides.png` | **套索** | 两块蓝色虹膜，**只保留母图上看得见的形状**。顶部被睫毛压住的那一段**绝对不要补成完整圆**：虹膜层压在脸和睫毛之上，补出来的上半圆会直接画到眼皮和脸颊上，实测就是一副"护目镜"（这个坑踩过一次，别再让 GPT 补圆） |
 | 3 | `eyewhite.png` | **画** | 母图的眼白只剩眼角一丝白，全部套下来不够用。请画两个椭圆垫在虹膜下面，比虹膜大一圈（≈150×110，同中心），颜色接近母图的眼白/眼尾过渡色 |
 | 4 | `mouth_open.png` | **画** | 中心 (1147,1014)，宽 110、高 90 的**横向**张口：深红口腔 + 上排牙。母图是闭嘴，这块没有像素可套 |
 
@@ -315,3 +319,33 @@ python assets\_raw\build_gpt_model.py --parts assets\build\gpt-p2l\parts --out a
 ```
 
 然后刷新 `preview/gpt-model.html`（`?p=EyeLOpen:0,MouthOpenY:1` 可验证眼/嘴绑定）。
+### 9.1 自动抠图 + 闭眼层（当前实况）
+
+```powershell
+python assets\_raw\make_lasso_base.py     # 母图按 manifest transform 落到 2048 透明底
+python assets\_raw\auto_face_parts.py     # 抠 eyelash / irides，生成 eyewhite / mouth_open / eye_close
+python assets\_raw\ingest_lasso.py        # 硬 alpha + 按连通块分左右，写进 parts/
+python assets\_raw\build_gpt_model.py --parts assets\build\gpt-p2l\parts --out assets\build\gpt-p2l
+```
+
+抠图三个必须记住的坑：
+
+1. **提取睫毛时不要加"蓝色排除"**。睫毛压在虹膜上的那一段像素本身偏蓝（b−r≥22），
+   加了蓝色过滤会把内侧半条睫毛整段切掉（实测只剩 `892..956`）。眼球框里比 `lum≤150`
+   暗的就是睫毛，头发是白的，不用再过滤。
+2. **必须按每只虹膜的 bbox 扩边分别抠**。全画布一次性抠会被额头一根深色发丝把两条睫毛
+   焊成一个 463px 连通块，之后分左右就全乱了。
+3. **左右按连通块分，不按 x=1024 硬切**。脸中心在 1135，硬切会把内侧睫毛/虹膜切成两半。
+
+闭眼层 `eye_close`（tag 是 `eye close`，会被 PSD2Live 认成 `eye_close`）：
+
+- 为什么需要：PSD2Live 给这套层生成的 rig **没有眼皮**，`ParamEyeLOpen=0` 只会把眼白/虹膜
+  压扁；母图的眼白几乎不可见，压扁之后瞳孔还留在脸上 → 模型根本不会眨眼。
+- 做法：按虹膜 bbox 扩 10/20/10/8 画一个椭圆，颜色取"睫毛上方肤色 → 眼下方颊色"的竖向渐变，
+  边缘 6px 羽化（硬边会露出一圈亮环）；再把抠出来的睫毛原样盖上去当闭合眼线。
+- 实测：静止（`EyeLOpen=1`）时整层被 rig 隐藏，画面和之前一致；`EyeLOpen=0` 时瞳孔消失、
+  只剩一条弧线，肉眼读作闭眼。
+- 当前 build：`{layers: 24, drawables: 29, deformers: 26, parameters: 20, atlasPages: 6}`，psd2live exit=0 / ~9s。
+
+仍缺：眉毛（母图没画，`eyebrow-l/-r` 是空层被跳过）、`mouth_open` 还是脚本画的占位（深红腔 +
+上排牙 + 舌），要不要重画由你定。
