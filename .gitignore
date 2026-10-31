@@ -6,6 +6,11 @@ dist/
 .DS_Store
 Thumbs.db
 
+# 本机专用：PSD2Live 工具、已安装副本、无头浏览器临时目录
+tools/
+deployed/
+.edge-tmp/
+
 # 开发期素材与构建产物（不入库）
 assets/_raw/
 assets/incoming/
