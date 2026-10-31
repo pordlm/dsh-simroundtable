@@ -88,8 +88,8 @@ D:\dsh_simroundtable\
 | 项 | 值 |
 |---|---|
 | DSH | 0.2.1-rc.4，安装在 `C:\Users\pordl\AppData\Roaming\DSH\data\versions\0.2.1-rc.4` |
-| GUI | http://127.0.0.1:55314 （宿主 2026-10-30 08:58 启动，PID 90320） |
-| profile | `C:\Users\pordl\.dsh\profiles\web\package.json`，`"@local/dsh-roundtable": "link:D:/dsh_simroundtable/deployed/dsh-roundtable"` |
+| GUI | http://127.0.0.1:55314 （宿主 PID 68096，2026-10-31 23:35 启动；token 会随每次启动变化，见第 6 节） |
+| profile | `C:\Users\pordl\.dsh\profiles\web\package.json`，`"dsh-simroundtable": "link:D:/dsh_simroundtable/deployed/dsh-roundtable"`（**键必须是包名，不能用 `@local/...` 别名**，见第 6 节；`node_modules\dsh-simroundtable` 是指向 deployed 的 junction） |
 | Python | `C:\dev\python 3.12.0`（Pillow / numpy / scipy / cv2 / onnxruntime；**rembg 未装**） |
 | PSD2Live | `D:\dsh_simroundtable\tools\psd2live\app\PSD2Live.exe`（自带 JRE） |
 | 旧路径兼容 | `D:\lnu-seat\plugins\dsh-roundtable` 现在是指向 `deployed\dsh-roundtable` 的目录联接（junction），给迁移时正在运行的宿主用；重启后可删 |
@@ -136,6 +136,12 @@ PSD2Live.exe export parts.psd --target png-sequence --set clip=Idle --set fps=10
 - 部件逐件 trim 会丢失共同画布 → 五官错位；必须整张 2048 画布导出（或本机按坐标重排）。
 - 本地脚本不要叫 `inspect.py`，会遮蔽 stdlib 导致 scipy 崩。
 - 插件代码更新后要在官方「插件」页把 dsh-roundtable 关→开（只授权了这个插件）；本实例的 client negative cache 有时需要整机重启。
+- **profile 依赖键必须等于包名**（2026-10-31 踩过）：前端 `lib/client.js` 用 `window.__ModuleLoader__.load({ id: "dsh-simroundtable" })` 注册，而 boot 清单里 entry 的 `name` 来自**插件自带 `cordis.patch.yml` 的 `insert[].name`**（不是 `dsh.profile.bundles`）。迁移时为了兼容旧路径把依赖写成 `"@local/dsh-roundtable": "link:..."` 之后，patch 里的 `name` 仍是别名 → 模块解析失败 → 整个插件被**静默跳过**（无 API 路由、boot 清单里连条目都没有，日志里只有一行 skip）。
+  - 诊断：`C:\Users\pordl\AppData\Roaming\DSH\data\versions\0.2.1-rc.4\node_modules\.bin\dsh.cmd --profile web --dump-config`（用宿主自己的 dsh，别用 PATH 上的旧版），它会直接打印 `dsh: skipping profile bundle "…": Error: …` 以及最终组合树；正确时能看到 `# == dsh-simroundtable` / `- id: dsh-simroundtable` / `  name: dsh-simroundtable`。
+  - 修法：profile `package.json` 依赖键与 `dsh.profile.bundles` 都改回 `dsh-simroundtable`，`node_modules\dsh-simroundtable` 用 junction 指向 deployed，`pnpm-lock.yaml` 同步（或干脆重跑 `pnpm install`），**并且把仓库根正确的 `cordis.patch.yml` 覆盖到 deployed**。改完必须重启应用。
+  - 改完先确认 deployed 与仓库的 `cordis.patch.yml` 一致（曾因 deployed 留着旧拷贝而多折腾两轮重启）。
+- **GUI 的 token 在 `C:\Users\pordl\AppData\Roaming\DSH\manager.log` 里**：每次启动打一行 `[0.2.1-rc.4/web] dsh web: http://127.0.0.1:55314/?token=…`，用 `Select-String -Pattern 'dsh web: http'` 取最后一条即可，不必问用户；同一份日志里还会打 `页面自检：NN 个客户端插件包全部正常`（数目对不上就是有插件没激活）和 `DSH_X_RUNTIME_EVIDENCE`（`rows` 非空即失败条目）。
+- 浏览器里验证插件 UI 可以用自建 CDP 驱动 `tools/cdp.mjs`（`targets | eval | nav | shot | logs`，连 9333），配 `msedge --headless=new --remote-debugging-port=9333 --user-data-dir=D:\dsh_simroundtable\.edge-tmp\<随机> "<带 token 的 URL>"`；PowerShell 传多行 JS 用 here-string（`$js = @' … '@` 再 `node tools\cdp.mjs eval $js`），直接内联引号会被吃掉。
 
 ## 7. 授权（重要）
 
@@ -145,7 +151,7 @@ PSD2Live.exe export parts.psd --target png-sequence --set clip=Idle --set fps=10
 
 ## 8. 下一步（建议顺序）
 
-1. ~~**接入插件**~~ **已完成（0.5.0）**：长桌舞台已进 `lib/client.js` 的会议详情页（`StageCard`），排座/发言动作/回答气泡都在；见第 3 节。仍需在真实 GUI 里走一次「插件页 off→on」后目视确认渲染。
+1. ~~**接入插件**~~ **已完成（0.5.0）并在真实 GUI 验证过（2026-10-31 23:47）**：长桌舞台在会议详情页头部卡片之后渲染，2 个 aliyun 座位的实测会议（作答 → 互评 → 仲裁，2 分 52 秒）全程正常，见第 3 节。
 2. 决定是否给 `assets/` 下的长桌/椅子/模型做懒加载（8 个 moc3 实例内存不小，页面只在详情页挂载；目前是首次打开详情页时才开始下载 2.1MB moc3 + 1.8MB 纹理）。
 3. 可选：给「非发言」座位加低频小动作（歪头/点头），不要用内置道具动作。
 4. 可选：`stage.js` 的 `files` 表可以合并成一条 `stage/*` 通配实现（现在按精确路由逐条注册，新增素材要手工加一行）。
