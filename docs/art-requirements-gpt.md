@@ -345,7 +345,7 @@ python assets\_raw\build_gpt_model.py --parts assets\build\gpt-p2l\parts --out a
   边缘 6px 羽化（硬边会露出一圈亮环）；再把抠出来的睫毛原样盖上去当闭合眼线。
 - 实测：静止（`EyeLOpen=1`）时整层被 rig 隐藏，画面和之前一致；`EyeLOpen=0` 时瞳孔消失、
   只剩一条弧线，肉眼读作闭眼。
-- 当前 build：`{layers: 24, drawables: 29, deformers: 26, parameters: 20, atlasPages: 6}`，psd2live exit=0 / ~9s。
+- 当前 build：`{layers: 20, drawables: 25, deformers: 22, parameters: 20, atlasPages: 5}`，psd2live exit=0 / ~9s。
 
 眉毛与张口（母图都没有现成像素，都是脚本画的）：
 
@@ -353,8 +353,12 @@ python assets\_raw\build_gpt_model.py --parts assets\build\gpt-p2l\parts --out a
   朝向由"眼睛在内侧还是外侧"决定（`sign = -1 if eye_cx < face_cx else 1`，`face_cx = 1135`），
   颜色 = 睫毛色 ×0.40 + 肤色 ×0.60、alpha ×0.72、0.6px 高斯。一次画成灰横条（太直太粗）和
   一次把内外侧画反，都返工过。
-- `mouth_open`：中心 (1147,1016)、**40×54** 的蛋形（母图嘴只有 29×10，张口按"一个括号"的大小做，
-  不能再大——GPT 那版张口宽 123 是闭嘴的 3.5 倍，直接糊了半张脸）。
+- `mouth_close`：**不是画的，是从母图直接键出来的**。母图的嘴是一团柔化的玫瑰色晕染（约 29×9），
+  没有线稿；GPT 画的 `mouth_close` 带一圈色键残留的淡绿边，贴上去像一条金属片。键法：
+  区域内 `alpha = clip(((r−g) − 8) / 18)`（肤色 r−g≈10、唇色 r−g≈44）再 0.8px 高斯。
+- `mouth_open`：中心 (1147,1018)、**30×34** 的蛋形，配色是同族玫瑰（唇环 189,130,138 / 口腔 156,96,106 /
+  舌 203,150,158 + 2px 深色上缘）。**别用深红/酒红**——这个角色整体近白，暗色张口读作"伤口"；
+  也**别做大**（母图闭嘴只有 29px 宽，张口按"一个括号"的比例，26×30 就够）。
 
 ## 10. 眼睛最终形态：**一张，不拆**
 
@@ -400,3 +404,4 @@ const MODELS = {
   `?debug=1` 在左上角打出每个座位的 `x / mx / baseY / bounds`。
 - 舞台其余逻辑（呼吸/点头/发言）不用改：GPT 模型的 `ParamAngleX/Y/Z`、`ParamBodyAngleZ`、
   `ParamMouthOpenY` 都真绑定了几何，比鲸鱼娘（嘴参数无效）反而更完整。
+
