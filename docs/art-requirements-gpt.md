@@ -98,7 +98,7 @@
 | 5 | 可拆性 | 脸是**一整块**干净皮肤、眼睛闭合状态清晰、上下睫毛分得开、嘴能看出形状 |
 | 6 | 姿势 | 基本正立、头几乎不歪（≤5°），双肩高度差 <15px |
 
-> 已经用 `assets/_raw/make_p0_gpt.py` 把候选母图抠成绿底标准件放 `assets/incoming/gpt-parts/p0/P0-master.png`（当前候选来自 concept sheet 的正面视图）。**P1–P17 全部都在这张文件上做"只保留某件"的编辑**，不要再回到三视图设定图——那才是帧对齐的唯一保证。
+> **母图已定稿**：`assets/incoming/gpt-parts/p0/P0-master.png`（1024×1536 平涂 #00FF00，单人物，半身，两侧留 24px 绿边，下沿直切）。**P1–P17 全部都在这张文件上做"只保留某件"的编辑**，不要再回到三视图设定图——那才是帧对齐的唯一保证。
 > Framing: the tip of her ahoge (single hair strand) is about 40px below the top edge; the bottom edge cuts her at mid-thigh; her head fills the upper 60% of the frame.
 > Output ONE image, portrait 1024×1536, flat pure green #00FF00 background.
 
@@ -135,17 +135,17 @@
 ### P7 · eyewhite
 
 > Using the P0 master image, keep ONLY the **eye whites**: two flat white almond shapes, drawn slightly larger than the visible eye so their edges tuck under the upper lashes. Remove the iris, pupil, highlights, lashes, eyebrows and everything else → flat pure green #00FF00.
-> Same position and size, same eye shapes and tilt. 1024×1536, pure green #00FF00 background.
+> **Draw both eyes FULLY OPEN** (the master is half-lidded) — this image is the open-eye state used for blinking. Same position, same tilt. 1024×1536, pure green #00FF00 background.
 
 ### P8 · irides
 
 > Using the P0 master image, keep ONLY the **irises**: two round pale-blue irises (`#a9bfe8` with a darker rim and a small white highlight), each drawn as a FULL CIRCLE (the part hidden under the eyelid is fine to complete). Remove the eye whites, lashes, skin and everything else → flat pure green #00FF00.
-> Same position and size. 1024×1536, pure green #00FF00 background.
+> **Draw both eyes FULLY OPEN** so each iris is a complete circle and nothing is hidden behind the lid. Same position. 1024×1536, pure green #00FF00 background.
 
 ### P9 · eyelash
 
 > Using the P0 master image, keep ONLY the **upper eyelashes**: two thick dark-grey lash lines following the top lid, with a small outward flick at the outer corner. Remove eyes, iris, brows, skin and everything else → flat pure green #00FF00.
-> Same position, size and tilt. 1024×1536, pure green #00FF00 background.
+> **Draw at the FULLY OPEN eye shape** (upper lid raised) so the lash line sits where the open lid is — this is the state the blink animation closes from. Same position, same tilt. 1024×1536, pure green #00FF00 background.
 
 ### P10 · eyebrow
 
