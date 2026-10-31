@@ -65,6 +65,7 @@ plugin_manager list_plugins
 | 阵容 | 从 `GET /catalog` 读取全部 provider/模型；作答 2–8 个（默认每个 provider 一个）、评审 1–8 个（默认 = 作答者）、裁决 1 个（默认第一位作答者） |
 | 轮次 | 讨论 0–`maxRounds` 轮（默认 1） |
 | 进度 | 阶段条 + 成员状态 + 实时记录（默认 1.2 s 轮询，连续失败后停止） |
+| 舞台 | 会议详情页顶部的长桌 Live2D 舞台：按作答成员排座，谁在发言谁切统一动作并弹出回答摘要气泡，点铭牌可换人查看 |
 | 结果 | 最终答案置顶，可展开答案、讨论、匿名评审、排名表、失败/限制 |
 | 历史 | 列表 + 详情；页面刷新或宿主重启后仍可打开 |
 | 操作 | 取消进行中的会议、导出 Markdown |
@@ -160,6 +161,10 @@ plugin_manager list_plugins
 | GET | `/api/roundtable/meeting?id=` | 会议详情（含进度、记录、评审、终稿） |
 | POST | `/api/roundtable/meeting/cancel` | 取消进行中的会议 |
 | GET/POST | `/api/roundtable/meeting/export` | 导出 Markdown（GET 下载，POST 写工作区） |
+| GET | `/api/roundtable/stage/model/model3.json` | 精简后的 Live2D 模型描述符（只留 Moc/Textures/Physics/EyeBlink） |
+| GET | `/api/roundtable/stage/{vendor,art,model}/*` | 舞台静态资源：3 个运行时脚本、长桌/椅子贴图、`c_0120` 的 moc3/physics3/纹理 |
+
+插件没有自己的静态目录 URL（`dsh-host-frontend-static` 只服务 SPA 自身），所以舞台素材由 `lib/stage.js` 逐条注册精确 Fetch 路由，二进制带 `cache-control: public, max-age=604800`，模型描述符带 `no-store`。
 
 ---
 

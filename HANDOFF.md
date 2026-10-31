@@ -64,10 +64,18 @@ D:\dsh_simroundtable\
 
 **导出**：优先浏览器下载；失败则写 `<workspace>/.roundtable/exports/roundtable-<id>.md`，页面展示路径 + 只读 Markdown + 复制。
 
-## 3. Live2D 舞台（进行中）
+## 3. Live2D 舞台（已接入插件 0.5.0）
 
 - 方案已从「圆桌 8 方向立绘」改为**长桌**：8 个座位一字排开、全部朝屏幕，避免侧/背视角（Live2D 只能小幅转头，模型没有背面）。
-- `preview/longtable.html`：1400×920，桌子 `assets/table-long.png` 满幅铺在 `top:585`，角色基线 `BASE_Y=668`，椅子 `assets/chairs/chair-long-back.png`（压暗 + 下沉）。
+- `preview/longtable.html`：1400×920 设计稿版，桌子 `assets/table-long.png` 满幅铺在 `top:585`，角色基线 `BASE_Y=668`，椅子 `assets/chairs/chair-long-back.png`（压暗 + 下沉）。
+- **插件内实现**（0.5.0，`lib/client.js` 的 `StageCard`/`StageCanvas`，插在会议详情页头部卡片之后）：
+  - 设计单位固定 **760×430**（详情页正文列 `maxWidth:760px`），容器窄于 760 时整层 `transform: scale(k)` 缩放，高度同步，所以铭牌字号不会被压到看不清；
+  - 座位 = `meeting.progress.members` 里 `role==="answerer"` 的前 8 位；间隙预算沿用设计稿算法（`gapChair≈step*0.13`、`gapChar≈step*0.06`，椅子与人物各留缝，n=8 时 charH=99，n=3 时 166，n=2 时 178）；
+  - 发言者 = `transcript` 里 `role==="answerer"` 且无 text、无 error 的最后一条 → 该座位切统一发言动作 + 上浮 3px，其余按各自随机节奏待机；
+  - 气泡只给「当前发言者」和「点击选中的座位」，文本取该座位最近一条回答经 `stageSummary()` 清洗（去代码块/标题符号/合并空白，截断 80 字）；点击铭牌可切换查看别人的回答；
+  - 模型自带 `idle` 与所有道具动作都被 `stageDropPhonePose()` 压掉（`stopAllMotions()` + 手机部件透明度 0 + 手机参数清零）。
+- **资源怎么进浏览器**：插件没有静态目录 URL，所以新增 `lib/stage.js`，用 `connection.fetch.register` 逐条开精确路由（前缀 `/api/roundtable/stage`）：3 个 vendor 脚本、`art/table.png`、`art/chair.png`、`model/model3.json`（服务端把原 model3.json 精简成只留 Moc/Textures/Physics/EyeBlink）、`model/c_0120.moc3`、`model/c_0120.physics3.json`、`model/textures/texture_0{0,1}.png`。二进制带 `cache-control: public, max-age=604800`，描述符 `no-store`。
+- 独立设计校验页 `preview/stage-760.html`（`?n=3&active=1&topic=…`，经 8848 预览服务器取真实素材）：改布局数学先在这里试，不用重装插件。
 - 动作（已按用户要求）：
   - 待机：每座位随机节奏（呼吸周期 3.0–5.2 s、浮动 1.1–2.4 px、摇摆 0.7–1.8°、转头 2.2–6.2°），互不同步；
   - 发言：所有发言者统一动作（`ParamAngleY` ±7°、`ParamBodyAngleZ` ±3.2°、`ParamAngleX` ±1.5°、整体上抬 3 px），由全局时钟驱动；
@@ -90,8 +98,8 @@ D:\dsh_simroundtable\
 
 ```powershell
 # 测试（仓库根）
-npm test           # 42/42
-npm run check      # node --check 9 个模块
+npm test           # 45/45，含 test/stage.test.mjs
+npm run check      # node --check 7 个模块（含 api.js、stage.js）
 
 # 预览服务器（长桌）
 python -m http.server 8848 --bind 127.0.0.1 --directory D:\dsh_simroundtable
@@ -137,10 +145,10 @@ PSD2Live.exe export parts.psd --target png-sequence --set clip=Idle --set fps=10
 
 ## 8. 下一步（建议顺序）
 
-1. **接入插件**：把 `preview/longtable.html` 的逻辑搬进 `lib/client.js` 的 DetailView —— 按会议成员排座、谁发言切统一动作 + 气泡展示该模型回答摘要（摘要从 `transcript`/`answers` 取，60–80 字截断）。
-2. 决定是否给 `assets/` 下的长桌/椅子/模型做懒加载（8 个 moc3 实例内存不小，页面只在详情页挂载）。
+1. ~~**接入插件**~~ **已完成（0.5.0）**：长桌舞台已进 `lib/client.js` 的会议详情页（`StageCard`），排座/发言动作/回答气泡都在；见第 3 节。仍需在真实 GUI 里走一次「插件页 off→on」后目视确认渲染。
+2. 决定是否给 `assets/` 下的长桌/椅子/模型做懒加载（8 个 moc3 实例内存不小，页面只在详情页挂载；目前是首次打开详情页时才开始下载 2.1MB moc3 + 1.8MB 纹理）。
 3. 可选：给「非发言」座位加低频小动作（歪头/点头），不要用内置道具动作。
-4. 已完成并提交：长桌素材（`assets/table-long.png`、`assets/chairs/chair-long-back.png`）、`docs/art-requirements-longtable.md`、`preview/longtable.html`、`preview/guides/`；如尚未推送，执行 `git push`。
+4. 可选：`stage.js` 的 `files` 表可以合并成一条 `stage/*` 通配实现（现在按精确路由逐条注册，新增素材要手工加一行）。
 5. 若要 8 个模型都有立绘：按 `docs/art-requirements-psd2live.md` 出部件，跑同一条管线。
 
 ## 9. 硬性约束（用户明确要求过）

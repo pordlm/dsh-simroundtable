@@ -1,6 +1,6 @@
 {
   "name": "dsh-simroundtable",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "type": "module",
   "description": "Cross-provider roundtable for DeepSeek Harness: independent answers, peer revision, anonymous review, and a final arbiter — as a command, a model tool, and a dedicated Web page.",
   "license": "GPL-3.0-or-later",
@@ -37,11 +37,13 @@
     "LICENSE",
     "NOTICE.md",
     "assets/vendor/*.js",
-    "assets/models/whale-girl/**"
+    "assets/models/whale-girl/**",
+    "assets/table-long.png",
+    "assets/chairs/**"
   ],
   "scripts": {
-    "check": "node --check lib/index.js && node --check lib/client.js && node --check lib/engine.js && node --check lib/meetings.js && node --check lib/attachments.js",
-    "test": "node --test test/core.test.mjs test/apply.test.mjs test/meetings.test.mjs test/client.test.mjs test/attachments.test.mjs"
+    "check": "node --check lib/index.js && node --check lib/client.js && node --check lib/engine.js && node --check lib/meetings.js && node --check lib/attachments.js && node --check lib/api.js && node --check lib/stage.js",
+    "test": "node --test test/core.test.mjs test/apply.test.mjs test/meetings.test.mjs test/client.test.mjs test/attachments.test.mjs test/stage.test.mjs"
   },
   "dsh": {
     "bundle": {

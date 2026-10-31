@@ -98,16 +98,25 @@ window.addEventListener('resize', fit);
   const plates = document.getElementById('plates');
   const bubbles = document.getElementById('bubbles');
 
-  const usable = STAGE_W - 150;
+  // 座位横向预算：先给相邻座位留出「缝」，再让人物/椅子各自缩进缝里，
+  // 这样 8 人时椅子不再是连成一块的深色木板，人物之间也留出一点空气。
+  const MARGIN = 40;
+  const usable = STAGE_W - MARGIN * 2;
   const step = usable / count;
+  const gapChair = Math.round(Math.max(6, Math.min(46, step * 0.13)));  // 椅子之间的缝
+  const gapChar  = Math.round(Math.max(3, Math.min(26, step * 0.06)));  // 人物之间的缝
+  const charSlot = step - gapChar;
+  const CHAR_ASPECT = 0.85;      // 实测：人物轮廓宽 / 角色高（含头发与尾巴）
+  const maxH = 420 - count * 22; // 座位越多人物越矮，避免顶到标题
   const charH = q.has('h') ? Math.max(120, Math.min(700, Number(q.get('h'))))
-    : Math.round(Math.max(200, Math.min(430, 420 - count * 22)));
+    : Math.round(Math.max(140, Math.min(maxH, charSlot / CHAR_ASPECT)));
   const xs = [];
-  for (let i = 0; i < count; i++) xs.push(75 + step * (i + 0.5));
+  for (let i = 0; i < count; i++) xs.push(MARGIN + step * (i + 0.5));
 
   const seats = [];
-  const chairH = Math.round(charH * 1.15);
-  const chairW = Math.round(chairH * 2 / 3);
+  // 椅子按素材 600×900 的比例缩放（不压扁），宽度不超过「座位宽 - 椅缝」
+  const chairW = Math.round(Math.min(charH * 1.15 * 2 / 3, step - gapChair));
+  const chairH = Math.round(chairW * 1.5);
   xs.forEach((x, i) => {
     const img = document.createElement('img');
     img.src = '../assets/chairs/chair-long-back.png';
