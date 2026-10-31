@@ -45,6 +45,8 @@
 | 画布下沿 | ≈ 参考图 y 595 | 裙摆中段直切，藏进桌子 |
 
 > 坐标是**目标值不是图纸**：允许 ±40px 平移，但**所有件之间必须一致**。真正不能错的是相对关系（眼距、嘴在眼下、下巴在嘴下）。
+>
+> ⚠️ 这张表是按**三视图设定图的正面视图**（s=3.6）算的。一旦 P0 master 定稿，**几何就以 master 为准**：`prep_parts_gpt.py` 只用 master 的墨迹 bbox 推一个统一变换，所有部件共用它，所以 master 换成"更大的头"也不会错位——只要 P1–P17 都在同一张 master 上编辑。
 
 ---
 
@@ -84,6 +86,19 @@
 
 > Anime character reference: silver-white long wavy hair, pale blue eyes, two pale blue dragon horns, one small white spiral-rose hair ornament with a tassel on her right side, one blue cloud-shaped hair clip with a `>_` terminal symbol on her left side, pointed elf ears, white off-shoulder frilly dress with a blue waist ribbon.
 > Draw her as a **bust portrait (head to waist)**, facing the viewer almost straight on, slight smile, calm half-lidded eyes, flat cel shading, clean thin line art, soft pastel palette, no cast shadow on the background.
+
+#### P0 验收清单（我和 GPT 都用这张表判，不合格就别做 P1–P17）
+
+| # | 检查项 | 合格标准 |
+|---|---|---|
+| 1 | 尺寸 / 底 | 1024×1536，底是**平涂 #00FF00**，无边框/文字/水印/投影 |
+| 2 | 主体数量 | **只有一个人物**，没有第二视图、没有色板条、没有参考小图 |
+| 3 | 构图完整 | 两侧头发/袖子**没有出框**（左右各留 ≥20px 绿边）；头顶到画框顶 ~40px |
+| 4 | 半身切法 | 下沿在**腰/大腿处直切**（不是渐隐、不是画到脚） |
+| 5 | 可拆性 | 脸是**一整块**干净皮肤、眼睛闭合状态清晰、上下睫毛分得开、嘴能看出形状 |
+| 6 | 姿势 | 基本正立、头几乎不歪（≤5°），双肩高度差 <15px |
+
+> 已经用 `assets/_raw/make_p0_gpt.py` 把候选母图抠成绿底标准件放 `assets/incoming/gpt-parts/p0/P0-master.png`（当前候选来自 concept sheet 的正面视图）。**P1–P17 全部都在这张文件上做"只保留某件"的编辑**，不要再回到三视图设定图——那才是帧对齐的唯一保证。
 > Framing: the tip of her ahoge (single hair strand) is about 40px below the top edge; the bottom edge cuts her at mid-thigh; her head fills the upper 60% of the frame.
 > Output ONE image, portrait 1024×1536, flat pure green #00FF00 background.
 
@@ -91,88 +106,88 @@
 
 ### P1 · back_hair
 
-> Using the reference image, keep ONLY the long back hair that falls behind her body: the whole wavy hair mass behind the head and shoulders, down to the bottom edge. Remove the face, the front bangs, the horns, the ornaments, the dress and the arms — fill those areas with flat pure green #00FF00.
+> Using the P0 master image, keep ONLY the long back hair that falls behind her body: the whole wavy hair mass behind the head and shoulders, down to the bottom edge. Remove the face, the front bangs, the horns, the ornaments, the dress and the arms — fill those areas with flat pure green #00FF00.
 > Keep the hair at exactly the same position and size. Same 1024×1536, pure green #00FF00 background. No green fringe on the hair edge, no outline glow.
 
 ### P2 · topwear
 
-> Using the reference image, keep ONLY the white off-shoulder dress: the frilly neckline, the bodice, the blue waist ribbon, the skirt down to the bottom edge, and the small pocket with pens. Remove the head, hair, neck, arms and horns — fill with flat pure green #00FF00.
+> Using the P0 master image, keep ONLY the white off-shoulder dress: the frilly neckline, the bodice, the blue waist ribbon, the skirt down to the bottom edge, and the small pocket with pens. Remove the head, hair, neck, arms and horns — fill with flat pure green #00FF00.
 > Same position and size. 1024×1536, pure green #00FF00 background.
 
 ### P3 / P4 · arm_left / arm_right
 
-> Using the reference image, keep ONLY the **left** puffy sleeve and the hand/forearm coming out of it (the arm on the **left side of the picture**). Everything else — head, hair, dress body, the other arm — becomes flat pure green #00FF00.
+> Using the P0 master image, keep ONLY the **left** puffy sleeve and the hand/forearm coming out of it (the arm on the **left side of the picture**). Everything else — head, hair, dress body, the other arm — becomes flat pure green #00FF00.
 > Same position and size. 1024×1536, pure green #00FF00 background.
 
 （`arm_right` 把 left 换成 right，并强调 `right side of the picture`。两侧要分两次出，不能一张两臂——分左右才能做手臂摆动。）
 
 ### P5 · neck
 
-> Using the reference image, keep ONLY the neck and the collarbone/upper chest skin between the jaw and the dress neckline. Everything else becomes flat pure green #00FF00. The top of the neck must extend a little under the chin (it will be hidden by the face layer).
+> Using the P0 master image, keep ONLY the neck and the collarbone/upper chest skin between the jaw and the dress neckline. Everything else becomes flat pure green #00FF00. The top of the neck must extend a little under the chin (it will be hidden by the face layer).
 > Same position and size. 1024×1536, pure green #00FF00 background.
 
 ### P6 · face
 
-> Using the reference image, keep ONLY the bare face skin as ONE solid piece: forehead, cheeks, jaw, chin — the complete face shape with a clear silhouette (soft round jaw, pointed small chin). Remove eyes, eyebrows, mouth, nose, hair, ears and ornaments, and fill those areas with the same flat skin colour (no holes). Everything outside the face becomes flat pure green #00FF00.
+> Using the P0 master image, keep ONLY the bare face skin as ONE solid piece: forehead, cheeks, jaw, chin — the complete face shape with a clear silhouette (soft round jaw, pointed small chin). Remove eyes, eyebrows, mouth, nose, hair, ears and ornaments, and fill those areas with the same flat skin colour (no holes). Everything outside the face becomes flat pure green #00FF00.
 > Same position and size. 1024×1536, pure green #00FF00 background.
 > Flat skin colour #fdeee7 with only a very soft cheek shading, no blush, no eyes, no mouth.
 
 ### P7 · eyewhite
 
-> Using the reference image, keep ONLY the **eye whites**: two flat white almond shapes, drawn slightly larger than the visible eye so their edges tuck under the upper lashes. Remove the iris, pupil, highlights, lashes, eyebrows and everything else → flat pure green #00FF00.
+> Using the P0 master image, keep ONLY the **eye whites**: two flat white almond shapes, drawn slightly larger than the visible eye so their edges tuck under the upper lashes. Remove the iris, pupil, highlights, lashes, eyebrows and everything else → flat pure green #00FF00.
 > Same position and size, same eye shapes and tilt. 1024×1536, pure green #00FF00 background.
 
 ### P8 · irides
 
-> Using the reference image, keep ONLY the **irises**: two round pale-blue irises (`#a9bfe8` with a darker rim and a small white highlight), each drawn as a FULL CIRCLE (the part hidden under the eyelid is fine to complete). Remove the eye whites, lashes, skin and everything else → flat pure green #00FF00.
+> Using the P0 master image, keep ONLY the **irises**: two round pale-blue irises (`#a9bfe8` with a darker rim and a small white highlight), each drawn as a FULL CIRCLE (the part hidden under the eyelid is fine to complete). Remove the eye whites, lashes, skin and everything else → flat pure green #00FF00.
 > Same position and size. 1024×1536, pure green #00FF00 background.
 
 ### P9 · eyelash
 
-> Using the reference image, keep ONLY the **upper eyelashes**: two thick dark-grey lash lines following the top lid, with a small outward flick at the outer corner. Remove eyes, iris, brows, skin and everything else → flat pure green #00FF00.
+> Using the P0 master image, keep ONLY the **upper eyelashes**: two thick dark-grey lash lines following the top lid, with a small outward flick at the outer corner. Remove eyes, iris, brows, skin and everything else → flat pure green #00FF00.
 > Same position, size and tilt. 1024×1536, pure green #00FF00 background.
 
 ### P10 · eyebrow
 
-> Using the reference image, keep ONLY the two **eyebrows**: thin soft grey-blue arcs. Remove everything else → flat pure green #00FF00.
+> Using the P0 master image, keep ONLY the two **eyebrows**: thin soft grey-blue arcs. Remove everything else → flat pure green #00FF00.
 > Same position, size and tilt. 1024×1536, pure green #00FF00 background.
 
 ### P11 · mouth_close
 
-> Using the reference image, keep ONLY the **closed mouth**: one small soft curved line, slightly darker pink than the skin. Remove everything else → flat pure green #00FF00.
+> Using the P0 master image, keep ONLY the **closed mouth**: one small soft curved line, slightly darker pink than the skin. Remove everything else → flat pure green #00FF00.
 > Same position and size. 1024×1536, pure green #00FF00 background.
 
 ### P12 · mouth_open
 
-> Using the reference image, show the **same mouth wide open** (maximum opening for speaking): a small rounded open mouth with a dark red-brown interior, a thin upper lip, and optionally a hint of upper teeth. It must be centred on the same spot as the closed mouth and no wider than the closed mouth plus 10%.
+> Using the P0 master image, show the **same mouth wide open** (maximum opening for speaking): a small rounded open mouth with a dark red-brown interior, a thin upper lip, and optionally a hint of upper teeth. It must be centred on the same spot as the closed mouth and no wider than the closed mouth plus 10%.
 > Keep everything else identical to the reference, then remove it → flat pure green #00FF00. 1024×1536, pure green #00FF00 background.
 
 （张口必须与闭嘴**同中心、同大小量级**，否则 PSD2Live 交叉淡化时会跳。）
 
 ### P13 · front_hair
 
-> Using the reference image, keep ONLY the **front hair**: the bangs across the forehead plus both long side locks framing the face. Remove the back hair, face, horns, ornaments, dress → flat pure green #00FF00.
+> Using the P0 master image, keep ONLY the **front hair**: the bangs across the forehead plus both long side locks framing the face. Remove the back hair, face, horns, ornaments, dress → flat pure green #00FF00.
 > Same position and size. 1024×1536, pure green #00FF00 background.
 
 > 侧发（`side` 语义）如果想让它单独摆动，可另出一张 `side_hair`（图层名 `front hair 2`），否则并入 front_hair。
 
 ### P14 · ears
 
-> Using the reference image, keep ONLY the **pointed elf ears** (both, the far one may be only its tip), plus a tiny bit of skin at the root so they can be tucked under the hair. Remove everything else → flat pure green #00FF00.
+> Using the P0 master image, keep ONLY the **pointed elf ears** (both, the far one may be only its tip), plus a tiny bit of skin at the root so they can be tucked under the hair. Remove everything else → flat pure green #00FF00.
 > Same position and size. 1024×1536, pure green #00FF00 background.
 
 ### P15 · headwear
 
-> Using the reference image, keep ONLY the head accessories: the two pale blue dragon **horns**, the **blue cloud-shaped clip with the `>_` terminal symbol**, and the **white spiral-rose ornament with its hanging tassel**. Remove the hair, face and body → flat pure green #00FF00.
+> Using the P0 master image, keep ONLY the head accessories: the two pale blue dragon **horns**, the **blue cloud-shaped clip with the `>_` terminal symbol**, and the **white spiral-rose ornament with its hanging tassel**. Remove the hair, face and body → flat pure green #00FF00.
 > Same position and size. 1024×1536, pure green #00FF00 background.
 
 ### P16 · earwear（可选）
 
-> Using the reference image, keep ONLY the **tassel earring** hanging on the right side of the picture. Everything else → flat pure green #00FF00. Same 1024×1536.
+> Using the P0 master image, keep ONLY the **tassel earring** hanging on the right side of the picture. Everything else → flat pure green #00FF00. Same 1024×1536.
 
 ### P17 · face_detail（可选）
 
-> Using the reference image, keep ONLY the soft **blush** on both cheeks (very light pink, no lines). Everything else → flat pure green #00FF00. Same 1024×1536.
+> Using the P0 master image, keep ONLY the soft **blush** on both cheeks (very light pink, no lines). Everything else → flat pure green #00FF00. Same 1024×1536.
 
 ---
 
