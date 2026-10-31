@@ -84,6 +84,7 @@ D:\dsh_simroundtable\
 | profile | `C:\Users\pordl\.dsh\profiles\web\package.json`，`"@local/dsh-roundtable": "link:D:/dsh_simroundtable/deployed/dsh-roundtable"` |
 | Python | `C:\dev\python 3.12.0`（Pillow / numpy / scipy / cv2 / onnxruntime；**rembg 未装**） |
 | PSD2Live | `D:\dsh_simroundtable\tools\psd2live\app\PSD2Live.exe`（自带 JRE） |
+| 旧路径兼容 | `D:\lnu-seat\plugins\dsh-roundtable` 现在是指向 `deployed\dsh-roundtable` 的目录联接（junction），给迁移时正在运行的宿主用；重启后可删 |
 
 常用命令：
 
