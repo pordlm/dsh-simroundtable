@@ -5,3 +5,15 @@ dist/
 *.log
 .DS_Store
 Thumbs.db
+
+# 开发期素材与构建产物（不入库）
+assets/_raw/
+assets/incoming/
+assets/build/
+preview/*.png
+preview/*.jpg
+preview/*.gif
+preview/l2d-test/
+.l2d-server.log
+*.psd
+*.p2lrt

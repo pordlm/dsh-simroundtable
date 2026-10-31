@@ -4,6 +4,20 @@ All notable changes to this project. The format loosely follows
 [Keep a Changelog](https://keepachangelog.com/), and the project uses semantic
 versioning.
 
+## 0.4.0
+
+- License changed from MIT to **GPL-3.0-or-later** for the code; terms for the
+  bundled artwork and third-party runtimes are layered and documented in
+  `NOTICE.md`.
+- Bundled the Live2D runtime used by the upcoming round-table stage:
+  PIXI.js 6.5.10 (MIT), pixi-live2d-display 0.4.0 (MIT) and Live2D Cubism Core
+  (Live2D redistributable) under `assets/vendor/`.
+- Added an optional whale-girl Live2D model under `assets/models/whale-girl/`,
+  licensed **CC BY-NC-SA 4.0** (attribution: 上善无形 / ZipZipPipe / 氵六青).
+  The model is a separate work, not covered by the GPL; see
+  `assets/models/whale-girl/LICENSE-ASSETS.md`.
+- Added `NOTICE.md` and README license table explaining the split.
+
 ## 0.3.0
 
 - Topic attachments: images, code, tables and documents can be attached to the

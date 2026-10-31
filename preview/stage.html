@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>圆桌会议 · 本地预览</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #0e1118; overflow: hidden; }
+  .stage {
+    position: relative; width: 1400px; height: 1000px; overflow: hidden;
+    background: radial-gradient(120% 90% at 50% 16%, #2c3a57 0%, #161c2b 46%, #090c12 100%);
+    font-family: "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+  }
+  .vignette {
+    position: absolute; inset: 0; pointer-events: none; z-index: 95;
+    background: radial-gradient(115% 95% at 50% 42%, transparent 58%, rgba(0,0,0,.42) 100%);
+  }
+  .glow {
+    position: absolute; left: 700px; top: 545px; width: 1120px; height: 660px;
+    transform: translate(-50%, -50%);
+    background: radial-gradient(closest-side, rgba(120,170,255,.20), rgba(80,120,220,.06) 60%, transparent 76%);
+  }
+  .table {
+    position: absolute; left: 700px; top: 560px; width: 820px;
+    transform: translate(-50%, -50%); z-index: 40;
+    filter: drop-shadow(0 28px 36px rgba(0,0,0,.6));
+  }
+  .topic {
+    position: absolute; left: 700px; top: 556px; width: 380px;
+    transform: translate(-50%, -50%); z-index: 45; text-align: center;
+  }
+  .topic b {
+    display: block; margin-bottom: 6px;
+    font: 600 11px/1 "Microsoft YaHei", system-ui, sans-serif;
+    letter-spacing: 3px; color: #b08d4f; text-transform: uppercase;
+  }
+  .topic span {
+    display: block; color: #3b4658;
+    font: 600 20px/1.55 "Songti SC", "Noto Serif SC", serif;
+    letter-spacing: .5px;
+  }
+  .aura {
+    position: absolute; border-radius: 50%;
+    filter: blur(12px); pointer-events: none;
+  }
+  .chair { position: absolute; height: auto; filter: drop-shadow(0 10px 18px rgba(0,0,0,.35)); }
+  .chair.mirror { transform: scaleX(-1); }
+  .char { position: absolute; left: 0; top: 0; transform-origin: 50% 100%; animation: sway 7.4s ease-in-out infinite alternate; }
+  @keyframes sway {
+    from { transform: rotate(-0.45deg); }
+    to { transform: rotate(0.45deg); }
+  }
+  .stage-wrap { position: absolute; inset: 0; }
+  .char img { display: block; width: 100%; height: auto; transform-origin: 50% 12%; animation: breathe 4.6s ease-in-out infinite; }
+  .char.mirror img { transform: scaleX(-1); animation-name: breathe-m; }
+  .char.speaking img { animation: speak .95s ease-in-out infinite; }
+  .char.mirror.speaking img { animation-name: speak-m; }
+  .shadow {
+    position: absolute; border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(0,0,0,.40), transparent 72%);
+  }
+  .plate {
+    position: absolute; transform: translate(-50%, 0); white-space: nowrap;
+    padding: 3px 10px; border-radius: 999px;
+    background: rgba(14,20,33,.80); border: 1px solid rgba(150,180,240,.26);
+    color: #e2ebff; font: 600 12px/1.4 "Microsoft YaHei", system-ui, sans-serif;
+    letter-spacing: .3px; box-shadow: 0 4px 14px rgba(0,0,0,.3);
+  }
+  .bubble {
+    position: absolute; max-width: 212px; padding: 9px 12px;
+    background: #f9fbff; color: #1b2334; border-radius: 13px;
+    font: 500 13px/1.55 "Microsoft YaHei", system-ui, sans-serif;
+    box-shadow: 0 10px 26px rgba(0,0,0,.42);
+    transform-origin: 20% 100%;
+    animation: pop .22s cubic-bezier(.3,1.5,.6,1) both;
+  }
+  .bubble::after {
+    content: ""; position: absolute; bottom: -6px; width: 12px; height: 12px;
+    background: #f9fbff; transform: rotate(45deg); border-radius: 2px;
+  }
+  .bubble.tail-left::after { left: 22px; }
+  .bubble.tail-right::after { right: 22px; }
+  .hud {
+    position: absolute; left: 34px; top: 30px; z-index: 96; color: #9fb0d0;
+    font: 500 12px/1.7 "Microsoft YaHei", system-ui, sans-serif; letter-spacing: .6px;
+  }
+  .hud strong { display: block; color: #dce7ff; font: 700 15px/1.5 "Microsoft YaHei", sans-serif; letter-spacing: 2px; }
+  .foot {
+    position: absolute; right: 34px; bottom: 24px; z-index: 96;
+    color: #6f7f9e; font: 500 11px/1.6 "Microsoft YaHei", system-ui, sans-serif;
+  }
+  @keyframes breathe {
+    0%, 100% { transform: scaleY(1) translateY(0); }
+    50% { transform: scaleY(1.008) translateY(-2px); }
+  }
+  @keyframes breathe-m {
+    0%, 100% { transform: scaleX(-1) scaleY(1) translateY(0); }
+    50% { transform: scaleX(-1) scaleY(1.008) translateY(-2px); }
+  }
+  @keyframes speak {
+    0%, 100% { transform: translateY(0) scaleY(1); }
+    38% { transform: translateY(-7px) scaleY(1.012); }
+    62% { transform: translateY(-3px) scaleY(1.004); }
+  }
+  @keyframes speak-m {
+    0%, 100% { transform: scaleX(-1) translateY(0); }
+    38% { transform: scaleX(-1) translateY(-7px); }
+    62% { transform: scaleX(-1) translateY(-3px); }
+  }
+  @keyframes pop {
+    from { opacity: 0; transform: translateY(8px) scale(.9); }
+    to { opacity: 1; transform: none; }
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="glow"></div>
+  <img class="table" src="../assets/table.png" alt="">
+  <div class="topic">
+    <b>议题</b>
+    <span>多模型协同的发布流程该怎么设计？</span>
+  </div>
+  <div id="seats"></div>
+  <div id="bubbles"></div>
+  <div class="hud"><strong>圆桌会议</strong>8 席 · 独立作答 → 互相修订 → 匿名评审</div>
+  <div class="foot">本地预览：呼吸 / 摇摆 / 发言差分 / 气泡（长文截断）</div>
+  <div class="vignette"></div>
+</div>
+<script>
+const ASSETS = "../assets/";
+const SEATS = [
+  { x: 700,  y: 150, pose: "12",   speak: "12-speak",   mirror: false, label: "DeepSeek", z: 20, k: 0.55, plateAbove: true, chair: null, hue: "120,170,255" },
+  { x: 1045, y: 205, pose: "0130", speak: "0130-speak", mirror: false, label: "Qwen3.8",  z: 22, k: 0.55, plateAbove: true, chair: null, hue: "150,140,255" },
+  { x: 1165, y: 445, pose: "0300", speak: null,         mirror: false, label: "GLM",       z: 60, k: 0.58, chair: "side", hue: "110,200,180" },
+  { x: 1045, y: 690, pose: "0430", speak: null,         mirror: false, label: "Kimi",      z: 72, k: 0.58, chair: "back", hue: "255,190,120" },
+  { x: 700,  y: 735, pose: "0600", speak: null,         mirror: false, label: "GPT",       z: 74, k: 0.58, chair: "back", hue: "140,220,170" },
+  { x: 355,  y: 690, pose: "0430", speak: null,         mirror: true,  label: "Claude",    z: 72, k: 0.58, chair: "back", hue: "255,170,140" },
+  { x: 235,  y: 445, pose: "0300", speak: null,         mirror: true,  label: "Doubao",    z: 60, k: 0.58, chair: "side", hue: "140,180,255" },
+  { x: 355,  y: 205, pose: "0130", speak: "0130-speak", mirror: true,  label: "MiMo",      z: 22, k: 0.55, plateAbove: true, chair: null, hue: "255,150,200" },
+];
+
+const OPINIONS = [
+  "先把数据管道跑通，再谈模型编排。",
+  "回滚路径应该在第一版就固定下来，否则发布会变成赌博。",
+  "我倾向于灰度 5%→20%→100%，每一档都绑定明确的观测指标。",
+  "评审阶段缺少反方角色，匿名投票容易形成回声室。",
+  "成本模型要前置：不是所有议题都值得开一轮圆桌。",
+  "我更关心失败用例的归属：谁签字，谁负责回滚。",
+  "可以把裁决模型也纳入审计链，让结论可追溯。",
+  "默认值要安全：宁可少发布，也不要静默降级。",
+];
+
+const seatsEl = document.getElementById("seats");
+const bubblesEl = document.getElementById("bubbles");
+const nodes = [];
+
+SEATS.forEach((s, i) => {
+  const { x, y, z } = s;
+  const k = s.k;
+  const cw = 640 * k;
+
+  const g = document.createElement("div");
+  g.className = "aura";
+  const gw = 320 * k;
+  g.style.cssText = `left:${x - gw / 2}px;top:${y + 30 * k}px;width:${gw}px;height:${gw * 0.78}px;z-index:${z - 1};background:radial-gradient(closest-side, rgba(${s.hue},.34), rgba(${s.hue},.07) 60%, transparent 74%)`;
+  seatsEl.appendChild(g);
+
+  const sh = document.createElement("div");
+  sh.className = "shadow";
+  const shW = 170 * k;
+  sh.style.cssText = `left:${x - shW / 2}px;top:${y + 170 * k}px;width:${shW}px;height:${shW * 0.28}px;z-index:${z - 1}`;
+  seatsEl.appendChild(sh);
+
+  if (s.chair) {
+    const ch = document.createElement("img");
+    ch.className = "chair" + (s.mirror ? " mirror" : "");
+    ch.src = ASSETS + "chairs/chair-" + s.chair + ".png";
+    const chw = (s.chair === "side" ? 430 : 400) * k;
+    const chTop = (s.chair === "side" ? 205 : 250) * k;
+    ch.style.cssText = `left:${x - chw / 2}px;top:${y + chTop}px;width:${chw}px;z-index:${z - 3};`;
+    seatsEl.appendChild(ch);
+  }
+
+  const c = document.createElement("div");
+  c.className = "char" + (s.mirror ? " mirror" : "");
+  c.style.cssText = `left:${x - cw / 2}px;top:${y - 40 * k}px;width:${cw}px;z-index:${z};animation-delay:${(-i * 0.73).toFixed(2)}s`;
+  c.innerHTML = `<img src="${ASSETS}characters/deepseek/${s.pose}-0.png" alt="">`;
+  seatsEl.appendChild(c);
+
+  const p = document.createElement("div");
+  p.className = "plate";
+  p.style.cssText = s.plateAbove
+    ? `left:${x}px;top:${y - 12}px;transform:translate(-50%,-100%);z-index:89;`
+    : `left:${x}px;top:${y + 236 * k}px;z-index:89;`;
+  p.textContent = s.label;
+  seatsEl.appendChild(p);
+
+  nodes.push({ s, x, y, z, k, el: c, img: c.querySelector("img") });
+});
+
+function bubble(n, text) {
+  bubblesEl.innerHTML = "";
+  const el = document.createElement("div");
+  el.className = "bubble";
+  el.textContent = text.length > 46 ? text.slice(0, 46) + "…" : text;
+  const w = 212;
+  const onRight = n.x > 700;
+  el.classList.add(onRight ? "tail-right" : "tail-left");
+  el.style.cssText = `left:${onRight ? n.x - w + 74 : n.x - 74}px;top:${n.y - 54}px;transform:translateY(-100%);z-index:92`;
+  bubblesEl.appendChild(el);
+}
+
+let cursor = -1;
+function step() {
+  const n = nodes[(cursor = (cursor + 1) % nodes.length)];
+  document.querySelectorAll(".char.speaking").forEach((el) => el.classList.remove("speaking"));
+  n.el.classList.add("speaking");
+  const text = OPINIONS[(n.s.x + n.s.y) % OPINIONS.length];
+  bubble(n, text);
+  const base = ASSETS + "characters/deepseek/" + n.s.pose;
+  n.img.src = base + "-1.png";
+  setTimeout(() => { n.img.src = base + "-2.png"; }, 80);
+  setTimeout(() => { n.img.src = base + "-3.png"; }, 160);
+  setTimeout(() => { n.img.src = base + "-2.png"; }, 2000);
+  setTimeout(() => { n.img.src = base + "-0.png"; }, 2060);
+  setTimeout(() => { n.el.classList.remove("speaking"); }, 2300);
+}
+if (location.search.indexOf('static') >= 0) {
+  const first = nodes[0];
+  first.el.classList.add('speaking');
+  first.img.src = ASSETS + 'characters/deepseek/12-2.png';
+  bubble(first, OPINIONS[2]);
+} else {
+  setTimeout(step, 500);
+  setInterval(step, 2600);
+}
+</script>
+<script>
+let fitTimer = null;
+function fit() {
+  const stage = document.querySelector(".stage");
+  const scale = Math.min(window.innerWidth / 1400, window.innerHeight / 1000);
+  stage.style.transformOrigin = "top left";
+  stage.style.position = "absolute";
+  stage.style.left = ((window.innerWidth - 1400 * scale) / 2) + "px";
+  stage.style.top = ((window.innerHeight - 1000 * scale) / 2) + "px";
+  stage.style.transform = "scale(" + scale + ")";
+}
+fit();
+window.addEventListener("resize", () => { clearTimeout(fitTimer); fitTimer = setTimeout(fit, 150); });
+</script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+

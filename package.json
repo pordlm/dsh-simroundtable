@@ -1,9 +1,9 @@
 {
   "name": "dsh-simroundtable",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "type": "module",
   "description": "Cross-provider roundtable for DeepSeek Harness: independent answers, peer revision, anonymous review, and a final arbiter — as a command, a model tool, and a dedicated Web page.",
-  "license": "MIT",
+  "license": "GPL-3.0-or-later",
   "repository": {
     "type": "git",
     "url": "https://github.com/pordlm/dsh-simroundtable.git"
@@ -34,7 +34,10 @@
     "icon.svg",
     "cordis.patch.yml",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "NOTICE.md",
+    "assets/vendor/*.js",
+    "assets/models/whale-girl/**"
   ],
   "scripts": {
     "check": "node --check lib/index.js && node --check lib/client.js && node --check lib/engine.js && node --check lib/meetings.js && node --check lib/attachments.js",

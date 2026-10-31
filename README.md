@@ -1,6 +1,6 @@
 # dsh-simroundtable
 
-[English summary](#english-summary) · [MIT License](LICENSE)
+[English summary](#english-summary) · [GPL-3.0 License](LICENSE)
 
 > 一个 **DeepSeek Harness（DSH）** 圆桌讨论插件：把不同 provider 的模型请到同一张桌子上——先各自独立作答，再互相修订，匿名评审后由裁决模型给出最终答案。
 >
@@ -230,4 +230,12 @@ Requires DSH `>= 0.2.1-rc.4` (web profile) and Node `>= 20`. Install the folder 
 
 ## License
 
-[MIT](LICENSE)
+本仓库采用**分层授权**（详见 [`NOTICE.md`](NOTICE.md)）：
+
+| 范围 | 许可 |
+| --- | --- |
+| 代码（`lib/`、`test/`、配置文件等） | **GPL-3.0-or-later**，见 [`LICENSE`](LICENSE) |
+| 模型素材（`assets/models/whale-girl/**`） | **CC BY-NC-SA 4.0**，署名 上善无形 / ZipZipPipe / 氵六青，见 [`LICENSE-ASSETS.md`](assets/models/whale-girl/LICENSE-ASSETS.md) |
+| 第三方运行时（`assets/vendor/**`） | PIXI.js MIT · pixi-live2d-display MIT · Live2D Cubism Core 专有（可再分发） |
+
+模型素材不属于 GPL 范围，作为独立作品随附；再分发时请同时保留 `LICENSE`、`NOTICE.md` 与素材的署名/非商业条款。`0.1.0`–`0.3.0` 曾以 MIT 发布，`0.4.0` 起代码改为 GPL-3.0-or-later。
