@@ -361,30 +361,43 @@ python assets\_raw\build_gpt_model.py --parts assets\build\gpt-p2l\parts --out a
   （唇环 196,140,148 / 口腔 172,112,120 / 舌 210,158,166 + 1.5px 深玫瑰上缘 160,102,112）。**别用深红/酒红**——
   这个角色整体近白，暗色张口读作"伤口"（第一版 40×54 的酒红蛋形就是这样被推翻的）；也**别做大**。
 
-## 10. 眼睛：解析重画，三件一套
+## 10. 眼睛：用 GPT 局部重绘的睁眼图，按颜色切成三件
 
-母图的眼睛是**半闭的**（舞台 155px 高时只有 8px，读作眯眼），所以眼睛不是从母图抠的，
-而是按母图的配色重画成睁眼，`assets/_raw/open_eyes3.py` 一个脚本出齐四张图：
+母图（`P0-master.png`）的眼睛是**半闭的**，舞台上百来像素高就只剩一条缝，读作"眯眼"。
+先试过按母图配色解析重画（`assets/_raw/open_eyes3.py`：眼白椭圆 + 64 段渐变虹膜 +
+多边形睫毛带 + 采样肤色的闭眼睑），几何和眨眼都能跑通，但风格评审被否（"这眼睛也太奇怪了"），
+于是改成**让 GPT 在 P0 母图上局部编辑出三张同构图的辅助图**，回来只做提取，不再自己画。
 
-| 文件 | 内容 | 实测 bbox（`-l`） |
+| 交付件 | 用途 | 提取成 |
 | --- | --- | --- |
-| `eyewhite.png` | 白眼球（带顶部冷阴影） | `[1216,810,1364,910]` 149×101 11849px |
-| `irides.png` | 虹膜 64 段垂直渐变 + 描边 + 瞳孔 + 两点高光 | `[1243,814,1336,907]` 94×94 7036px |
-| `eyelash.png` | 上睫毛带（内/外两条弧之间的多边形，两端 `k**2` 收尖） | `[1223,808,1358,839]` 136×32 558px |
-| `eye_close.png` | 闭眼睑：**采样母图肤色**做竖向渐变 + 下垂睫毛弧 + 眼窝阴影 | `[1218,814,1361,905]` 144×92 10256px |
+| `p0/gpt-open.png` | 睁眼（厚藏青上睑 + 淡紫蓝虹膜 + 深瞳 + 白高光） | `eyewhite` / `irides` / `eyelash` |
+| `p0/gpt-close.png` | 闭眼（睫毛压在下眼睑上） | `eye close` |
+| `p0/gpt-mouthopen.png` | 张口 | `mouth open` |
 
-- **三件而不是一张**：合成一张（`max(lash, iris)`）也能用，但 PSD2Live 只给一张建一个 deformer，
-  眼球转动时整只眼（含睫毛）一起变形；拆成三件后 deformer 22 → 26，眼白/虹膜/睫毛各自成型，
-  闭眼件与睁眼件交叉淡入也更自然。`prep_parts_gpt.py` 的 PARTS 里 `eyewhite` / `irides` /
-  `eyelash` 三项都是 `required=True, split_lr=True`——**缺任一件 PSD2Live 就不会建闭眼 keyform**。
-- **眼睛中心取"虹膜核心 bbox 中心"，不是连通块 bbox 中心**：后者被外眼角的睫毛拽偏。
-  实测 `(1290,860)`（画面右＝角色左，`outer=+1`）与 `(998,881)`（画面左＝角色右，`outer=-1`）；
-  两眼 y 差 21px 是头部倾斜，保留。
-- **发丝必须切掉**：母图里角色右眼左侧有一条 x ≈ 880..911 的竖长条（头发），
-  早期 `notskin` 补色 + 10px 膨胀把它并进了眼睛精灵。`open_eyes3.py` 里 `CUT_L = 912`
-  **必须在分析之前**执行（`src[:, :CUT_L] = 0`），否则连通块与虹膜核心统计全被污染。
-- **闭眼件必须和睁眼件同中心同尺寸**，否则眨眼时会看到两次位移。
-- 验收：`preview/_v4-states.png`（上睁下闭，`?idle=0&noeye=1`）。
+三张都要求：1024×1536、纯绿 `#00FF00`、**构图与母图逐像素对齐**（实测 ink bbox 与母图差 ≤4px）。
+`assets/_raw/take_gpt_eyes.py` 一条命令出全部件：
+`key_green` → `align`（`Image.AFFINE` 逆映射，把 ink bbox 对到母图 ink bbox）→
+`to_2048(scale, dx, dy)` → `eye_masks()` → `save_layer()`。
+
+- **三件必须共享同一只眼的外轮廓**：GPT 画的深色墨是**一整条包裹虹膜的厚杏仁**，
+  若按"上睫毛"去截，只剩一根横棒加两端翅膀，读作墨镜。所以顺序是：
+  ① `lash = rect & (lum<=150) & ~skin`（整圈深墨）；
+  ② `seed = rect & (sat>=0.18) & (lum<=240) & ~skin` → 闭运算 → 最大连通块 = 虹膜盘；
+  ③ `pupil = lash & erosion(disc,6)`，`iris = disc | pupil`，`lash &= ~pupil`；
+  ④ `bluetone = rect & ((b−r)>=14) & (lum>=190)`（下眼睑的淡蓝眼白）再与 `dilate(iris,26)` 取交，
+  ⑤ `almond = closing(lash|iris|bluetone,12) & rect & dilate(iris,26)` → `fill_holes` → 最大块；
+  ⑥ `sclera = almond & ~iris & ~lash`，去掉 <40px 碎点。
+- **`eyewhite` 的 alpha 必须是整只眼的实心杏仁**（`eye_full = fill_holes(lash|iris|sclera)`），
+  颜色 `pale where iris else rgb`（`pale = median(rgb[iris & lum>200])`）。只把 `sclera` 当 alpha 的话，
+  虹膜正下方没有淡色底，眼球参数一动就露出脸皮。
+- **`almond` 必须限制在虹膜附近**：`bluetone` 在外眼角会命中侧发/刘海，不限制时画面左那只眼
+  会长到 182×143 并把头发吞进来（闭眼睑椭圆也跟着涨到 192×151）；加 `dilate(iris,26)` 后
+  两侧收敛到 103×107 / 124×127。
+- **闭眼件**：对每个 ≥800px 连通块画外接椭圆（`rx=半宽+12, ry=半高+10`），
+  `clip((1−d)*4)` 再 `gaussian(3.0)` 羽化，颜色取 `gpt-close.png` 的原始像素——
+  所以闭眼时看到的是 GPT 画的真正闭眼，不是"用肤色盖住"。
+- 验收：`assets/_raw/_recompose2.py` 把三件按 z 序叠回去与源图比，多次 `mismatch=0 mean=0.0`，
+  证明切分无损；`_eyes-equal-scale.png`（源图 vs 渲染同尺度）看整体观感。
 
 ### 10.1 眨眼调试的坑（重要）
 
@@ -418,6 +431,28 @@ python assets\_raw\build_gpt_model.py --parts assets\build\gpt-p2l\parts --out a
 （我就这么误判过一次，以为 `ParamMouthOpenY` 没绑）。
 正确做法是用 `?still=1`：时钟钉在 0、但 ticker 照常跑，两帧只差一个参数。
 实测 `?still=1&solo=5&mouth=0` vs `&mouth=1` 差 11576px，画面里能明确看到张嘴。
+
+### 10.4 绿边：despill 之外还要做色溢填充
+
+- **症状**：模型接进舞台后，头发和脸的外轮廓有一圈绿边。量化口径 `g − (r+b)/2 > 15`，
+  3080×3640 的渲染里有 71938 px。
+- **两个根因**：① `prep_parts_gpt.key_background` 的 despill 只把背景主通道夹到
+  `max(另两个通道) + 8`，边缘仍留 8 级绿偏；② 更关键的是**透明像素的 RGB 还是绿色背景色**，
+  PSD2Live 打图集后线性插值会把这份绿拉到不透明边缘上（图集彩边）。
+- **修法**：`assets/_raw/clean_parts.py` 对 `parts/` 里每张 PNG 做两件事——
+  ① `g = min(g, max(r,b)+2)`，只改 alpha>0 的像素；② 用
+  `ndimage.distance_transform_edt(~solid, return_indices=True)` 取最近的不透明像素索引，
+  把它的 RGB 灌满整个透明区（colour bleed），**alpha 一点不动**。
+  重跑 build 后同一口径的绿溢出降到 22132（且截图分辨率更小），肉眼边缘干净。
+- **通用教训**：任何"纯色底抠图"管线，导出前都要把透明区的 RGB 填成最近的不透明颜色，
+  否则一旦缩放或进图集，必出彩边。
+
+### 10.5 看细节先放大画布
+
+`preview/gpt-model.html` 的画布固定 760×900，模型 scale 只有 0.34，眼睛在截图上**只有 41px**，
+放大十几倍看只会得到"发虚"的错觉（一度误判成掩码问题）。
+现在 viewer 支持 `?z=N`（画布 `760N × 900N`、模型 scale 同乘 N），
+`?z=3` 即 2280×2700、眼睛约 123px，1:1 截图才判得了细节。
 
 ## 11. 接进长桌舞台
 

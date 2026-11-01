@@ -75,15 +75,17 @@ for (const [id, min, max, def] of PARAMS) {
       el.querySelector('input').value = state[key];
       el.querySelector('.val').textContent = (+state[key]).toFixed(2);
     }
-    const app = new PIXI.Application({ view: document.getElementById('cv'), width: 760, height: 900,
+    // ?z=3 —— 放大画布，否则眼睛只有 ~41px，无头截图根本判不了细节
+    const Z = Math.max(1, +(new URLSearchParams(location.search).get('z') || 1));
+    const app = new PIXI.Application({ view: document.getElementById('cv'), width: 760 * Z, height: 900 * Z,
       backgroundAlpha: 0, antialias: true });
     const model = await PIXI.live2d.Live2DModel.from('../assets/build/gpt-p2l/p2l/gpt.model3.json',
       { autoInteract: false, autoUpdate: true });
     app.stage.addChild(model);
-    const s = Math.min(700 / model.width, 860 / model.height);
+    const s = Math.min(700 / model.width, 860 / model.height) * Z;
     model.scale.set(s);
     model.anchor.set(0.5, 1);
-    model.position.set(380, 880);
+    model.position.set(380 * Z, 880 * Z);
 
     // ?noeye=1 关掉自动眨眼：否则模型自带的 EyeBlink 每帧把 ParamEyeLOpen 写回 1，
     // 无头截图里 ?p=EyeLOpen:0 就永远看不到闭眼
