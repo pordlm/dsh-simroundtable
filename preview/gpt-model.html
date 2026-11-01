@@ -85,6 +85,10 @@ for (const [id, min, max, def] of PARAMS) {
     model.anchor.set(0.5, 1);
     model.position.set(380, 880);
 
+    // ?noeye=1 关掉自动眨眼：否则模型自带的 EyeBlink 每帧把 ParamEyeLOpen 写回 1，
+    // 无头截图里 ?p=EyeLOpen:0 就永远看不到闭眼
+    if (new URLSearchParams(location.search).has('noeye')) model.internalModel.eyeBlink = null;
+
     let idleOn = true;
     app.ticker.add(() => {
       const cm = model.internalModel.coreModel;
