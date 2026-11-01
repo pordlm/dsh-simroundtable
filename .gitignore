@@ -26,3 +26,6 @@ preview/l2d-test/
 # headless Edge scratch profiles
 .edge-gpt/
 .edge-*/
+# 本地抠图环境（rembg / onnxruntime，~2GB 不可提交）
+.venv-matte/
+

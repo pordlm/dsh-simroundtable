@@ -77,15 +77,29 @@ for (const [id, min, max, def] of PARAMS) {
     }
     // ?z=3 —— 放大画布，否则眼睛只有 ~41px，无头截图根本判不了细节
     const Z = Math.max(1, +(new URLSearchParams(location.search).get('z') || 1));
-    const app = new PIXI.Application({ view: document.getElementById('cv'), width: 760 * Z, height: 900 * Z,
+    // ?raw=1 —— 1:1 像素、画布左上对齐：截图坐标 == 模型坐标，逐像素比图才不会
+    // 因 anchor/缩放换算错位（之前?s 换算曾把两个不同裁切率的图当成"渲染偏大"）
+    const RAW = new URLSearchParams(location.search).has('raw');
+    const app = new PIXI.Application({ view: document.getElementById('cv'),
+      width: RAW ? 2048 : 760 * Z, height: RAW ? 2048 : 900 * Z,
       backgroundAlpha: 0, antialias: true });
     const model = await PIXI.live2d.Live2DModel.from('../assets/build/gpt-p2l/p2l/gpt.model3.json',
       { autoInteract: false, autoUpdate: true });
     app.stage.addChild(model);
-    const s = Math.min(700 / model.width, 860 / model.height) * Z;
-    model.scale.set(s);
-    model.anchor.set(0.5, 1);
-    model.position.set(380 * Z, 880 * Z);
+    if (RAW) {
+      model.anchor.set(0, 0);
+      model.scale.set(1);
+      const b = model.getLocalBounds();          // 把 bounds 左上角顶到 (0,0)，让
+      model.position.set(-b.x, -b.y);            // 截图像素 == 模型坐标，可直接逐像素比
+    } else {
+      // 注意：model.width/height 是**贴图内容的紧包围盒**（≈1877×2001），不是 moc3
+      // 画布 2048×2048；拿它算缩放会把模型放大 ~9% 并左右裁掉，所以固定用画布尺寸。
+      const CW = 2048, CH = 2048;
+      const s = Math.min(700 / CW, 860 / CH) * Z;
+      model.scale.set(s);
+      model.anchor.set(0.5, 1);
+      model.position.set(380 * Z, 880 * Z);
+    }
 
     // ?probe=1 —— 把模型实际画布尺寸与落屏 scale 打进 DOM，便于无头 --dump-dom 取证
     if (new URLSearchParams(location.search).has('probe')) {
@@ -97,13 +111,21 @@ for (const [id, min, max, def] of PARAMS) {
 
     // ?noeye=1 关掉自动眨眼：否则模型自带的 EyeBlink 每帧把 ParamEyeLOpen 写回 1，
     // 无头截图里 ?p=EyeLOpen:0 就永远看不到闭眼
-    if (new URLSearchParams(location.search).has('noeye')) model.internalModel.eyeBlink = null;
+    const noEye = new URLSearchParams(location.search).has('noeye');
+    if (noEye) model.internalModel.eyeBlink = null;
 
     let idleOn = true;
     app.ticker.add(() => {
       const cm = model.internalModel.coreModel;
       if (q) model.internalModel.motionManager.stopAllMotions();
       for (const [id] of PARAMS) cm.setParameterValueById(id, state[id]);
+      // 关掉 EyeBlink 后没有东西再写 EyeLOpen，参数会停在 moc3 的默认值上——而
+      // 眼皮开合的关键形在该默认值下会把上睫毛压薄，截图就看着像"半睁"。这里补回
+      // 睁眼值，也就是 Pixi 的 EyeBlink 平时在做的事。
+      if (noEye) {
+        cm.setParameterValueById('ParamEyeLOpen', 1);
+        cm.setParameterValueById('ParamEyeROpen', 1);
+      }
     });
     document.querySelectorAll('[data-motion]').forEach(b => b.onclick = () =>
       model.motion(b.dataset.motion));
