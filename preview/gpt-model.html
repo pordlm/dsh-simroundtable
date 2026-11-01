@@ -80,7 +80,17 @@ for (const [id, min, max, def] of PARAMS) {
     // ?raw=1 —— 1:1 像素、画布左上对齐：截图坐标 == 模型坐标，逐像素比图才不会
     // 因 anchor/缩放换算错位（之前?s 换算曾把两个不同裁切率的图当成"渲染偏大"）
     const RAW = new URLSearchParams(location.search).has('raw');
-    const app = new PIXI.Application({ view: document.getElementById('cv'),
+    // ?raw=1 顺带把底刷成纯绿：截图里"非绿"就是模型墨迹，可以直接算 bbox 对齐源图
+    if (RAW) {
+      document.body.style.background = '#00ff00';
+      document.getElementById('stage').style.background = '#00ff00';
+    }
+    // 2048 atlases are drawn at ~0.1 scale on the stage; without mipmaps a
+// 1px outline aliases into a stair-stepped halo ("edges look rough").
+if (PIXI.BaseTexture && PIXI.BaseTexture.defaultOptions) {
+  PIXI.BaseTexture.defaultOptions.mipmap = PIXI.MIPMAP_MODES.ON;
+}
+const app = new PIXI.Application({ view: document.getElementById('cv'),
       width: RAW ? 2048 : 760 * Z, height: RAW ? 2048 : 900 * Z,
       backgroundAlpha: 0, antialias: true });
     const model = await PIXI.live2d.Live2DModel.from('../assets/build/gpt-p2l/p2l/gpt.model3.json',

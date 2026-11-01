@@ -512,6 +512,43 @@ rgb[rim] = np.clip((rgb[rim] - (1.0 - a01) * bg) / np.maximum(a01, 0.05), 0, 255
 两者 `>127` 判定一致率 99%，且**与现有颜色键的轮廓基本一致**——即这批图的绿边/毛刺不是抠图算法问题，
 而是上面 10.7（参数）与 10.8（反预乘）两个问题。要用也建议只用在**发丝细部**，整张换算法收益很小。
 
+### 10.10 A 方案实测：BiRefNet HR-matting 的软 alpha（2026-11-02）
+
+用户要求「用 A 方案跑一版对比，如果更好之后的模型都走这个流程」，于是把抠图 alpha 源从颜色键换成
+`ZhengPeng7/BiRefNet_HR-matting`（官方 HF 权重，2048² trimap-free matting）实测了一整条链路。
+
+环境：`.venv-matte` 里 **torch 2.5.1+cu121**（`--index-url https://download.pytorch.org/whl/cu121`；
+transformers 必须降到 4.49.0，5.x 要求 torch≥2.6），RTX 4070 上**载入 66.9s、单张 2048² 推理 179.2s**。
+
+接法（已实现，默认关闭）：
+
+```powershell
+python assets\_raw\prep_parts_gpt.py --matte preview\_matte-hr.png --soft
+python assets\_raw\ingest_lasso.py --soft   # 不再做 alpha>=128 的二值化
+python assets\_raw\clean_parts.py
+python assets\_raw\build_gpt_model.py --parts assets/build/gpt-p2l/parts --out assets/build/gpt-p2l
+```
+
+- 颜色键系数 × matte：matte 只知道**外轮廓**，内部的拆分（头发压脸、瞳孔在虹膜里）仍归颜色键，这个乘积正好只羽化外缘。
+- `resize_premult()` 用预乘方式重采样，避免 PIL 把边缘和透明黑混成黑边。
+- PSD2Live **能吃软 alpha**：产物仍是 22 层 / 25 drawable / 6 张 4096 图集，渲染里抗锯齿也保留了。
+
+对照结论（`preview/gpt-soft-vs-hard-stage.png`、`preview/gpt-soft-vs-hard-render.png`）：
+
+| 尺度 | 硬 alpha（现状） | BiRefNet 软 alpha（A 方案） |
+|---|---|---|
+| 座位尺寸（角色 244px 高） | 参考 | 肉眼一致，整图 mean diff **0.21/255** |
+| 1:1 放大 | 有台阶 | 轮廓更顺，但画面自带的深色描边变成半透明，出现**淡紫描边** |
+
+补救尝试：给软边加 2px 实心 core → 等于把绿底像素拉进轮廓（`total despilled` 从 66784 涨到 122498），作废。
+
+另一个坑：**反预乘必须用「颜色键系数」而不是最终 alpha**。淡色发丝若除以 matte 给出的小 alpha，
+会直接炸成洋红（`(255,100,255)`）——这是 A 方案第一版满屏粉边的根因。
+
+结论：**默认仍走硬 alpha**，matte 流程作为 `--matte/--soft` 可选项保留。真正决定「边缘粗糙」的不是抠图算法，
+而是座位尺寸（2048 贴图 → 244px 高，1 个屏幕像素 ≈ 8.4 个贴图像素）和发丝线本身只有 1–2px；
+顺带试了 `PIXI.BaseTexture.defaultOptions.mipmap = ON`，整图 mean diff 同样只有 0.21/255，收益可忽略。
+
 ## 11. 接进长桌舞台
 
 `preview/longtable.html` 里加了一张按名字查的模型表：

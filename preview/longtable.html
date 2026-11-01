@@ -122,7 +122,12 @@ window.addEventListener('resize', fit);
   const speakSeat = q.has('speak') ? Number(q.get('speak')) : null;
   const noChairs = q.get('nochairs') === '1';
   const count = Math.max(2, Math.min(8, Number(q.get('n') || 8)));
-  const app = new PIXI.Application({
+  // 2048 atlases are drawn at ~0.1 scale on the stage; without mipmaps a
+// 1px outline aliases into a stair-stepped halo ("edges look rough").
+if (PIXI.BaseTexture && PIXI.BaseTexture.defaultOptions) {
+  PIXI.BaseTexture.defaultOptions.mipmap = PIXI.MIPMAP_MODES.ON;
+}
+const app = new PIXI.Application({
     view: document.getElementById('seats'), width: STAGE_W, height: STAGE_H,
     backgroundAlpha: 0, antialias: true, autoDensity: true,
     resolution: Math.min(3, Math.max(1, Math.min(window.innerWidth / STAGE_W, window.innerHeight / STAGE_H) * (window.devicePixelRatio || 1)))
