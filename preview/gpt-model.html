@@ -93,7 +93,10 @@ if (PIXI.BaseTexture && PIXI.BaseTexture.defaultOptions) {
 const app = new PIXI.Application({ view: document.getElementById('cv'),
       width: RAW ? 2048 : 760 * Z, height: RAW ? 2048 : 900 * Z,
       backgroundAlpha: 0, antialias: true });
-    const model = await PIXI.live2d.Live2DModel.from('../assets/build/gpt-p2l/p2l/gpt.model3.json',
+    // ?model=../assets/build/gpt-p2l-soft/p2l/gpt.model3.json —— 换一版模型对比用
+    const MODEL = new URLSearchParams(location.search).get('model')
+      || '../assets/build/gpt-p2l/p2l/gpt.model3.json';
+    const model = await PIXI.live2d.Live2DModel.from(MODEL,
       { autoInteract: false, autoUpdate: true });
     app.stage.addChild(model);
     if (RAW) {

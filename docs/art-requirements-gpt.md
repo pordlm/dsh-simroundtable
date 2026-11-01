@@ -512,42 +512,46 @@ rgb[rim] = np.clip((rgb[rim] - (1.0 - a01) * bg) / np.maximum(a01, 0.05), 0, 255
 两者 `>127` 判定一致率 99%，且**与现有颜色键的轮廓基本一致**——即这批图的绿边/毛刺不是抠图算法问题，
 而是上面 10.7（参数）与 10.8（反预乘）两个问题。要用也建议只用在**发丝细部**，整张换算法收益很小。
 
-### 10.10 A 方案实测：BiRefNet HR-matting 的软 alpha（2026-11-02）
+### 10.10 抠图默认走 BiRefNet HR-matting 软 alpha（2026-11-02 定案）
 
 用户要求「用 A 方案跑一版对比，如果更好之后的模型都走这个流程」，于是把抠图 alpha 源从颜色键换成
-`ZhengPeng7/BiRefNet_HR-matting`（官方 HF 权重，2048² trimap-free matting）实测了一整条链路。
+`ZhengPeng7/BiRefNet_HR-matting`（官方 HF 权重，2048² trimap-free matting），跑了 A/B 后**定案：新角色默认用它**。
 
 环境：`.venv-matte` 里 **torch 2.5.1+cu121**（`--index-url https://download.pytorch.org/whl/cu121`；
 transformers 必须降到 4.49.0，5.x 要求 torch≥2.6），RTX 4070 上**载入 66.9s、单张 2048² 推理 179.2s**。
 
-接法（已实现，默认关闭）：
+一条命令（`_chain.ps1` 默认就是软 alpha）：
 
 ```powershell
-python assets\_raw\prep_parts_gpt.py --matte preview\_matte-hr.png --soft
-python assets\_raw\ingest_lasso.py --soft   # 不再做 alpha>=128 的二值化
-python assets\_raw\clean_parts.py
-python assets\_raw\build_gpt_model.py --parts assets/build/gpt-p2l/parts --out assets/build/gpt-p2l
+assets\_raw\_chain.ps1                        # 软 matte，写进 assets\build\gpt-p2l
+assets\_raw\_chain.ps1 -Hard                  # 退回颜色键硬 alpha（没有 GPU 时用）
+assets\_raw\_chain.ps1 -Matte -OutDir assets\build\gpt-p2l-soft   # 另存一版做 A/B
 ```
 
+- 各阶段都写 `<OutDir>\parts`，两种变体可以并存对比，不会互相覆盖；matte 缓存成 `<OutDir>\matte.png`，
+  母图没变就不重算（否则每次 3 分钟）。
+- 坑：`param([switch]$Matte)` 与局部变量 `$matte` **同名**（PowerShell 不区分大小写），赋值会报
+  `Cannot convert value "System.String" to type "System.Management.Automation.SwitchParameter"`；局部变量改名 `$mattePath`。
 - 颜色键系数 × matte：matte 只知道**外轮廓**，内部的拆分（头发压脸、瞳孔在虹膜里）仍归颜色键，这个乘积正好只羽化外缘。
 - `resize_premult()` 用预乘方式重采样，避免 PIL 把边缘和透明黑混成黑边。
-- PSD2Live **能吃软 alpha**：产物仍是 22 层 / 25 drawable / 6 张 4096 图集，渲染里抗锯齿也保留了。
+- PSD2Live **能吃软 alpha**：产物仍是 22 层 / 25 drawable / 6 张 4096 图集。
 
-对照结论（`preview/gpt-soft-vs-hard-stage.png`、`preview/gpt-soft-vs-hard-render.png`）：
+对照（`preview/gpt-soft-vs-hard-1to1.png`，同机位 4× 放大）：
 
-| 尺度 | 硬 alpha（现状） | BiRefNet 软 alpha（A 方案） |
+| 尺度 | 硬 alpha | BiRefNet 软 alpha |
 |---|---|---|
 | 座位尺寸（角色 244px 高） | 参考 | 肉眼一致，整图 mean diff **0.21/255** |
-| 1:1 放大 | 有台阶 | 轮廓更顺，但画面自带的深色描边变成半透明，出现**淡紫描边** |
+| 1:1 / 放大看 | 发丝描边发灰发绿、细丝断成台阶 | 描边保持深色、细丝连续，虹膜渐变完整 |
 
-补救尝试：给软边加 2px 实心 core → 等于把绿底像素拉进轮廓（`total despilled` 从 66784 涨到 122498），作废。
+也就是说：**舞台上看不出差别，放大后软边明显更干净** —— 这正是"想要精细一点"的场合，所以定为默认。
 
-另一个坑：**反预乘必须用「颜色键系数」而不是最终 alpha**。淡色发丝若除以 matte 给出的小 alpha，
-会直接炸成洋红（`(255,100,255)`）——这是 A 方案第一版满屏粉边的根因。
+踩坑留档：
 
-结论：**默认仍走硬 alpha**，matte 流程作为 `--matte/--soft` 可选项保留。真正决定「边缘粗糙」的不是抠图算法，
-而是座位尺寸（2048 贴图 → 244px 高，1 个屏幕像素 ≈ 8.4 个贴图像素）和发丝线本身只有 1–2px；
-顺带试了 `PIXI.BaseTexture.defaultOptions.mipmap = ON`，整图 mean diff 同样只有 0.21/255，收益可忽略。
+- 早年担心「软边把深色描边变半透明 → 淡紫描边」，在 4× 同机位对照里**不成立**；淡紫是母图睫毛本身的颜色。
+- 补救实验「给软边加 2px 实心 core」等于把绿底像素拉进轮廓（`total despilled` 66784 → 122498），作废。
+- **反预乘必须用「颜色键系数」而不是最终 alpha**：淡色发丝若除以 matte 给出的小 alpha，会直接炸成洋红 `(255,100,255)`。
+- `mipmap` 实测整图 mean diff 也只有 0.21/255，收益可忽略（但已开着，无害）。
+- 素材页加了 `?model=<path>`，不换文件就能对比两版：`gpt-model.html?z=2&model=../assets/build/gpt-p2l-soft/p2l/gpt.model3.json`。
 
 ## 11. 接进长桌舞台
 
