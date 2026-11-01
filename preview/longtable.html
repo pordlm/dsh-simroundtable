@@ -103,8 +103,12 @@ window.addEventListener('resize', fit);
   const keepIdle = q.get('idle') === '1';
   const keepPhones = q.get('phones') === '1';
   const freeze = q.get('freeze') === '1';
+  // 调试用：时钟钉在 0 但照常写参数（freeze 会整帧 return，参数压根不被写进去）
+  const still = q.get('still') === '1';
   // 调试用：只加载指定座位的模型（8 个模型一起加载会拖慢无头截图）
   const soloSeat = q.has('solo') ? Number(q.get('solo')) : null;
+  // 调试用：强制某个座位一直在发言（截图验证口型）
+  const speakSeat = q.has('speak') ? Number(q.get('speak')) : null;
   const noChairs = q.get('nochairs') === '1';
   const count = Math.max(2, Math.min(8, Number(q.get('n') || 8)));
   const app = new PIXI.Application({ view: document.getElementById('seats'), width: STAGE_W, height: STAGE_H, backgroundAlpha: 0, antialias: true });
@@ -233,7 +237,7 @@ window.addEventListener('resize', fit);
   let frames = 0, lastFps = t0;
   app.ticker.add(() => {
     if (freeze) return;
-    const t = performance.now() - t0;
+    const t = still ? 0 : performance.now() - t0;
     frames++;
     if (t - lastFps > 700) {
       document.getElementById('fps').textContent = Math.round(frames * 1000 / (t - lastFps));
@@ -243,8 +247,12 @@ window.addEventListener('resize', fit);
       if (!s.model) continue;
       const w = s.wobble;
       if (forcedMouth !== null) s.mouth = forcedMouth;
-      else if (s.speaking) s.mouth = 0.12 + 0.88 * Math.abs(Math.sin(t / 140));
-      else s.mouth *= 0.86;
+      else if (s.speaking) {
+        // 说话时的口型：两条不同周期的正弦叠出音节感，每个座位相位不同，
+        // 不是整齐的节拍器。鲸鱼娘的张嘴参数没绑几何，只有 GPT 看得出效果。
+        const sp = t / 1000 + w.phase;
+        s.mouth = 0.10 + 0.90 * Math.abs(Math.sin(sp * 5.5) * 0.72 + Math.sin(sp * 8.9) * 0.28);
+      } else s.mouth *= 0.86;
 
       let nod, lean, turn, breath;
       if (s.speaking) {
@@ -296,9 +304,10 @@ window.addEventListener('resize', fit);
   }
 
   if (isStatic) {
-    speak(Math.min(2, count - 1), 60000);
+    speak(speakSeat !== null ? speakSeat % count : Math.min(2, count - 1), 60000);
   } else {
     let turn = 1;
+    if (speakSeat !== null) speak(speakSeat % count, 600000);
     setInterval(() => { speak(turn % count, 2000); turn++; }, 2600);
     speak(0, 2000);
   }

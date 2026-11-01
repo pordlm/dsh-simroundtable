@@ -394,6 +394,31 @@ python assets\_raw\build_gpt_model.py --parts assets\build\gpt-p2l\parts --out a
 给页面加 `?noeye=1`（`model.internalModel.eyeBlink = null`）后 `?p=EyeLOpen:0&idle=0&noeye=1`
 立刻正常闭眼（像素差 99341）。**以后验参数前先想清楚哪个子系统每帧会写回它。**
 
+### 10.2 眉毛：靠前发的缝隙定位
+
+眉毛最初"有件但看不见"，量一下才明白不是画错了位置，是**被前发盖住**：
+按列找 `front_hair` alpha>0.5 的最低 y，eye-R（画面左）中位 768、p75 798，eye-L（画面右）中位 784、p75 817；
+每行"有皮肤且无发"的可见宽度在 y=770 只有 88px，到 y=800 才有 126px。
+→ 能安全放眉的只有 **y≈785..806** 那条缝。
+
+最终参数（`assets/_raw/auto_face_parts.py` 的 `draw_eyebrow`）：
+`base_y = lash_top − 30`、`arch = 0.10 × 眉长`、半厚度 `3.4 × sin(...)^0.5 + 0.5`、
+颜色 `睫毛色 × 0.62 + 肤色 × 0.38`、alpha 峰值 0.95、`gaussian 0.5`。
+实测 `eyebrow-l bbox[1218,794,1376,816] 159×23`、`eyebrow-r [908,816,1064,838] 157×23`，
+眉尾压在睫毛上沿、主体落在可见皮肤带里。**再往上抬就会被前发吃掉。**
+
+### 10.3 嘴：张口件要够大，参数要真的写进去
+
+闭嘴件是**从母图按 `r−g` 键出来的玫瑰晕染**（`a = clip(((r−g) − 6)/13)`，母图皮肤 r−g≈10、唇色≈44），
+31×10、225px，静止时几乎隐形；张口件画成 38×46 的同族玫瑰蛋形（34×38、1000px）。
+理由：舞台 `seatH≈155` 时闭嘴只有 ~0.8px 高，张口件小于这个尺寸就"说话看不出嘴动"。
+
+**验证口型时的坑**：`preview/longtable.html?freeze=1` 会在 ticker 第一行 `if (freeze) return;`，
+参数压根不会被写进模型 —— 拿 `?mouth=0` vs `?mouth=1` 配 `freeze=1` 对比会得到"像素差 0"的假结论
+（我就这么误判过一次，以为 `ParamMouthOpenY` 没绑）。
+正确做法是用 `?still=1`：时钟钉在 0、但 ticker 照常跑，两帧只差一个参数。
+实测 `?still=1&solo=5&mouth=0` vs `&mouth=1` 差 11576px，画面里能明确看到张嘴。
+
 ## 11. 接进长桌舞台
 
 `preview/longtable.html` 里加了一张按名字查的模型表：
@@ -419,7 +444,12 @@ const MODELS = {
 - 另外加了 `app.stage.sortableChildren = true`：模型是 `Promise.all` 并发加载的，
   不开排序 `zIndex` 无效，相邻座位的尾巴会盖到别人脸上。
 - 调试参数：`?solo=<座位号>` 只加载一个模型（8 个 4096 atlas 一起加载会把无头截图拖到超时）、
-  `?debug=1` 在左上角打出每个座位的 `x / mx / baseY / bounds`。
+  `?debug=1` 在左上角打出每个座位的 `x / mx / baseY / bounds`、
+  `?speak=<座位号>` 让指定座位一直处于发言态（截口型用）、
+  `?still=1` 时钟钉在 0 但参数照常写入（**截图对比参数的唯一可靠姿势**，见 10.3）。
+- 口型节律：发言时不再用 `Math.abs(Math.sin(t / 140))` 这种整齐节拍器，改成两条不同周期正弦叠加、
+  每个座位相位不同 —— `s.mouth = 0.10 + 0.90 * |sin(sp*5.5)*0.72 + sin(sp*8.9)*0.28|`。
+  鲸鱼娘没绑嘴参数，改节奏不影响它们。
 - 舞台其余逻辑（呼吸/点头/发言）不用改：GPT 模型的 `ParamAngleX/Y/Z`、`ParamBodyAngleZ`、
   `ParamMouthOpenY` 都真绑定了几何，比鲸鱼娘（嘴参数无效）反而更完整。
 
