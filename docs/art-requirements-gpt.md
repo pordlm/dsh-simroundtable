@@ -488,3 +488,23 @@ const MODELS = {
 - 舞台其余逻辑（呼吸/点头/发言）不用改：GPT 模型的 `ParamAngleX/Y/Z`、`ParamBodyAngleZ`、
   `ParamMouthOpenY` 都真绑定了几何，比鲸鱼娘（嘴参数无效）反而更完整。
 
+### 11.1 舞台渲染分辨率（五官在大屏上糊掉的根因）
+
+舞台是固定 `1400×920` 的逻辑画布，再用 `transform: scale(s)` 贴合窗口。以前只缩放了
+**位图**：在 2560×1440 的窗口上 `s≈1.57`，等于把 1400×920 的渲染结果放大 1.57 倍，
+五官全是糊的（嘴本来就只有 3px，一放大直接消失）。
+
+现在按「CSS 缩放 × 设备像素比」提高渲染表面：
+
+```js
+resolution: Math.min(3, Math.max(1, s * (window.devicePixelRatio || 1)))
+// resize 时同步 app.renderer.resolution = r; app.renderer.resize(STAGE_W, STAGE_H)
+```
+
+逻辑坐标一点没变（`charH`、座位、`faceDx` 全部照旧），只是实际渲染像素变多：
+2560×1440 下画布是 2191×1440，嘴从「3px 的糊块」变成清晰的 7px。
+
+**注意**：提高分辨率只让边缘更锐，**不改变五官占角色高度的比例**——
+嘴占座位高度的 1.4% 这个事实仍然成立，所以母图里只有 30×14 的嘴依然要靠
+`assets/_raw/scale_mouth.py` 放大到 46×15（原图像素整体缩放 1.7×，不重画）才读得出来。
+

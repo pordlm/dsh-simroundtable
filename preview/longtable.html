@@ -62,6 +62,10 @@
 <script src="../assets/vendor/cubism4.min.js"></script>
 <script>
 const STAGE_W = 1400, STAGE_H = 920;
+// 舞台是固定 1400x920 的逻辑坐标，靠 CSS transform 缩放贴合窗口。
+// 大屏上如果只放大位图，五官（尤其嘴）会被糊成一片 —— 所以把渲染表面按
+// 「CSS 缩放 x 设备像素比」提高分辨率，逻辑坐标不变，实际像素变多。
+let APP = null;
 const TABLE_TOP = 600;
 const BASE_Y = 668;               // 脚底基线，桌沿以下的部分被桌面遮住
 const NAMES = ["DeepSeek", "Qwen", "GLM", "Kimi", "Claude", "GPT", "Gemini", "Doubao"];
@@ -92,6 +96,13 @@ const LINES = [
 function fit(){
   const s = Math.min(window.innerWidth / STAGE_W, window.innerHeight / STAGE_H);
   document.getElementById('fit').style.transform = `translate(-50%,-50%) scale(${s})`;
+  if (APP) {
+    const r = Math.min(3, Math.max(1, s * (window.devicePixelRatio || 1)));
+    if (Math.abs(APP.renderer.resolution - r) > 0.01) {
+      APP.renderer.resolution = r;
+      APP.renderer.resize(STAGE_W, STAGE_H);
+    }
+  }
 }
 window.addEventListener('resize', fit);
 
@@ -111,7 +122,13 @@ window.addEventListener('resize', fit);
   const speakSeat = q.has('speak') ? Number(q.get('speak')) : null;
   const noChairs = q.get('nochairs') === '1';
   const count = Math.max(2, Math.min(8, Number(q.get('n') || 8)));
-  const app = new PIXI.Application({ view: document.getElementById('seats'), width: STAGE_W, height: STAGE_H, backgroundAlpha: 0, antialias: true });
+  const app = new PIXI.Application({
+    view: document.getElementById('seats'), width: STAGE_W, height: STAGE_H,
+    backgroundAlpha: 0, antialias: true, autoDensity: true,
+    resolution: Math.min(3, Math.max(1, Math.min(window.innerWidth / STAGE_W, window.innerHeight / STAGE_H) * (window.devicePixelRatio || 1)))
+  });
+  APP = app;
+  fit();
   // 模型是并发加载的，不排序的话 zIndex 无效，相邻座位的尾巴会盖到别人脸上
   app.stage.sortableChildren = true;
   const chairs = document.getElementById('chairs');
