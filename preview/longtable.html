@@ -466,6 +466,22 @@ const app = new PIXI.Application({
       return `${s.i} x=${Math.round(s.x)} mx=${Math.round(s.model.x)} baseY=${Math.round(s.baseY)} b=[${Math.round(b.left)}..${Math.round(b.right)}] w=${Math.round(b.width)}${pv}`;
     }).join('\n');
     const base = `charH=${charH}\n` + seatLines();
+    // Texture ledger: a 4096 page is 64 MB decoded, and the stage loads the same
+    // model on several seats.  Counting the Textures list in model3.json would
+    // count duplicates, so dedupe by baseTexture uid -- that is the number the
+    // GPU actually holds.
+    const texLine = () => {
+      const seen = new Set();
+      let bytes = 0, pages = 0;
+      for (const k in PIXI.utils.TextureCache) {
+        const bt = PIXI.utils.TextureCache[k].baseTexture;
+        if (!bt || seen.has(bt.uid)) continue;
+        seen.add(bt.uid);
+        pages++;
+        bytes += bt.realWidth * bt.realHeight * 4;
+      }
+      return `tex pages=${pages} vram≈${(bytes / 1048576).toFixed(0)}MB`;
+    };
     d.textContent = base;
     document.getElementById('stage').appendChild(d);
     // 每 0.5s 刷新：座位行要重算（poseDbg 每帧在变），有异常就把异常贴上来。
@@ -473,8 +489,8 @@ const app = new PIXI.Application({
       const errs = window.__errs;
       const head = `charH=${charH}\n` + seatLines();
       d.textContent = errs.length
-        ? head + `\nERR(${errs.length}): ` + errs.join(' | ')
-        : head + `\nfps=${document.getElementById('fps').textContent}`;
+        ? head + `\n${texLine()}` + `\nERR(${errs.length}): ` + errs.join(' | ')
+        : head + `\n${texLine()}` + `\nfps=${document.getElementById('fps').textContent}`;
     }, 500);
   }
 

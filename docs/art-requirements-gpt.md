@@ -620,8 +620,37 @@ resolution: Math.min(3, Math.max(1, s * (window.devicePixelRatio || 1)))
 ## 12. 纹理图集与显存：4096 是引擎挑的，不是我们挑的
 
 舞台上模型只有 `seatH≈155` 高，却每座背着 6 张 4096×4096 的图集。磁盘上只有 8.3 MB，
-但解码成 RGBA 之后是 `6 × 64 MB = 384 MB`；八座位视图里 GPT 会出现两次（另加鲸鱼娘、Claude 等），
-显存很容易上千兆。这一节记下「为什么降不下来」和唯一有效的杠杆，免得下次再从 `--atlas` 开始试。
+但解码成 RGBA 之后是 `6 × 64 MB = 384 MB`。这一节记下「为什么降不下来」和唯一有效的杠杆，
+免得下次再从 `--atlas` 开始试。
+
+**满座实测（round 21）**：给 `longtable.html` 的 `?debug=1` 加了 `texLine()`——遍历
+`PIXI.utils.TextureCache`，按 `baseTexture.uid` 去重后累加 `realWidth * realHeight * 4`：
+
+```js
+const texLine = () => {
+  const seen = new Set(); let bytes = 0, pages = 0;
+  for (const k in PIXI.utils.TextureCache) {
+    const bt = PIXI.utils.TextureCache[k].baseTexture;
+    if (!bt || seen.has(bt.uid)) continue;
+    seen.add(bt.uid); pages++;
+    bytes += bt.realWidth * bt.realHeight * 4;
+  }
+  return `tex pages=${pages} vram≈${(bytes / 1048576).toFixed(0)}MB`;
+};
+```
+
+`?only=0,1,2,3,4,5,6,7&debug=1&still=1`（八座全开）读数 **`tex pages=9 vram≈468MB`**：
+
+| 模型 | 占座 | 图集 | 显存 |
+| --- | --- | --- | --- |
+| 鲸鱼娘 | 6（x=123/288/453/618/1113/1278） | 2 页 | ≈20 MB |
+| Claude | 1（x=783，`w=255`） | 1 页 4096² | 64 MB |
+| GPT | 1（x=948，`w=155`） | 6 页 4096² | **384 MB（82%）** |
+
+两个结论：
+1. **同一模型多座不会翻倍**。鲸鱼娘坐 6 席只占 2 页——`TextureCache` 按 URL 复用底图，
+   所以「八座里模型重复就会乘上去」是我先前算错的，`?n=8` 其实是 8 个名字各一席。
+2. **显存几乎全是 GPT 那 6 张图集**，只为舞台上 155 px 高的一个角色服务。
 
 - **`--atlas` 只是页大小上限，不是请求**。`PSD2Live --help` 写的是
   `--atlas 4096  Texture page size (256..16384)`，但实测：
@@ -644,4 +673,26 @@ resolution: Math.min(3, Math.max(1, s * (window.devicePixelRatio || 1)))
 - 顺带纠正一个探查错误：`$env:APPDATA` 本身就是 `Roaming`，再去拼 `\Roaming\Live2D` 会得到一个
   不存在的路径，曾据此误报"Cubism 设置目录出现了"。Cubism 的设置目录是 `%APPDATA%\Live2D`，
   里面至今没有 `ExternalApp_user.xml`（外部应用程序集成开关从未被 GUI 创建过）。
+
+### 12.1 怎么读这个账本：`--dump-dom` 要分离启动
+
+无头截图里 HUD 文字靠肉眼裁切极不可靠（每行约 12–17 px，还混着随机发言气泡），
+直接读 DOM 最稳，但 `longtable.html` 多模型加载慢，两种写法会踩不同的坑：
+
+```powershell
+# 会超时：pwsh 挂在子进程上，工具硬上限约 150–200 s
+Start-Process msedge -ArgumentList '--headless=new','--dump-dom',... -RedirectStandardOutput out.html
+
+# 可以：cmd 立刻返回，输出写文件，下一次工具调用再轮询
+$cmd = 'cmd /c start /b "" "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" ' +
+       '--headless=new --disable-gpu --no-first-run --user-data-dir="%TEMP%\edge-dom-a" ' +
+       '--window-size=1400,920 --virtual-time-budget=20000 --dump-dom "<url>" > "out.html" 2> "out.err"'
+cmd /c $cmd
+```
+
+- 轮询判据 `Length -gt 2000`，通常 0–4 秒就够；`?n=8` 用 25 s 虚拟预算会**产出 0 字节**，
+  换成显式 `?only=0,1,...,7` 立刻成功。
+- DOM 里调试 overlay **没有 id**（`id="hud"` 命中的是页脚 fps 标签），要按文本 `tex pages` / `charH=`
+  定位再向两侧取窗口，`re.sub(r'<[^>]+>', '|', seg)` 剥标签。
+- dump 里的中文是乱码（编码问题），数字可靠。
 
