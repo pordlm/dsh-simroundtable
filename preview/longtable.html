@@ -156,6 +156,9 @@ window.addEventListener('resize', fit);
   const freeze = q.get('freeze') === '1';
   // 调试用：时钟钉在 0 但照常写参数（freeze 会整帧 return，参数压根不被写进去）
   const still = q.get('still') === '1';
+  // 调试用：把时钟钉在某个毫秒值。still=1 只给 t=0 一个采样点，看不出
+  // 「说话时头部是否跟着音节动」——tpin 可以取多个采样点，读 poseDbg 比对。
+  const tPin = q.has('tpin') ? Number(q.get('tpin')) : null;
   // 调试用：只加载指定座位的模型（8 个模型一起加载会拖慢无头截图）
   const soloSeat = q.has('solo') ? Number(q.get('solo')) : null;
   // 调试用：只加载列表里的座位，如 ?only=4,5（无头截图时 6 个模型太重会挂）
@@ -462,7 +465,7 @@ const app = new PIXI.Application({
       if (!s.model) return `${s.i} x=${Math.round(s.x)} (no model)`;
       const b = s.model.getBounds();
       const p = s.poseDbg;
-      const pv = p ? ` turn=${p.turn.toFixed(1)} nod=${p.nod.toFixed(1)} lean=${p.lean.toFixed(1)} tilt=${(p.tilt||0).toFixed(1)} look=${p.look.toFixed(2)} eyeX=${(p.eyeX||0).toFixed(2)} eyeY=${(p.eyeY||0).toFixed(2)} hair=${(p.hair||0).toFixed(3)} g=${p.g}` : '';
+      const pv = p ? ` turn=${p.turn.toFixed(1)} nod=${p.nod.toFixed(1)} lean=${p.lean.toFixed(1)} tilt=${(p.tilt||0).toFixed(1)} look=${p.look.toFixed(2)} eyeX=${(p.eyeX||0).toFixed(2)} eyeY=${(p.eyeY||0).toFixed(2)} hair=${(p.hair||0).toFixed(3)} sy=${(p.sy||0).toFixed(2)} mo=${(p.mouth||0).toFixed(2)} g=${p.g}` : '';
       return `${s.i} x=${Math.round(s.x)} mx=${Math.round(s.model.x)} baseY=${Math.round(s.baseY)} b=[${Math.round(b.left)}..${Math.round(b.right)}] w=${Math.round(b.width)}${pv}`;
     }).join('\n');
     const base = `charH=${charH}\n` + seatLines();
@@ -498,7 +501,7 @@ const app = new PIXI.Application({
   let frames = 0, lastFps = t0;
   app.ticker.add(() => {
     if (freeze) return;
-    const t = still ? 0 : performance.now() - t0;
+    const t = still ? 0 : (tPin !== null && Number.isFinite(tPin) ? tPin : performance.now() - t0);
     frames++;
     if (t - lastFps > 700) {
       const fpsNow = Math.round(frames * 1000 / (t - lastFps));
@@ -550,13 +553,14 @@ const app = new PIXI.Application({
         }
       }
       const w = s.wobble;
+      // 音节包络：口型和头部共用同一条曲线（5.5 / 8.9 两条正弦叠出音节感），
+      // 头部才有「跟着字往下压」的感觉；各座位相位不同，不是整齐的节拍器。
+      // 鲸鱼娘的张嘴参数没绑几何，只有 GPT / Claude 看得出效果。
+      const sp = t / 1000 + w.phase;
+      const sy = Math.abs(Math.sin(sp * 5.5) * 0.72 + Math.sin(sp * 8.9) * 0.28);
       if (forcedMouth !== null) s.mouth = forcedMouth;
-      else if (s.speaking) {
-        // 说话时的口型：两条不同周期的正弦叠出音节感，每个座位相位不同，
-        // 不是整齐的节拍器。鲸鱼娘的张嘴参数没绑几何，只有 GPT 看得出效果。
-        const sp = t / 1000 + w.phase;
-        s.mouth = 0.10 + 0.90 * Math.abs(Math.sin(sp * 5.5) * 0.72 + Math.sin(sp * 8.9) * 0.28);
-      } else s.mouth *= 0.86;
+      else if (s.speaking) s.mouth = 0.10 + 0.90 * sy;
+      else s.mouth *= 0.86;
 
       let nod, lean, turn, breath;
       // 「看发言人」：朝发言座位的方向偏头 + 眼珠轻微跟过去，并做时间平滑，
@@ -567,13 +571,14 @@ const app = new PIXI.Application({
       }
       s.lookSmooth = (s.lookSmooth ?? 0) * 0.90 + look * 0.10;
       if (s.speaking) {
-        // 发言：所有座位共用同一套动作，节奏由全局时间决定，保证整齐
-        const sp = t / 1000;
-        nod = 7 * Math.sin(sp * 3.1);
-        lean = 3.2 * Math.sin(sp * 1.55);
-        turn = 1.5 * Math.sin(sp * 1.1);
-        breath = 0.5 + 0.5 * Math.sin(sp * 1.7);
-        s.model.y = (s.baseY ?? BASE_Y) - 3;
+        // 发言：慢正弦给整句语气，音节包络给每个字的下压 —— 只挂慢正弦时
+        // 头是匀速摆的，配上口型就像在念稿（round 22 修的就是这个）。
+        const spb = t / 1000;
+        nod = 2.6 * Math.sin(spb * 3.1) + 5.2 * (sy - 0.5);
+        lean = 3.2 * Math.sin(spb * 1.55) + 1.1 * (sy - 0.5);
+        turn = 1.5 * Math.sin(spb * 1.1);
+        breath = 0.5 + 0.5 * Math.sin(spb * 1.7);
+        s.model.y = (s.baseY ?? BASE_Y) - 3 - 1.6 * (sy - 0.5);
         s.model.rotation = 0;
       } else {
         // 待机：随机呼吸/摇摆/转头，每人节奏不同，避免整齐划一
@@ -654,6 +659,7 @@ const app = new PIXI.Application({
       // ?debug=1 的 overlay 会把这一帧写进模型的数值贴出来。像素 diff 在无头截图里
       // 有 ~600px 的噪声地板（场景微尘 + AA），微妙动作只有看数字才判得准。
       s.poseDbg = { turn, nod, lean, tilt, look: s.lookSmooth || 0, hair, eyeX, eyeY,
+                    sy: s.speaking ? sy : 0, mouth: s.mouth,
                     g: (forceGest ? forceGest.id : (s.g && s.g.g.id)) || '-' };
       applyPoseParams(s.model, pose);
       if (s.altModel && s.altModel.visible) {

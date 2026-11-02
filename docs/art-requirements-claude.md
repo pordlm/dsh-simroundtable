@@ -1187,3 +1187,56 @@ missing = body & ~cov          # 8461 px
 姿态确实生效（以静止帧为基、1200²、`diff>24`）：`AngleX+30` 132329px、`AngleZ+20` 191795px、
 body twist 281243px、hair 41903px、抱书 212499px、eyes half+ball 8972px、mouth open 3464px。
 顶部 `y<40` 的差是 meta 参数文本本身变了，不是画面。
+
+## 17. 说话时头要跟着音节动（round 22）
+
+第 21 轮之前，发言支的头是**匀速摆**的：
+
+```js
+nod = 7 * Math.sin(sp * 3.1);          // sp = t/1000，与口型无关
+s.mouth = 0.10 + 0.90 * Math.abs(Math.sin(sp * 5.5) * 0.72 + Math.sin(sp * 8.9) * 0.28);
+```
+
+两条曲线的频率没有任何公约数，嘴在快抖、头在慢摇，看起来像「一个人在念稿，另外有人配音」。
+修法是让头部**共用口型那条音节包络**（`sy`，0..1，峰值对应张口最大）：
+
+```js
+const sy = Math.abs(Math.sin(sp * 5.5) * 0.72 + Math.sin(sp * 8.9) * 0.28); // sp 带座位相位
+// 发言支
+nod  = 2.6 * Math.sin(spb * 3.1) + 5.2 * (sy - 0.5);   // 慢语气 + 每字下压
+lean = 3.2 * Math.sin(spb * 1.55) + 1.1 * (sy - 0.5);
+s.model.y = (s.baseY ?? BASE_Y) - 3 - 1.6 * (sy - 0.5); // 重音时整个人沉一点
+```
+
+- `(sy - 0.5)` 是关键：包络在 0..1 之间，减去 0.5 才有正负，否则「头只往下点不回位」。
+- 慢正弦的幅度从 `7` 降到 `2.6`：原来的 7° 是纯摇，现在 ±2.6 打底、±2.6 给音节，总幅度反而更小，
+  但读起来是「在说话」而不是「在摇头」。
+- 包络自带座位相位（`w.phase`），所以几个人同时开口也不会整齐划一。
+
+### 17.1 怎么验证「头真的跟着音节走」
+
+`?still=1` 只给 `t=0` 一个采样点，看不出相关性。于是加了调试参数 **`?tpin=<ms>`**：
+把时钟钉在任意毫秒（`const t = still ? 0 : (tPin !== null && Number.isFinite(tPin) ? tPin : performance.now() - t0)`），
+配合 `?debug=1` 的 overlay（现在会打 `sy=` 与 `mo=`）读 `poseDbg`：
+
+```powershell
+# 一次启动一个无头实例，--dump-dom 写文件，下次调用再轮询
+cmd /c start /b "" "$edge" --headless=new --disable-gpu --user-data-dir="%TEMP%\edge-dp1000" `
+  --window-size=1400,920 --virtual-time-budget=12000 --dump-dom `
+  "http://127.0.0.1:8848/preview/longtable.html?only=4&speak=4&tpin=1000&debug=1&nogest=1" > preview/_tp1000.html
+```
+
+实测四个采样点（座位 4，`?nogest=1` 去掉随机动作）：
+
+| `tpin` | `sy` | `mo`（口型） | `nod` |
+|---|---|---|---|
+| 1000 | 0.50 | 0.55 | 0.1 |
+| 1400 | 0.98 | 0.99 | 0.1 |
+| 2200 | 0.44 | 0.49 | 1.0 |
+
+`mo = 0.10 + 0.90 * sy` 逐点吻合；`nod` 与 `sy` 同向变化（1000 与 1400 碰巧互相抵消，
+所以别只看两点就下结论）。口型也肉眼可辨：`preview/_r22-cmp.png` 左 `tpin=1400`（`sy=0.98`）
+嘴是张开的小椭圆，右 `tpin=1000`（`sy=0.50`）几乎闭合。
+
+`?tpin=` 也顺手解决了「无头截图里的自动换姿势/动作没法复现」的问题——只要给同一个毫秒，
+每次渲染都是同一帧。
