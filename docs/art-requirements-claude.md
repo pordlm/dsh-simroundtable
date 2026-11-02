@@ -1291,3 +1291,35 @@ const rnd = (() => { let a = seedBase >>> 0; return () => { a = (a + 0x6D2B79F5)
 
 连拍两次 `?only=4&speak=4&tpin=3000&debug=1&nogest=1`，`sy=0.42 mo=0.47 hair=0.085 turn=-0.2 nod=-0.1`
 两次一字不差（`look` 仍会不同：它是对帧做时间平滑的，跟加载耗时有关）。
+
+## 19. 参数组合压力测试：12 帧全绿（round 23）
+
+round 17 的姿态矩阵只扫了**单参数端点**，但舞台是同时驱动多个参数的：
+`BodyAngleX` + `BodyAngleY` + `BodyAngleZ` + `AngleX/Z` + `HairFront` 一起压满时，
+变形器之间会互相拉扯，最容易出现「两个件之间裂一条缝」。所以补了一轮**组合**测试。
+
+清单在 `assets/_raw/audit_combos.py`（`--emit <lo> <hi>` 输出片段，便于分批截图）：
+
+| 帧 | 参数 | holes | green | white |
+|---|---|---|---|---|
+| c01 | `BodyAngleY:-10` | [] | 0 | 82 |
+| c02 | `BodyAngleY:10` | [] | 0 | 83 |
+| c03 | `Proportion:-1` | [] | 0 | 83 |
+| c04 | `Proportion:1` | [] | 0 | 90 |
+| c05 | `BodyLean:-1` | [] | 0 | 88 |
+| c06 | `BodyLean:1` | [] | 0 | 86 |
+| c07 | `HairBack:1,HairFront:0.6` | [] | 0 | 83 |
+| c08 | `MouthForm:1,MouthOpenY:1` | [] | 0 | 84 |
+| c09 | `EyeBallForm:1,EyeLOpen:0,EyeROpen:0` | [] | 0 | 46 |
+| c10 | `BodyAngleX:10,BodyAngleY:-8,BodyAngleZ:10,AngleX:25,AngleZ:18,HairFront:0.4` | [] | 0 | 76 |
+| c11 | c10 的镜像负值 | [] | 0 | 85 |
+| c12 | 抱书版 `AngleX:-20,AngleZ:-12,BodyAngleZ:8` | [] | 0 | 79 |
+
+**12/12 帧 `holes=[]`、`green=0`**。`white` 46–90 px 是她自己的白缎带/裙摆（正品，不是撕裂高光）。
+
+两条读法：
+- `sil` 与 `main` 相差约 1 万像素，差的是被背景切掉的零星发丝，不是破面。
+- c09 顺带确认了笑眼件的**正确叠加方式**：`EyeBallForm:1` + 双眼闭合时看到的是 `^^`，
+  而不是「闭眼睑上又贴一条弯线」——说明 `squint-*` 的 z 序和 `eye_close` 没打架。
+
+拼图 `preview/_combo-sheet.png`（4 帧：c10 / c11 / c12 / c09，crop `(280,150,920,1000)`）。
