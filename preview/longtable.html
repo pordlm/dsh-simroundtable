@@ -452,7 +452,7 @@ const app = new PIXI.Application({
       if (!s.model) return `${s.i} x=${Math.round(s.x)} (no model)`;
       const b = s.model.getBounds();
       const p = s.poseDbg;
-      const pv = p ? ` turn=${p.turn.toFixed(1)} nod=${p.nod.toFixed(1)} lean=${p.lean.toFixed(1)} tilt=${(p.tilt||0).toFixed(1)} look=${p.look.toFixed(2)} hair=${(p.hair||0).toFixed(3)} g=${p.g}` : '';
+      const pv = p ? ` turn=${p.turn.toFixed(1)} nod=${p.nod.toFixed(1)} lean=${p.lean.toFixed(1)} tilt=${(p.tilt||0).toFixed(1)} look=${p.look.toFixed(2)} eyeX=${(p.eyeX||0).toFixed(2)} eyeY=${(p.eyeY||0).toFixed(2)} hair=${(p.hair||0).toFixed(3)} g=${p.g}` : '';
       return `${s.i} x=${Math.round(s.x)} mx=${Math.round(s.model.x)} baseY=${Math.round(s.baseY)} b=[${Math.round(b.left)}..${Math.round(b.right)}] w=${Math.round(b.width)}${pv}`;
     }).join('\n');
     const base = `charH=${charH}\n` + seatLines();
@@ -601,6 +601,17 @@ const app = new PIXI.Application({
 
       // 眼珠跟着头一起朝发言人（幅度最小，太大就成对眼了）
       if (s.lookSmooth) eyeX += s.lookSmooth * 0.55;
+      // 待机时眼珠也要自己「活」：两条互质的慢正弦 + 一点竖直漂移，相位按座位错开，
+      // 六个座位不会同拍。幅度压在 ±0.25：眼白只比虹膜宽一点点，probe 实测到 0.9
+      // 虹膜才贴到眼睑上，座位尺度下 0.25 已经能看出视线在动。
+      if (!s.speaking) {
+        eyeX += 0.17 * Math.sin(t / 2600 + s.i * 1.3) + 0.06 * Math.sin(t / 900 + s.i * 2.1);
+        eyeY += 0.06 * Math.sin(t / 3300 + s.i * 0.7);
+      }
+      // 所有来源叠加后统一夹一次：动作里的 look/glance 本身就有 ±0.6，再叠发言人偏置
+      // 和漂移会溢出到眼睑外侧，露出一整圈「没被虹膜盖住的眼白」。
+      eyeX = Math.max(-0.85, Math.min(0.85, eyeX));
+      eyeY = Math.max(-0.55, Math.min(0.55, eyeY));
       // 两个不同周期的正弦叠加，避免看出机械的来回摆；相位按座位错开，六个座位不会同拍。
       if (s.cfg && s.cfg.sway) {
         hair += 0.085 * Math.sin(t / 1500 + s.i * 1.7) + 0.035 * Math.sin(t / 620 + s.i * 2.3);
@@ -608,7 +619,7 @@ const app = new PIXI.Application({
       const pose = { turn, nod, lean, tilt, eyeX, eyeY, brow, mform, happy, hair, mouth: s.mouth, breath, eye };
       // ?debug=1 的 overlay 会把这一帧写进模型的数值贴出来。像素 diff 在无头截图里
       // 有 ~600px 的噪声地板（场景微尘 + AA），微妙动作只有看数字才判得准。
-      s.poseDbg = { turn, nod, lean, tilt, look: s.lookSmooth || 0, hair,
+      s.poseDbg = { turn, nod, lean, tilt, look: s.lookSmooth || 0, hair, eyeX, eyeY,
                     g: (forceGest ? forceGest.id : (s.g && s.g.g.id)) || '-' };
       applyPoseParams(s.model, pose);
       if (s.altModel && s.altModel.visible) {

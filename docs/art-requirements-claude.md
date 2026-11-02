@@ -478,6 +478,34 @@ s.altModel.autoUpdate = s.altModel.visible && !freeze;
 - 局限：无头截图里 `performance.now()` 不推进，所以「等 3–7 秒自己抱起书」这条自动路径
   只能靠真浏览器看——但它是同一段 ticker 逻辑，`?pose=` 已经证明加载与淡入是对的。
 
+### 12.10 眼珠活了以后：待机漂移 + 一次统一夹紧（round 16）
+
+§16.18 之前 `ParamEyeBallX/Y` 是死的，所以舞台上「眼珠跟着发言人」这段代码写了也不生效；
+补上 `irides` 之后第一件事是**给待机加一点自主视线**，否则她只会死盯着正前方：
+
+```js
+// 待机：两条互质的慢正弦 + 一点竖直漂移，幅度 ±0.25，相位按座位错开
+if (!s.speaking) {
+  eyeX += 0.17 * Math.sin(t / 2600 + s.i * 1.3) + 0.06 * Math.sin(t / 900 + s.i * 2.1);
+  eyeY += 0.06 * Math.sin(t / 3300 + s.i * 0.7);
+}
+// 所有来源（动作 look/glance、发言人偏置、漂移）叠加后统一夹一次
+eyeX = Math.max(-0.85, Math.min(0.85, eyeX));
+eyeY = Math.max(-0.55, Math.min(0.55, eyeY));
+```
+
+- **夹紧放在最后而不是每处各自夹**：`look`/`glance` 动作本身给到 ±0.6，加上发言人偏置
+  （`lookSmooth * 0.55`）和漂移会叠到 1.3 以上；`probe` 实测到 `EyeBallX:0.9` 时虹膜已经贴到
+  眼睑上，再大就会露出整圈没被虹膜盖住的眼白。
+- `?debug=1` 的 HUD 行里补了 `eyeX= eyeY=`，静帧（`?still=1` ⇒ `t=0`）读数可以直接对账：
+  座位 0（发言中）`eyeX=-0.00`、座位 4/5 `eyeX=-0.44`（`lookSmooth=-0.77` 的偏置 + 漂移
+  `-0.10`，夹紧前是 `-0.52`，与公式一致）。
+- **像素 diff 在这里靠不住**：`?only=0,4,5` 改动前后全图差 6532px，主簇却落在座位 0 的
+  `(62,507)-(193,596)`（场景微尘 + AA 的地板就有几千像素），座位 4 的眼部只占几百像素。
+  判定要看 HUD 数字 + 7× 人脸裁切（`_gaze1-face.png` 里两颗虹膜都明显偏向左上）。
+- 观感：座位尺度 82×84 的脸上，±0.44 的偏移让虹膜靠到眼白一侧但不贴上眼睑，读得出「她在看
+  左边说话的人」，不会成对眼。
+
 ## 13. v2 出模管线：layout manifest → PSD2Live MCP（眨眼/口型终于能用）
 
 §10.4 里「没有眨眼、没有口型」的限制在 v2 解掉了。CLI 只能吃 PSD，但 **PSD2Live 3.6.7 的 GUI 自带一套 HTTP MCP 服务**，里面有 `project/import_layout`、未发布的 `rig_generate`、`project/export_model`，可以把「每层绑哪个变体参数」直接写进 manifest，绕开 GUI 手点。
