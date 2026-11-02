@@ -1408,3 +1408,25 @@ sz = ndimage.sum(d, lab, range(1, n + 1))
 顺带确认尺寸：张嘴件的 `DEPTH` 只有 13 个画布像素（`make_mouth_open.py:34`），
 在座位尺度（`k≈0.167`）下等于约 2 px——**读不出来是尺寸问题，不是绑定问题**。
 所以发言时真正传递「在说话」的是音节包络带动的那点头、眨眼和气泡，嘴只是加分项。
+
+## 23. 抱书姿势的形变压力测试（round 26）
+
+抱书姿势把两只手藏进**同一个 `objects` 画件**，所以空手时被手臂吸收的肩膀拉伸，
+现在必须由书本身接住——这是唯一一处「多一个姿势就多一份形变风险」的地方。
+`audit_combos.py` 追加五帧（`b01`–`b05`），覆盖舞台交叉淡化时会真正撞到的形状：
+
+```
+b01 BodyAngleX:10,AngleX:12      b02 BodyAngleX:-10,AngleX:-12
+b03 BodyAngleY:10,AngleY:-15     b04 BodyAngleY:-10,AngleY:15
+b05 BodyAngleX:8,BodyAngleY:-6,BodyAngleZ:6,AngleX:18,AngleZ:12,HairFront:0.4
+```
+
+`audit_poses.py` 结果 **5/5 全绿**（`holes=[]`、`green=0`、`white` 73–80px = 白缎带本体），
+肉眼复核见 `assets/build/claude-v3/media/book-pose-sheet.png`：书跟着躯干变形器一起转，
+没有被拉成梯形，手始终压在书面上，两侧边缘在 ±10° 侧弯下仍是直线。
+**结论：书与双手合成一个画件的决定站得住**，不必拆成两个网格。
+
+一条操作经验：probe 用 `?scale=0.62` 渲 1270² 到 900×1100 的窗口里，
+人物实际落在 `x≈300..900`，按「画布中心」去裁只会裁到头发；
+而按背景色自动求 bbox 也不可靠（probe 背景有轻微渐晕），
+**固定窗口裁切比自动 bbox 稳**。
