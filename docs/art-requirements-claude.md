@@ -824,3 +824,27 @@ parts["eye_close-*"] = clean(fp, 60)  # RGB 取原母图（半睁的眼弧）
 
 张口件 `make_mouth_open.py` 的 `SIZE` 也从 `(28,21)` 收到 `(22,16)`（`LIP (176,108,100)`、舌头 alpha 200）：
 原尺寸比闭口大一圈，1:1 看像嘴里塞了个球；现在是略高于闭口的小 o，`ParamMouthOpenY` 仍然驱动它。
+
+### 16.15 件与件之间的 1px 缝：不能用 fill_holes 找（round 8）
+
+症状：1:1 渲染时耳朵外缘有一条 1px 的**绿线**（绿幕从缝里透出来），右侧白缎带的剪影则是一排锯齿。
+座位尺度看不出来，只有放大到 100% 且背景是绿色时才明显。
+
+第一反应是「有洞」，于是把 20 个件的 alpha 求并集再 `binary_fill_holes(acc) & ~acc` 找洞 —— 找到的 6 个
+大洞（4454/3606/3252/3235/2518/2504 px）全是头发与身体之间**本来就该透空**的区域，而耳缝和缎带锯齿
+**与外框连通**，`fill_holes` 根本看不见（与 §16.11 眼件 V 齿同一个坑：几何上是缺口，不是洞）。
+
+正确解法是在 `cut_claude.py` 保存件之前**让件向外长**：非眼/嘴件做
+`m = binary_dilation(m, np.ones((3,3), bool), iterations=2) & body` 再写 alpha。
+
+- 为什么不破坏画面：所有件都取自同一张母图，向外长出来的像素拿到的就是母图该处的颜色，
+  合成结果与「整张母图」逐像素一致，只是把缝隙填了。
+- 为什么 `& body`：母图外的绿幕不能被长进来（`body` 是去掉绿幕后的角色掩码）。
+- 为什么排除眼/嘴：`eyewhite/irides/eyelash/eye_close/mouth/squint` 的轮廓是**特意内缩**过的
+  （footprint 要落在虹膜或唇线上，见 §16.11/§16.14），长出去会把边界又推回奶油眼白或皮肤上。
+  代码里就是 `NO_GROW = ("eyewhite", "irides", "eyelash", "eye_close", "mouth", "squint")`。
+- 1px 不够：`iterations=1` 修掉了耳缝但缎带还留几处小缺口，**2px 才闭合**。
+
+验收入口：`probe.html?model=../assets/build/claude-v3/model/claude.layout.model3.json&scale=0.75&p=EyeLOpen:1`
+看整身（1600² 无头截图），耳朵与缎带两处 crop 3× 复核；再用 `p=AngleX:25,AngleZ:8` 与静止帧对比，
+差 ≈ 220k px 说明变形器没被破坏。
