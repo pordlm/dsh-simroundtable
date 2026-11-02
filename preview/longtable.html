@@ -87,7 +87,9 @@ const MODELS = {
     // 但全身像的“脚底”比半身像低 44px，直接摆下巴会悬在桌沿之上；以眼睛高度对齐邻居，
     // 实测 dy=0 时眼线比 GPT 高 36px，故下移 30
     scale: 1.0,
-    dy: 30
+    dy: 30,
+    // 抱书版：出模后把下面这行取消注释即可启用（同座位叠一层，__setPose(4,'alt') 交叉淡化）
+    // alt: { url: '../assets/build/claude-book/p2l/claude-book.model3.json' }
   }
 };
 const LINES = [
@@ -216,6 +218,22 @@ const app = new PIXI.Application({
     } catch (e) { /* ignore */ }
   }
 
+  // 主/备两层必须写同一套参数，否则交叉淡化时表情会跳
+  function applyPoseParams(model, p) {
+    try {
+      const core = model.internalModel.coreModel;
+      core.setParameterValueById('ParamAngleX', p.turn);
+      core.setParameterValueById('ParamAngleY', p.nod);
+      core.setParameterValueById('ParamBodyAngleZ', p.lean);
+      core.setParameterValueById('ParamMouthOpenY', p.mouth);
+      if (!keepIdle) {
+        for (const id of PHONE_PARAMS) { try { core.setParameterValueById(id, 0); } catch (e) { /* ignore */ } }
+        try { core.setParameterValueById('ParamBreath', p.breath); } catch (e) { /* ignore */ }
+      }
+      core.update();
+    } catch (e) { /* ignore */ }
+  }
+
   document.getElementById('status').textContent = '加载 Live2D…';
   let loaded = 0;
   await Promise.all(seats.map(async s => {
@@ -247,6 +265,27 @@ const app = new PIXI.Application({
         model.update(0);
       }
       else dropPhonePose(model);
+      // 同座位可再叠一层"第二姿势"（如抱书版）：默认全透明，靠 __setPose() 交叉淡化。
+      // 两个 moc3 共用同一套部件与同一 transform，所以淡化时只有手臂和书在渐变。
+      if (seatCfg.alt && seatCfg.alt.url) {
+        try {
+          const alt = await PIXI.live2d.Live2DModel.from(seatCfg.alt.url, { autoInteract: false, autoUpdate: !freeze });
+          const altScale = k * (seatCfg.alt.scale || 1);
+          alt.scale.set(altScale);
+          alt.anchor.set(0.5, 1);
+          alt.position.set(s.x + faceDx, s.baseY + (seatCfg.alt.dy || 0));
+          alt.zIndex = s.i + 0.001;
+          alt.alpha = 0;
+          alt.visible = false;
+          app.stage.addChild(alt);
+          dropPhonePose(alt);
+          s.altModel = alt;
+          s.altBaseY = s.baseY + (seatCfg.alt.dy || 0);
+          s.poseT = 0;
+          s.poseTarget = 0;
+          s.poseMs = 240;
+        } catch (e) { console.error('alt load failed', s.i, e); }
+      }
       s.model = model;
       loaded++;
     } catch (e) { console.error('load failed', s.i, e); }
@@ -275,6 +314,15 @@ const app = new PIXI.Application({
     }
     for (const s of seats) {
       if (!s.model) continue;
+      // 姿势交叉淡化：poseT 0=空手版 1=抱书版，按 deltaMS 推进，两端都夹在目标值上
+      if (s.altModel) {
+        const dd = Math.min(1, (app.ticker.deltaMS || 16.7) / (s.poseMs || 240));
+        if (s.poseT < s.poseTarget) s.poseT = Math.min(s.poseTarget, s.poseT + dd);
+        else if (s.poseT > s.poseTarget) s.poseT = Math.max(s.poseTarget, s.poseT - dd);
+        s.model.alpha = 1 - s.poseT;
+        s.altModel.alpha = s.poseT;
+        s.altModel.visible = s.poseT > 0.001;
+      }
       const w = s.wobble;
       if (forcedMouth !== null) s.mouth = forcedMouth;
       else if (s.speaking) {
@@ -304,19 +352,16 @@ const app = new PIXI.Application({
         s.model.rotation = Math.sin(t / (w.swayPeriod * 0.8) + w.phase) * 0.003;
       }
 
-      try {
-        const core = s.model.internalModel.coreModel;
-        // 鲸鱼娘模型只绑了头/身角度参数，张嘴参数无效；发言用点头 + 轻微前倾表达
-        core.setParameterValueById('ParamAngleX', turn);
-        core.setParameterValueById('ParamAngleY', nod);
-        core.setParameterValueById('ParamBodyAngleZ', lean);
-        core.setParameterValueById('ParamMouthOpenY', s.mouth);
-        if (!keepIdle) {
-          for (const id of PHONE_PARAMS) { try { core.setParameterValueById(id, 0); } catch (e) { /* ignore */ } }
-          try { core.setParameterValueById('ParamBreath', breath); } catch (e) { /* ignore */ }
-        }
-        core.update();
-      } catch (e) { /* ignore */ }
+      // 备用层跟随主层的位移和摇摆，否则淡化时会看到两层错动
+      if (s.altModel && s.altModel.visible) {
+        s.altModel.y = s.model.y + ((s.altBaseY || 0) - (s.baseY || 0));
+        s.altModel.rotation = s.model.rotation;
+      }
+
+      applyPoseParams(s.model, { turn, nod, lean, mouth: s.mouth, breath });
+      if (s.altModel && s.altModel.visible) {
+        applyPoseParams(s.altModel, { turn, nod, lean, mouth: s.mouth, breath });
+      }
     }
   }, null, PIXI.UPDATE_PRIORITY.LOW);
 
@@ -340,6 +385,28 @@ const app = new PIXI.Application({
     if (speakSeat !== null) speak(speakSeat % count, 600000);
     setInterval(() => { speak(turn % count, 2000); turn++; }, 2600);
     speak(0, 2000);
+  }
+
+  // 切姿势：__setPose(座位号, 'alt'|'main', 毫秒)；截图用 ?pose=4:alt（直接跳到终态，不等淡化）
+  window.__setPose = (i, which, ms) => {
+    const s = seats[i];
+    if (!s || !s.altModel) return false;
+    s.poseTarget = (which === 'alt' || which === 'book') ? 1 : 0;
+    s.poseMs = ms || 240;
+    return true;
+  };
+  const poseQ = q.get('pose');
+  if (poseQ) {
+    for (const spec of poseQ.split(',')) {
+      const [si, which] = spec.split(':');
+      const s = seats[parseInt(si, 10)];
+      if (!s || !s.altModel) continue;
+      const on = (which === 'alt' || which === 'book');
+      s.poseT = on ? 1 : 0; s.poseTarget = s.poseT; s.poseMs = 1;
+      s.model.alpha = 1 - s.poseT;
+      s.altModel.alpha = s.poseT;
+      s.altModel.visible = s.poseT > 0.001;
+    }
   }
 
   requestAnimationFrame(() => requestAnimationFrame(() => {

@@ -214,3 +214,44 @@ Claude: {
 - **不需要 `faceDx`**：母图左右完全对称（留绿 129 == 129），脸本来就在中线。
 - `scale` 与 `dy` 的推导见 §10.1；改 `dy` 后重截 `?n=6&still=1` 时，用橙色像素检测（`(r>150)&(r-b>60)&(g>60)&(g<190)`，只统计 x 760..1180）量头顶 y，比肉眼可靠。
 - 预览页：`preview/gpt-model.html?model=../assets/build/claude-parts/p2l/claude.model3.json&idle=0&noeye=1&z=2`。
+## 12. 抱书姿势变体（两个 moc3 + 舞台交叉淡化）
+
+PSD2Live 没有"姿势切换"的作者接口（`psd2live.json` 里 26 层 `switchId` 全为 0），所以抱书版做成**第二个 moc3**，和空手版共用同一套部件，只换手臂和书：
+
+| 项 | 内容 |
+|---|---|
+| 额外主图 | 1 张局部编辑：只改双臂 + 加一本合着的古籍，其余像素不动，画布/绿底/ink bbox 与 `P0-master.png` 一致 |
+| 新切件 | `handwear-l`、`handwear-r`、`objects`（书） |
+| 复用件 | 其余 21 件，同一份 PNG 直接拷过去 |
+| 出模 | `claude-book.model3.json`（同 `build_claude_model.py`，只换 parts 目录） |
+| 过渡 | 舞台同座位叠两层，`__setPose()` 做 240ms 交叉淡化 |
+
+### 12.1 主图提示词（在 P0-master.png 上做局部编辑）
+
+```
+Same character, same canvas (1024x1536), same flat green #00FF00 background as the input image.
+Change ONLY the arms and add one book. Everything else must stay pixel-identical:
+head, face, eyes, expression, hair, black bow, orange daisy, collar, bodice, gold trim,
+skirt, legs, boots, and the outer silhouette (hair top y=42, boot soles y=1494,
+left edge x=129, right edge x=894) must not move or change colour.
+
+New pose: both arms raised so the forearms cross in front of the chest; both hands hold a
+closed antique book flat against the chest. Elbows tucked in at the waist. Sleeves keep the
+same cream fabric, same cuffs, same line weight and shading style as the rest of the dress.
+
+The book: closed, thick, dark umber-brown leather cover with two small brass corner caps
+(top-right and bottom-right), gilt page edges visible along the right side, spine facing her
+left. Tilted only slightly (about 10 degrees). No text, no ornament pattern on the cover.
+Size: about 300px wide in this 1024-wide canvas, centred on the chest, its top edge just
+below the collar so it does not cover the neckwear or the chin.
+
+Both hands must stay fully visible in front of / beside the book (do not hide them behind
+it, do not merge fingers into the cover) - they will be cut out separately.
+Do not add any other prop, shadow, or background element.
+```
+
+### 12.2 收图后先验三件事
+
+1. `ink bbox` 仍是 `(129,42)-(894,1494)` —— 变了就说明它顺手重画了别处，坐标映射会整体漂移；
+2. 手臂与头发/裙摆**不重叠**（重叠处切出来的手会在淡化时露馅）；
+3. 书和手**颜色可分**（书是深褐色、手是肤色），否则只能把"双臂+书"并成一件 `objects` 一起换。
