@@ -262,7 +262,7 @@ canvas = Image.fromarray(np.dstack([bleed(carr[..., :3], carr[..., 3]), carr[...
 ```js
 Claude: {
   url: '../assets/build/claude-v2/claude.layout.model3.json',   // v2，见 §13
-  scale: 1.1,
+  scale: 1.4,     // 见 §12.12：全身像的头只占模型 1/3 高，得比半身像的邻居放大
   dy: 45,
   blink: true,
   gestures: true
@@ -533,6 +533,28 @@ ParamEyeROpen`，见 §16.18），所以「只关一只眼」是模型本来就�
   892/489/466/295px，全在脸部 `(1013..1123, 1034..1164)`。座位尺度上 `?gest=` 的验证只能看
   「有没有变化 + 变化落在脸上」，绝对像素数没有意义。
 
+### 12.12 她为什么显小：全身像 vs 半身像的取景（round 19）
+
+同一个 `seatH = charH * scale` 下，她在座位上一直比鲸鱼娘和 GPT 小一截。原因不是画风，是**取景**：
+
+| 模型 | 母图内容 | 头占模型高度 |
+| --- | --- | --- |
+| 鲸鱼娘 / GPT | 半身像（胸像），头几乎填满画布 | ~60–70% |
+| Claude | **全身像**（2048 高的画布里腿和靴子也画了） | ~1/3 |
+
+座位只给 ~250px 高，全身像被缩到这么高时头就只剩 80px 左右。所以她的 `scale` 必须比邻居大：
+
+- `scale: 1.0` → 明显小；`1.1` → 头高约为鲸鱼娘的 6–7 成（`preview/_sz3-heads.png` 并排）；
+  `1.3` → 与 GPT 接近（`preview/_sz4-claude.png`）；**`1.4` → 头高与 GPT 持平**（`preview/_sz5-claude.png`）。
+- `dy: 45` 不用跟着改：`anchor(0.5,1)` 是底边对齐，放大只会把头顶推高，1.4 下头顶仍与 GPT 的头顶齐平。
+- HUD 读数（1000×900，`?only=0,4,5&still=1&debug=1&eye=1&nogest=1`）：`charH=182`；座位 4 `w=201`
+  （1.1）→ `w=255`、`b=[655..910]`（1.4）。1.4 下她的发梢会压住椅背/邻座的椅框，但椅子是背景层，
+  台面又把裙摆挡住，观感成立；抱书态同步放大，书名板只在书的下缘遮住一点点（`preview/_sz6-claude.png`）。
+
+**读 HUD 别再靠截图裁字**：无头 Edge 直接 `--headless=new --dump-dom --virtual-time-budget=9000 <url>`
+拿 DOM，再用 python 剥标签取 `#hud` 文本，一次拿全所有数字（UTF-8 存盘，中文会乱码但不影响数字）。
+截图里 HUD 每行 ~17px、还带随机气泡，肉眼看走眼过两次。
+
 ## 13. v2 出模管线：layout manifest → PSD2Live MCP（眨眼/口型终于能用）
 
 §10.4 里「没有眨眼、没有口型」的限制在 v2 解掉了。CLI 只能吃 PSD，但 **PSD2Live 3.6.7 的 GUI 自带一套 HTTP MCP 服务**，里面有 `project/import_layout`、未发布的 `rig_generate`、`project/export_model`，可以把「每层绑哪个变体参数」直接写进 manifest，绕开 GUI 手点。
@@ -601,8 +623,8 @@ TUNE = {
 ```js
 Claude: {
   url: '../assets/build/claude-v2/claude.layout.model3.json',
-  scale: 1.1,     // 1.0 时比 GPT 显小，抬到 1.1
-  dy: 45,         // 放大后头顶上移 ~15px，dy 从 30 补到 45
+  scale: 1.4,     // 1.0 时比 GPT 显小；1.1 仍小，1.4 才和邻居头高持平（§12.12）
+  dy: 45,         // 放大后头顶上移 ~15px，dy 从 30 补到 45；1.4 下不用再改
   blink: true,    // 只有绑了 toggle 的 v2 才能写 ParamEyeLOpen/ROpen
   gestures: true  // 待机时随机点头/低头/摇头/歪头/转头
 }
@@ -658,7 +680,7 @@ tome = fill_holes(biggest_blob(mask))                          # 90087px, bbox (
 Claude: {
   url: '../assets/build/claude-v2/claude.layout.model3.json',
   alt: { url: '../assets/build/claude-book-model/claude-book.layout.model3.json' },
-  scale: 1.1, dy: 45, blink: true, gestures: true
+  scale: 1.4, dy: 45, blink: true, gestures: true
 }
 ```
 
