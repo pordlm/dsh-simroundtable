@@ -670,20 +670,22 @@ TONGUE        = (224, 140, 138)
 2. `face` 层用 `cv2.INPAINT_TELEA` 补洞时，会把洞缘（眼白/高光）往里扩散成一圈比周围亮的皮，
    三件贴回去就出现「空心圈 + 白刺」。
 
-终态（`assets/_raw/cut_claude.py` 的 `master_eye`）：**睁、闭共用同一个 footprint**
+终态（`assets/_raw/cut_claude.py` 的 `master_eye`）：**睁、闭共用同一个 footprint**，
+且这个 footprint 由**睁眼那半边**算出来，绝不能拿闭眼图的「亮眼睑」重建：
 
 ```python
-near     = dilate(almond, 6)
-arc      = closing(rect(box) & (cc["mx"] < 150), 2) & near
-lid_skin = (cc["mn"] > 180) & (cc["sat"] < 0.45)
-lid      = fill_holes(near & (lid_skin | arc)) & near
-lid      = fill_holes(closing(lid, 3x3))
-parts["eyewhite-*"] = clean(lid, 60)   # RGB 取母图（睁眼）
-parts["eye_close-*"] = clean(lid, 60)  # RGB 取 claude-close.png（闭眼）
+white  = (mn > 230) & ((r - g) < 12)                      # 眼白（不是皮肤：皮肤 r-g 14~22）
+sclera = 与 seed=dilate(ink,2) 连通、≥80px 的 white 块     # 按连通性取，不能加亮度上限
+almond = _hull(ink | sclera)                              # 凸包：唯一能消掉凹口的做法
+almond &= ellipse(xs.min()-2, ys.min()-4, xs.max()+3, ys.max()+5)
+almond  = opening(3x3) → fill_holes
+fp      = fill_holes(closing(dilate(almond,1), 3x3))
+parts["eyewhite-*"] = clean(fp, 60)   # RGB 取母图（睁眼，即中转站重画的那张）
+parts["eye_close-*"] = clean(fp, 60)  # RGB 取原母图（半睁的眼弧）
 ```
 
 两者 alpha 完全一致 → 眼球尺寸在睁闭之间**永不跳**。删掉 `irides` / `eyelash` 四件后部件数 24 → 20，
-`claude.layout.moc3` 662144 B（抱书版 646848 B）。
+`claude.layout.moc3` 约 660 KB（抱书版约 645 KB）。
 
 配套三处必须一起改：
 
@@ -699,3 +701,35 @@ parts["eye_close-*"] = clean(lid, 60)  # RGB 取 claude-close.png（闭眼）
 验收：`preview/_qc-happy3-face.png`（4×，两道粗黑 ∩ 弧干净坐在皮肤上）、座位尺度
 `preview/_fin2-happy.png` vs `_fin2-eye0.png`（`diff>24 = 5236px`，bbox `(953,437)-(1075,590)`，
 笑眼与眨眼在 244px 高度上都读得清）。
+
+### 16.11 眼件边缘的三个坑（2026-11-03，已修）
+
+1:1 放大看「眼睛外面一圈奶油色细边 + 虹膜下方两个 V 形缺口」，找了两轮才定位到根因，
+三条独立的问题叠在一起：
+
+- **不要用闭眼图的「亮眼睑」造 footprint**。旧写法 `lid = fill_holes(near & (lid_skin | arc))`
+  里 `lid_skin = (mn>180) & (sat<0.45)` 取自闭眼图，会把眼弧两侧的平涂皮肤一起吃掉：
+  上缘长出奶油色溢出，下缘被眼弧截断成锯齿。
+- **缺口不是「洞」**。`ndimage.binary_fill_holes` 报 0 孔、`closing` 加宽到 6px 都没用 ——
+  因为虹膜底部的亮橙光晕既不属于 `ink`（`mx<150`）也不属于 `sclera`（`mn>230`），
+  而且这个缺口**向下与外部连通**，拓扑上根本不是 hole。只有**凸包**能消掉它；
+  凸包多出来的角像素是原画自己的眼睑皮肤（RGB 仍取母图），所以看不出接缝。
+- **`_hull()` 的坐标顺序**：`np.column_stack(np.nonzero(mask))` 给的是 `(y, x)`，
+  直接喂 `cv2.convexHull` 等于按对角线镜像，凸包再被 `& ellipse(...)` 一切就剩细条
+  （现象：`master eye almond too small for side l`）。必须 `pts[:, ::-1].reshape(-1,1,2)`。
+  另外 `disk(radius)` 这种圆形结构元要自己造，3×3 方形结构元会啃角。
+
+同一批还清掉一个**绿边**：母图是绿底键出来的，`back_hair`/`bottomwear`/`footwear`/`headwear`/
+`legwear`/`topwear` 的边上残留绿边（耳朵附近最明显，1:1 是亮的绿线）。角色没有任何绿色，
+所以在 `cut_claude.py` 存件前统一 `g = min(g, max(r, b))`（`np.where(g16 > lim, lim, g16)`），
+重跑后 `parts with green: 0`。
+
+验收口径（都要看，缺一不可）：
+
+| 状态 | 入口 | 看图 |
+| --- | --- | --- |
+| 睁眼 | `probe.html?model=…claude.layout.model3.json&scale=1&p=EyeLOpen:1` | `preview/_m0-face.png` |
+| 张口 | 同上 `&p=MouthOpenY:1` | `preview/_m1-face.png`（深腔 + 舌，无口线、无白圈） |
+| 笑眼 | 同上 `&p=EyeBallForm:1` | `preview/_h1-face.png`（两道 ∩ 弧） |
+| 座位尺度 | `longtable.html?only=4&eye=1&still=1` | `preview/_st1.png` / `_st1-face.png`（4×） |
+| 抱书 | `longtable.html?only=4&pose=4:alt&still=1` | `preview/_st2.png` / `_st2-book.png`（4×） |
