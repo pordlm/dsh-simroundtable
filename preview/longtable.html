@@ -478,6 +478,13 @@ const app = new PIXI.Application({
       } else s.mouth *= 0.86;
 
       let nod, lean, turn, breath;
+      // 「看发言人」：朝发言座位的方向偏头 + 眼珠轻微跟过去，并做时间平滑，
+      // 否则换人发言时所有人会瞬间抽搐一下。
+      let look = 0;
+      if (speakerI >= 0 && speakerI !== s.i && seats[speakerI]) {
+        look = Math.max(-1, Math.min(1, (seats[speakerI].x - s.x) / (STAGE_W * 0.32)));
+      }
+      s.lookSmooth = (s.lookSmooth ?? 0) * 0.90 + look * 0.10;
       if (s.speaking) {
         // 发言：所有座位共用同一套动作，节奏由全局时间决定，保证整齐
         const sp = t / 1000;
@@ -492,6 +499,9 @@ const app = new PIXI.Application({
         nod = 1.4 * Math.sin(t / w.bobPeriod + w.phase * 0.7);
         lean = w.swayAmp * Math.sin(t / w.swayPeriod + w.phase);
         turn = w.turnAmp * Math.sin(t / w.turnPeriod + w.phase * 1.7);
+        // 朝向发言人：头转 ±7°、身体随 ±2.2°，眼珠再带一点，读得出来但不过火
+        turn += s.lookSmooth * 7;
+        lean += s.lookSmooth * 2.2;
         breath = 0.5 + 0.5 * Math.sin(t / w.bobPeriod + w.phase);
         s.model.y = (s.baseY ?? BASE_Y) + Math.sin(t / w.bobPeriod + w.phase) * w.bobAmp;
         s.model.rotation = Math.sin(t / (w.swayPeriod * 0.8) + w.phase) * 0.003;
@@ -526,6 +536,8 @@ const app = new PIXI.Application({
       }
       if (s.cfg && s.cfg.blink) eye = pinEye !== null ? pinEye : blinkValue(s, t);
 
+      // 眼珠跟着头一起朝发言人（幅度最小，太大就成对眼了）
+      if (s.lookSmooth) eyeX += s.lookSmooth * 0.55;
       const pose = { turn, nod, lean, tilt, eyeX, eyeY, brow, mform, happy, hair, mouth: s.mouth, breath, eye };
       applyPoseParams(s.model, pose);
       if (s.altModel && s.altModel.visible) {
@@ -556,10 +568,18 @@ const app = new PIXI.Application({
     document.getElementById('status').textContent = `${NAMES[i]} 发言中…`;
   }
   function hideBubble(i) { seats[i].bubble.classList.remove('show'); }
+  // 谁在说话：其余座位会朝这个方向偏头/看过去 —— 圆桌上「听人说话」的关键动作，
+  // 比各自随机摇摆更像活的。speakerI 用 -1 表示没人说话（回到自由待机）。
+  let speakerI = -1;
   function speak(i, ms) {
     const s = seats[i]; s.speaking = true;
+    speakerI = i;
     showBubble(i, LINES[i % LINES.length]);
-    setTimeout(() => { s.speaking = false; hideBubble(i); document.getElementById('status').textContent = '等待下一位…'; }, ms);
+    setTimeout(() => {
+      s.speaking = false; hideBubble(i);
+      if (speakerI === i) speakerI = -1;
+      document.getElementById('status').textContent = '等待下一位…';
+    }, ms);
   }
 
   if (isStatic) {

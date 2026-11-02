@@ -346,6 +346,20 @@ ticker 里任何一次抛错都会让眨眼/动作/换姿势**静默失效**（v
 
 判据示例（1000×900 窗口）：`?only=0,4,5&debug=1` → overlay 显示 `fps=43` 且无 `ERR` 行；`?only=4&still=1&eye=1&nogest=1` → 标准姿势下两颗琥珀眼睁开、嘴部一条笑弧、无绿边。
 
+### 12.5 听人说话：朝发言人偏头
+
+圆桌上最像「活的」的动作不是自己摇摆，而是**别人说话时看过去**。`preview/longtable.html` 的 `speakerI` 记录当前发言人，其余座位在待机分支里加：
+
+```js
+look = clamp((seats[speakerI].x - s.x) / (STAGE_W * 0.32), -1, 1);
+s.lookSmooth = (s.lookSmooth ?? 0) * 0.90 + look * 0.10;   // 平滑，换人不抽搐
+turn += s.lookSmooth * 7;     // ParamAngleX  ±7°
+lean += s.lookSmooth * 2.2;   // ParamBodyAngleZ
+eyeX += s.lookSmooth * 0.55;  // ParamEyeBallX（再大就成对眼）
+```
+
+`?speak=<seat>` + `?still=1` 可以钉住某个座位发言来验收：同一座位在 `?speak=0` 与 `?speak=4` 两张静帧之间实测差 **11575px**（bbox 覆盖两人，含头转与眼珠），肉眼在 5× 放大下能看到她朝发言人侧头。幅度上限刻意压小：超过 ±10° 时 3 头身的头会撞到旁边的椅子。
+
 ## 13. v2 出模管线：layout manifest → PSD2Live MCP（眨眼/口型终于能用）
 
 §10.4 里「没有眨眼、没有口型」的限制在 v2 解掉了。CLI 只能吃 PSD，但 **PSD2Live 3.6.7 的 GUI 自带一套 HTTP MCP 服务**，里面有 `project/import_layout`、未发布的 `rig_generate`、`project/export_model`，可以把「每层绑哪个变体参数」直接写进 manifest，绕开 GUI 手点。
