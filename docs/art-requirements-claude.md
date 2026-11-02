@@ -531,6 +531,21 @@ python assets\_raw\cubism_api.py call GetCurrentModelUID '{}'
 
 **已验的失败面**（证明门确实在服务端，不在脚本）：`cubism_api.py status` → `ConnectionRefusedError [WinError 10061]`；`Get-NetTCPConnection -LocalPort 22033` 计数 0（重启编辑器、命令行直接打开 cmo3 后都是 0）。
 
+### 15.6 round 4 补充：协议键名已摸清，但开关仍不手写
+
+二轮反编译（`assets\_raw\_jargrep.py` / `_jarstrings.py` 是这两个一次性探针，只读 jar、不进流水线）：
+
+- `com/live2d/cubism/doc/webSocket/j$a.class` 里是**完整协议字表**：`KEY_ENABLED` / `KEY_TOKEN` / `KEY_VIEWS` /
+  `KEY_PARAMETERS` / `KEY_PARAMETER_IDS` / `KEY_METHOD` / `KEY_RESULT` / `KEY_ERROR_TYPE` / `KEY_TYPE_{REQUEST,RESPONSE,EVENT}` /
+  `KEY_DOCUMENT_UID` / `KEY_MODEL_UID` / `KEY_REQUEST_ID` / `KEY_TIMESTAMP` / `KEY_PARAMETERS`，还有 `DEFAULT_SERVER_PORT`、
+  `ANIMATION_LIMIT_UPDATE_TIME`、`KEY_CUBISM_LOG_{TYPE,MESSAGE,DISPLAY}`。→ 消息形状就是
+  `{type, method, requestId, result | error}` 这一套，`cubism_api.py` 的封装已经对齐。
+- 授权记忆（`ExternalApp_user.xml`）走的是 Cubism 自己的 `com.live2d.serialize.UUSerialize`（`AppData{apps: origin→{token, accessTime, authentication, unauthorized}}`），
+  **不是 `java.beans.XMLEncoder`**。文件名虽叫 `.xml`，内容是私有序列化 blob —— 手写伪造要么被忽略、要么把授权表搞坏，
+  所以**坚持让 GUI 生成**，脚本这边只做「等文件出现 + 连上就测」。
+- 另有 `l$a.isAllowRemoteConnection`（远程连接）与 `CExternalAppSettingDialog`，说明开关是「启用 + 端口 + 允许远程」三件套，
+  默认全关。结论不变：`status` 能连上的前提是用户在编辑器里勾一次。
+
 ## 16. v3：^^ 笑眼（叠加件 + `ParamEyeBallForm`）
 
 ### 16.1 为什么是「叠一张画」
@@ -639,6 +654,12 @@ python assets\_raw\claude_v3_gif.py --target gif --size 560 --fps 16
 
 脚本做的是 `import_layout(v3) → rig_generate → 重放 PHYSICS → project export_target`，`settings` 里 `clip=Idle`、`physics=true`、`background=00000000`（透明）。两个 `losses` 是必然的：GIF 把 deformers/parameters 烘成像素，且只有 256 色 + 1-bit 透明。要更清楚的动图就换 `--target webp`（`--target mp4` 需要在 `settings` 里传 `ffmpeg=<绝对路径>`）。**注意 import 会把物理重置回软默认**，所以脚本里必须重放 `tune_physics.PHYSICS`，否则头发又变橡皮筋。
 
+**`PHYSICS` 重放要容错**：`tune_physics.PHYSICS` 里的 `PhysicsEyeJelly` 是 `{"enabled": false}`，`rig_generate`
+之后这个组根本不存在，`physics/put` 会回 `{"code":"invalid_argument","message":"Physics group not found: PhysicsEyeJelly"}`
+—— 旧脚本直接 `job["result"]["state"]` 就 `KeyError: 'result'`。现在遇到没有 `result` 的响应只打印
+`physics …: skipped (…)` 并继续；整段 560px / 16fps / 192 帧约 **4 秒**出完（14.5 MB）。抽查分镜：
+`preview/_gif-sheet.png`（第 0/12/24/36/48/60/72/120 帧拼图，发丝逐帧位移、眼睛是新的琥珀睁眼）。
+
 ### 16.9 张口件：程序化重画（心形舌头「大球」→ 干净小 o）
 
 母图给的张口件不能直接用：bbox `1005,575-1043,618`（39×44 canvas px，比闭口 27×10 大一圈）、
@@ -733,3 +754,18 @@ parts["eye_close-*"] = clean(fp, 60)  # RGB 取原母图（半睁的眼弧）
 | 笑眼 | 同上 `&p=EyeBallForm:1` | `preview/_h1-face.png`（两道 ∩ 弧） |
 | 座位尺度 | `longtable.html?only=4&eye=1&still=1` | `preview/_st1.png` / `_st1-face.png`（4×） |
 | 抱书 | `longtable.html?only=4&pose=4:alt&still=1` | `preview/_st2.png` / `_st2-book.png`（4×） |
+
+### 16.12 舞台动作在新模型上的复验（2026-11-03 round 4）
+
+`?gest=<id>:<u>` 会把某个待机动作钉在包络的相位 `u` 上，配合 `?still=1` 就能像参数钉值一样截静帧。
+重建 moc3 之后逐张对比基线（`diff>24` 像素数 / bbox，全部只落在她身上 `x≈731..832, y≈561..657`）：
+
+| 入口 | diff>24 | 结论 |
+| --- | --- | --- |
+| `?only=4&still=1&gest=nod:0.5` | 1033 px | 点头（HeadAngleY 一系）生效 |
+| `?only=4&still=1&gest=tilt:0.5` | 2544 px | 歪头（HeadAngleZ）生效，位移最大 |
+| `?only=4&still=1&gest=happy:0.5` | 2365 px | 笑眼包 + 头部微动同时生效 |
+
+拼图 `preview/_gest-sheet.png`（四格 3×：基线 / nod / tilt / happy）——第四格能直接看到 ∩∩ 笑眼。
+**这几个数字要留档**：`?gest=` 之前因为未声明的 `forceGest` 每帧抛 `ReferenceError`，动作与眨眼都没跑到模型上，
+所以「有 diff」本身就是回归测试；以后改舞台先跑这三条。
