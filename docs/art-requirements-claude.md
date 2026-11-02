@@ -1337,3 +1337,29 @@ round 17 的姿态矩阵只扫了**单参数端点**，但舞台是同时驱动�
 母图到画布的换算是 `canvas_x = art_x * 1.2645 + 377.2`、`canvas_y = art_y * 1.2645 + 52.9`
 （`claude_to_canvas.py` 的 `scale/dx/dy`），所以两边的裁切框能对上同一个解剖位置——
 **这个换算式是判断「渲染错位」还是「原画如此」的唯一依据**，比盯着看可靠。
+
+## 20. 12 个动作的对照条（round 24）
+
+「能演多种动作」得能一眼看见，所以做了一张座位尺度的对照条：每格是
+`?only=4&still=1&eye=1&nogest=1&gest=<id>:0.5`（动作包络峰值那一点）的截图，
+裁 `(496,436,644,668)` 再放大 2.6×，标题里的数字是该帧与无动作基线的 diff 像素数：
+
+```
+nod 613   bow 995   shake 360   tilt 10262
+look 3    glance 1438   think 2135   smile 9667
+happy 12310   huh 10076   leanin 1769   hairtoss 289
+```
+
+产物 `assets/build/claude-v3/media/gesture-sheet.png`（4×3，12 格）。
+
+**`look` 只有 3px 不是坏了**：它在 `preview/longtable.html` 的动作叠加里被
+`contradictsLook` 过滤掉了——这一帧的「发言人」是座位 2，而座位 4 正在朝左看他，
+`look`（向右转 +13°）与视线方向相反，于是整条动作被跳过；`glance`（-9°）方向一致就保留了。
+想量 `look` 的真实幅度，得用 `?speak=4`（自己发言 → `speakerI === s.i` → 不触发视线偏置）。
+
+两个坑：
+- 对照条必须用**同一基线**（`?nogest=1` 且不带 `&gest=`）算 diff，否则随机微尘和发言气泡
+  会混进 bbox（`tilt/smile/happy/huh` 的 bbox 里那个 `x=5,y=400` 的点就是场景微尘）。
+- 座位尺度下眼睛只有约 20×14 px，`?eye=1` 与 `?eye=0` 的整帧 diff 只有 **527px**
+  （两只眼全换），在 4× 放大图上肉眼很容易把「上睑线 + 虹膜」误读成「闭眼」。
+  判断眼睛必须回 `probe.html?raw=1&scale=1` 看 1:1，不要在座位尺度下结论。
