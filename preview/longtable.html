@@ -433,19 +433,23 @@ const app = new PIXI.Application({
   if (q.get('debug') === '1') {
     const d = document.createElement('div');
     d.style.cssText = 'position:absolute;left:8px;top:8px;z-index:30;font:11px/1.5 monospace;color:#9fe;background:rgba(0,0,0,.6);padding:6px;max-width:1380px;white-space:pre-wrap';
-    const base = `charH=${charH}\n` + seats.map(s => {
+    const seatLines = () => seats.map(s => {
       if (!s.model) return `${s.i} x=${Math.round(s.x)} (no model)`;
       const b = s.model.getBounds();
-      return `${s.i} x=${Math.round(s.x)} mx=${Math.round(s.model.x)} baseY=${Math.round(s.baseY)} b=[${Math.round(b.left)}..${Math.round(b.right)}] w=${Math.round(b.width)}`;
+      const p = s.poseDbg;
+      const pv = p ? ` turn=${p.turn.toFixed(1)} nod=${p.nod.toFixed(1)} lean=${p.lean.toFixed(1)} tilt=${(p.tilt||0).toFixed(1)} look=${p.look.toFixed(2)} g=${p.g}` : '';
+      return `${s.i} x=${Math.round(s.x)} mx=${Math.round(s.model.x)} baseY=${Math.round(s.baseY)} b=[${Math.round(b.left)}..${Math.round(b.right)}] w=${Math.round(b.width)}${pv}`;
     }).join('\n');
+    const base = `charH=${charH}\n` + seatLines();
     d.textContent = base;
     document.getElementById('stage').appendChild(d);
-    // 每 0.5s 刷新：有异常就把异常贴上来，没有就显示 fps，方便截图判读。
+    // 每 0.5s 刷新：座位行要重算（poseDbg 每帧在变），有异常就把异常贴上来。
     setInterval(() => {
       const errs = window.__errs;
+      const head = `charH=${charH}\n` + seatLines();
       d.textContent = errs.length
-        ? base + `\nERR(${errs.length}): ` + errs.join(' | ')
-        : base + `\nfps=${document.getElementById('fps').textContent}`;
+        ? head + `\nERR(${errs.length}): ` + errs.join(' | ')
+        : head + `\nfps=${document.getElementById('fps').textContent}`;
     }, 500);
   }
 
@@ -551,16 +555,24 @@ const app = new PIXI.Application({
           ? (GESTURES.find(x => x.id === forceGest.id) || GESTURES[0]).f(forceGest.u)
           : (noGest ? null : gestureOffsets(s, t));
         if (off) {
-          nod += off.nod || 0;
-          turn += off.turn || 0;
-          lean += off.lean || 0;
-          tilt = off.tilt;
-          eyeX = off.eyeX;
-          eyeY = off.eyeY;
-          brow = off.brow;
-          happy = off.happy;
-          hair = off.hair;
-          mform = off.mform;
+          // 「朝发言人偏头」和「自己张望」会互相抵消：lookSmooth 已经把 turn 推到 ±7°，
+          // 再叠一个 look/glance（±9..13°）就是 20°，3 头身的脖子会拧成麻花。
+          // 正在看发言人时：张望类动作整段跳过，其余动作的 turn 只留 1/4。
+          const lookAmt = Math.abs(s.lookSmooth || 0);
+          const gid = forceGest ? forceGest.id : (s.g && s.g.g.id);
+          const contradictsLook = lookAmt > 0.55 && (gid === 'look' || gid === 'glance');
+          if (!contradictsLook) {
+            nod += off.nod || 0;
+            turn += (off.turn || 0) * (1 - 0.75 * lookAmt);
+            lean += off.lean || 0;
+            tilt = off.tilt;
+            eyeX = off.eyeX;
+            eyeY = off.eyeY;
+            brow = off.brow;
+            happy = off.happy;
+            hair = off.hair;
+            mform = off.mform;
+          }
         }
       }
       if (s.cfg && s.cfg.blink) eye = pinEye !== null ? pinEye : blinkValue(s, t);
@@ -568,6 +580,10 @@ const app = new PIXI.Application({
       // 眼珠跟着头一起朝发言人（幅度最小，太大就成对眼了）
       if (s.lookSmooth) eyeX += s.lookSmooth * 0.55;
       const pose = { turn, nod, lean, tilt, eyeX, eyeY, brow, mform, happy, hair, mouth: s.mouth, breath, eye };
+      // ?debug=1 的 overlay 会把这一帧写进模型的数值贴出来。像素 diff 在无头截图里
+      // 有 ~600px 的噪声地板（场景微尘 + AA），微妙动作只有看数字才判得准。
+      s.poseDbg = { turn, nod, lean, tilt, look: s.lookSmooth || 0,
+                    g: (forceGest ? forceGest.id : (s.g && s.g.g.id)) || '-' };
       applyPoseParams(s.model, pose);
       if (s.altModel && s.altModel.visible) {
         applyPoseParams(s.altModel, pose);

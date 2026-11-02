@@ -386,6 +386,41 @@ crop `(500,470,600,560)`）`?qforce=1` 与 `?qforce=0.6` 的平均绝对差只�
 overlay 永远显示 `fps=--`。也就是说：静态档位（`?qforce=`）可以用拼图对比验证，
 但「掉帧后自动降档」只能在真实浏览器里看。别把 `fps=--` 当成 bug，也别声称跑过自适应测试。
 
+### 12.7 看发言人 × 自己张望：两股转头别叠加（round 11）
+
+§12.5 的「朝发言人偏头」本身就是 `turn += lookSmooth * 7`，而 `look` / `glance` 两个动作各带
+±9..13° 的转头。两者同时生效就是 20°，3 头身的脖子会拧成麻花。现在动作叠加块里先判冲突：
+
+```js
+const lookAmt = Math.abs(s.lookSmooth || 0);
+const gid = forceGest ? forceGest.id : (s.g && s.g.g.id);
+const contradictsLook = lookAmt > 0.55 && (gid === 'look' || gid === 'glance');
+if (!contradictsLook) {
+  nod += off.nod || 0;
+  turn += (off.turn || 0) * (1 - 0.75 * lookAmt);   // 其余动作的转头只留 1/4
+  ...
+}
+```
+
+**微妙的动作不能靠像素 diff 判**。头部框 `(515,485,600,570)`、`diff>40` 的噪声地板就有 ~600px
+（空格对照 `gt0 vs gt1` 的 nod 就有 573px，同 URL 连拍也有 33184px 的差异：场景微尘 + AA），
+动作是否生效必须**读参数数字**。于是 ticker 每帧写 `s.poseDbg = { turn, nod, lean, tilt, look, g }`，
+`?debug=1` 的 overlay 每 0.5s 重算一遍 `seatLines()`（旧实现只在加载时拼一次 `base`，数字永远不刷新）。
+1000×900 下 overlay 文本块从 y≈137 起、每行 ~12px，座位 4 那行在 y≈204-210。
+
+实测三档（`?only=0,4&still=1&debug=1&speak=0&gest=<id>:0.5`，座位 0 发言、座位 4 看她）：
+
+| 条件 | turn | nod | tilt | look | g | 结论 |
+|---|---|---|---|---|---|---|
+| `gest=look`（冲突，整段跳过） | -3.1 | -0.9 | 0.0 | -0.81 | look | 只剩待机 + 7°朝人偏头 |
+| `gest=nod` | 2.9 | 10.8 | 0.0 | -0.81 | nod | 点头照做，转头不额外加 |
+| `gest=tilt` | 3.9 | -1.1 | 9.0 | -0.81 | tilt | 歪头照做，转头压到 39% |
+| `gest=look`（无发言人，对照组） | 12.0 | -0.8 | 3.0 | -0.10 | look | 动作本身完好 |
+
+读数换算：待机 `turn` 分量在该相位是 +2.57（`-3.1 = 2.57 - 0.81*7`），`lean = -1.9` 正好是
+`-0.81*2.2`；`gest=tilt` 的 3.9 = 2.57 - 5.67 + 0.39×off.turn（off.turn≈18）。四行数字自洽，
+说明抑制与部分缩放都按预期生效。
+
 ## 13. v2 出模管线：layout manifest → PSD2Live MCP（眨眼/口型终于能用）
 
 §10.4 里「没有眨眼、没有口型」的限制在 v2 解掉了。CLI 只能吃 PSD，但 **PSD2Live 3.6.7 的 GUI 自带一套 HTTP MCP 服务**，里面有 `project/import_layout`、未发布的 `rig_generate`、`project/export_model`，可以把「每层绑哪个变体参数」直接写进 manifest，绕开 GUI 手点。
