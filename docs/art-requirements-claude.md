@@ -1051,3 +1051,31 @@ missing = body & ~cov          # 8461 px
 
 **座位尺度仍然读不出张嘴**：座位 4 的整张脸只有 17×11px，嘴约 4×1.5px（`_talk-cmp.png` 7× 可见差别、
 `?speak=4` 与静止差 985px）。这是尺寸的物理限制，不是绑定问题 —— 1:1 用模型页看即可。
+
+### 16.18 眼珠想动，就得把虹膜拆成自己的 `irides` 件（round 15）
+
+用户的目标是「完美、能动的小克」，而在这之前她的**眼珠是死的**：舞台一直在写
+`ParamEyeBallX/Y`，`probe.html` 里把这些参数从 0 拉到 1 却是 **0 像素差**。
+
+原因是 §16.11 的修法把整只眼合并成了一个件（`eyewhite`，toggle 到 `ParamEyeLOpen`），
+而 PSD2Live 只在看到 `irides` 这个 tag 时才建眼珠变形器。对照实验：GPT 的 moc3 有
+`irides-l/-r`，`p=EyeBallX:0` vs `:1` 的眼部差 **2062px**（两块约 1000px 的连通块，各落在一只眼上），
+说明绑定是自动的、与模型无关。
+
+给 Claude 补这个件要做三件事，缺一件就出事：
+
+1. **虹膜单独成件**：`master_eye()` 追加返回 `disc` —— 琥珀连通块 `closing(5×5)` 后 `fill_holes`
+   再 `& almond`，把瞳孔与高光一起圈进来（`1533px / 52×48`，右眼 `1420px`）；`< 300px` 时退回
+   `erosion(almond, 3)`。manifest 里加一行
+   `("irides", "irides", True, "ParamEyeLOpen", "ParamEyeROpen")`，**紧挨在 `eyewhite` 之后**：
+   它既是 `irides`（眼珠变形器）又是一个 toggle（眨眼时不能留一颗漂在眼皮上）。
+2. **下面的 sclera 必须把琥珀洗掉**：`eyewhite` 现在压在虹膜下面，如果它还留着原画的琥珀，
+   眼珠一动就会露出一圈**错位的第二个虹膜**。做法是按件把 `disc` 涂成大圈里侧的中位奶白色
+   （`around = eyewhite & ~dilate(disc,4) & mn>215 & (r-g)<14`），再把 2px 接缝按 50% 混一遍。
+3. **alpha 要羽化**：`irides` 的 alpha 过 `gaussian_filter(1.0)`，否则硬边在滑动时会在眼白上切出一道环。
+
+验收：`probe.html?scale=1&p=EyeLOpen:1,EyeROpen:1,EyeBallX:-1` vs `:1` → 眼部差 **6860px**
+（两块 3238/3039，bbox 各落一只眼），且虹膜移动后**没有第二圈琥珀**（`_ballcmp.png` 4× 上下对照）；
+`EyeLOpen:0` 时虹膜随 toggle 消失、回到原画的半闭眼（`_iris-open-close.png`）；
+座位尺度 `?only=4&still=1&eye=1` 的脸依旧干净（`_irisstage-face.png` 7×）。
+重建：`claude.layout.moc3 344000B`（26 个件，多出 `irides-l/-r`）、抱书版 `338432B`、GIF 15048555B。
