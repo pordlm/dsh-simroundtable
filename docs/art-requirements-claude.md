@@ -190,7 +190,8 @@ rest = almond & ~lash          # irides 与 eyewhite 共用这一份遮罩和母
 - **sclera 判据必须是中性色 `(r-g)<12`，不能用 `(mn>190)&(sat<0.25)`**：后者把奶油 sclera 当成皮肤剔掉，杏仁中间被打洞，脸上刷肤色后就成了虹膜外面一圈白环（就是用户说的「白光」）。
 - **`face` 层要把眼睛的洞补掉**，否则睁眼件一动就露出母图里冻结的眼睛。用 `cv2.inpaint(master, dilate(almond,2), 4, cv2.INPAINT_TELEA)`，不要平涂成肤色 —— 平涂会在眼周留一圈浅色环。
 - 校验工具：`python assets/_raw/_cl_face_cmp.py 820 440 1300 580 3.0` 会按 PSD z 序叠回 2048 并和母图并排，打印 `diff>28` 与 `mean|d|`（眼带实测 `6483/67200`、`mean 10.10`，头发对照区 `mean 4.21`）。
-- 遗留：杏仁外缘仍有一圈很淡的边（母图 sclera 本身就接近肤色），座位尺寸下不可见；`ParamEyeLOpen` 在本模型上实测**几乎不改变画面**（`?eye=0`/`?eye=1` 对比无法区分，见 `preview/gpt-model.html` 新增的 `?eye=` 调试参数），所以 `eye close` 图层在静止时可能一直可见 —— 若要彻底干净，可从 `CLAUDE_PARTS` 里摘掉 `eye_close` 出模（眼型会比母图更「睁」）。
+- 杏仁外缘仍有一圈很淡的边（母图 sclera 本身就接近肤色），座位尺寸下不可见。
+- 一度以为「晃动时脸被浅色楔形遮住」是 `eye close` 图层在 `ParamEyeLOpen=1` 时仍可见（`?eye=0`/`?eye=1` 对比无法区分，见 `preview/gpt-model.html` 的 `?eye=` 调试参数）。**实际是 §10.2c 的白边**：`eye close` 的上睑件边缘被重采样成了纯白，头部一转就把这圈白拉成一整片。白边修掉后 `?p=AngleX:30` 渲染干净，`eye_close` 不需要摘。
 
 ### 10.2b 嘴：要用 `fill_holes` 封成实心，不能只取暗色轮廓
 
@@ -203,6 +204,29 @@ mouth  = fill_holes(closing(m_dark | m_pink, 2)) & mrect   # 再取最大连通�
 ```
 
 母图 791px、2048 画布 1520px（旧版只有 517px 的轮廓）。
+
+### 10.2c 边缘发白：重采样必须在「颜色 ≤ alpha」的约束下做
+
+症状：`mouth_close` 在皮肤上呈「深粉笔画 + 白圈」，`eye close` 上睑边缘发白，头部一转就变成一片浅色楔形（用户两次报修都是这一条）。
+
+根因不在切件，在 `assets/_raw/claude_to_canvas.py` 的重采样：
+
+1. **LANCZOS 有负瓣**：2px 深的唇线会被过冲到 `rgb > alpha`，反预乘时 `rgb/alpha` 直接溢到 1.0，量化成 `(255,255,255)` 且 alpha 仍是 255 —— 实测 `parts/mouth_close.png` 里 90 个纯白像素，`(1020,595) = (255,255,255,255)`。
+2. **`alpha_composite` 的低 alpha 量化**：即使换 BILINEAR，合成到空画布后仍有少量半透明像素四舍五入成 255。
+
+两条修法（都已落在 `claude_to_canvas.py`）：
+
+```python
+pre[..., :3] = np.minimum(pre[..., :3], pre[..., 3:4])   # 预乘色不许超过 alpha
+out = out.resize(size, Image.BILINEAR)                    # 换掉 LANCZOS：没有负瓣就没有过冲
+rgb2 = np.minimum(rgb2, al2)
+straight = rgb2 / np.maximum(al2, 1.0 / 255.0)            # 分母下限 1/255，防近零 alpha 爆炸
+# 合成完再对整张画布 bleed 一次：半透明像素一律取最近不透明像素的颜色
+carr = np.asarray(canvas)
+canvas = Image.fromarray(np.dstack([bleed(carr[..., :3], carr[..., 3]), carr[..., 3]]), "RGBA")
+```
+
+验收口径：`parts/*.png` 里 `min(rgb)>=250` 且 `40<=alpha<250` 的像素数必须为 0（`face` 例外，它本来就有白色高光）。修完 `mouth_close` 203px、`mouth_open` 1373px，白边计数全 0。
 
 ### 10.3 另外四处必须避开的坑
 
