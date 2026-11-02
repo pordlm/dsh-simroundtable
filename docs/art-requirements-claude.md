@@ -1240,3 +1240,54 @@ cmd /c start /b "" "$edge" --headless=new --disable-gpu --user-data-dir="%TEMP%\
 
 `?tpin=` 也顺手解决了「无头截图里的自动换姿势/动作没法复现」的问题——只要给同一个毫秒，
 每次渲染都是同一帧。
+
+## 18. 说话时的眨眼要落在换气口（round 22 后半）
+
+原来的眨眼完全不看「在不在说话」：`blinkAt = t + 2400 + random * 5600`，每 2.4–8 s 闭一次眼。
+一句话说到一半突然闭眼 150 ms，观感像卡帧。改法是说话时**不按随机时钟**，等到两个条件同时成立：
+
+```js
+const sy = speechEnv(s, t);                       // 与口型/点头同一条包络
+s.syMean = s.syMean === undefined ? sy : s.syMean * 0.94 + sy * 0.06;
+const breath = Math.sin(t / 1000 * 0.55 + phase); // ≈11 s 一个「句子」
+if (breath > 0.55 && sy < 0.5 && sy < s.syMean * 0.8) {
+  if (s.pauseArmed && t - (s.blinkStart ?? -1e9) > 2200) { s.blinkStart = t; s.pauseArmed = false; }
+} else s.pauseArmed = true;
+```
+
+三个参数都是实测调出来的，各自解决一个具体的失败：
+
+1. **不能用固定阈值等 `sy` 掉到低谷**。第一版写 `if (sy < 0.22)`，结果 14 s 里一次都没眨——
+   包络是 `|0.72·sin(5.5sp) + 0.28·sin(8.9sp)|`，两个频率是**黄金比**（8.9/5.5 ≈ 1.618），
+   几乎不会同时过零，`sy` 长期在 0.5 以上。改成「比自己近期均值低 80%」才是真正的小停顿。
+2. **需要一条慢节奏来代表句读**。只用音节包络会在一句话里眨 32 次/分（实测），像抽搐；
+   加 0.55 rad/s 的 `breath` 窗口 + **2.2 s 硬间隔**后是 11 次/分、平均间隔 5.8 s，接近真人 15–20 次/分。
+3. **`sy < 0.5` 的绝对上限**别省：否则启动瞬间 `syMean` 还没收敛，会在 `sy≈0.59` 的地方眨眼。
+
+### 18.1 无头环境验证不了累积时间，就用 node 跑真实函数
+
+`--virtual-time-budget` 不推进 `performance.now()`，所以 ticker 里的时间几乎不流逝，
+无头 dump 出来永远是 `bl=0 eye=1.00`——**这个 0 什么也不能证明**。可靠的做法是把
+HTML 里的 `speechEnv()` / `blinkValue()` 原文切出来，用合成时钟跑：
+
+```js
+// assets/_raw/_blinktest.mjs：从 preview/longtable.html 里 slice 出两个函数再 import
+const code = src.slice(src.indexOf('function speechEnv'), src.indexOf("document.getElementById('status')"))
+                + '\nexport { speechEnv, blinkValue };';
+const mod = await import('data:text/javascript;base64,' + Buffer.from(code).toString('base64'));
+```
+
+跑 60 s（步进 8.3 ms）的结果：说话 11 次、间隔均值 5773 ms、眨眼时刻的 `sy` 全部 ≤0.47；
+待机 11 次（随机路径未改动）。这比截图比对可靠得多，改参数后重跑一次就知道有没有退。
+
+### 18.2 待机相位改成固定种子
+
+`wobble` 原来是 7 个 `Math.random()`，同一个 `?tpin=3000` 每次得到不同相位，
+`?tpin=` 等于碰运气。现在用 mulberry32 按座位顺序取数，默认种子 `20261103`，可用 `?seed=` 改：
+
+```js
+const rnd = (() => { let a = seedBase >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; /* … */ }; })();
+```
+
+连拍两次 `?only=4&speak=4&tpin=3000&debug=1&nogest=1`，`sy=0.42 mo=0.47 hair=0.085 turn=-0.2 nod=-0.1`
+两次一字不差（`look` 仍会不同：它是对帧做时间平滑的，跟加载耗时有关）。

@@ -246,17 +246,31 @@ const app = new PIXI.Application({
     b.innerHTML = `<span class="who">${NAMES[i % 8]}</span><span class="body"></span>`;
     bubbles.appendChild(b);
 
-    seats.push({
+    // 待机相位用固定种子：无头验收要能复现同一帧，纯 Math.random() 会让 ?tpin=
+// 变成碰运气（同一个 tpin 每次得到不同相位，动作永远对不上）。
+  const seedBase = q.has('seed') ? (Number(q.get('seed')) | 0) : 20261103;
+  const rnd = (() => {
+    let a = seedBase >>> 0;
+    return () => {
+      a = (a + 0x6D2B79F5) >>> 0;
+      let x = a;
+      x = Math.imul(x ^ (x >>> 15), x | 1);
+      x ^= x + Math.imul(x ^ (x >>> 7), x | 61);
+      return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
+    };
+  })();
+
+  seats.push({
       i, x, speaking: false, mouth: 0, bubble: b, model: null,
-      // 每个座位一套随机待机参数：呼吸快慢、浮动幅度、摇摆/转头节奏都不同
+      // 每个座位一套待机参数：呼吸快慢、浮动幅度、摇摆/转头节奏都不同
       wobble: {
-        bobPeriod: 3000 + Math.random() * 2200,
-        bobAmp: 1.1 + Math.random() * 1.3,
-        swayPeriod: 4200 + Math.random() * 3200,
-        swayAmp: 0.7 + Math.random() * 1.1,
-        turnPeriod: 5200 + Math.random() * 4800,
-        turnAmp: 2.2 + Math.random() * 4.0,
-        phase: Math.random() * Math.PI * 2
+        bobPeriod: 3000 + rnd() * 2200,
+        bobAmp: 1.1 + rnd() * 1.3,
+        swayPeriod: 4200 + rnd() * 3200,
+        swayAmp: 0.7 + rnd() * 1.1,
+        turnPeriod: 5200 + rnd() * 4800,
+        turnAmp: 2.2 + rnd() * 4.0,
+        phase: rnd() * Math.PI * 2
       }
     });
   });
@@ -369,18 +383,49 @@ const app = new PIXI.Application({
     return s.g.g.f(Math.max(0, u));
   }
 
+  // 音节包络（0..1，峰值 = 张口最大）。口型、发言时的点头、以及「换气口眨眼」
+  // 用的是同一条曲线，三者的节奏才是一件事，而不是三个各摆各的振荡器。
+  function speechEnv(s, t) {
+    const sp = t / 1000 + (s.wobble ? s.wobble.phase : 0);
+    return Math.abs(Math.sin(sp * 5.5) * 0.72 + Math.sin(sp * 8.9) * 0.28);
+  }
+
   // 眨眼：睁 1 → 闭 0 → 睁 1，闭眼段只占 30%，看起来才像真眨眼而不是慢闭
-  // 偶尔连眨两下（间隔 320ms），真人也会这样
+  // 偶尔连眨两下（间隔 320ms），真人也会这样。
+  // 说话时不按随机时钟眨：等到音节包络掉回低谷（换气口）再眨一下，
+  // 否则一句话正中间突然闭眼，像卡了一下。
   function blinkValue(s, t) {
+    if (s.blinkStart !== undefined) {
+      const u = (t - s.blinkStart) / 150;
+      if (u >= 0 && u < 1) return u < 0.3 ? 1 - u / 0.3 : (u - 0.3) / 0.7;
+    }
+    if (s.speaking) {
+      // 说话时的眨眼要卡在两件事上：①句读的慢拍（0.35 Hz 的「换气」窗口）
+      // ②音节包络落回自己近期均值的 75% 以下（一句话里的小停顿）。
+      // 只用 sy < 常数 是不行的：两条正弦是 5.5 / 8.9（黄金比），几乎不会同时过零，
+      // sy 长期在 0.5 以上，等阈值等不到眨眼（实测 14 s 里 bl=0）。
+      const sy = speechEnv(s, t);
+      s.syMean = s.syMean === undefined ? sy : s.syMean * 0.94 + sy * 0.06;
+      // 0.55 rad/s ≈ 11 s 一个「句子」；窗口 0.55 大概占 40%（约 4.5 s）。
+      const breath = Math.sin(t / 1000 * 0.55 + (s.wobble ? s.wobble.phase : 0));
+      if (breath > 0.55 && sy < 0.5 && sy < s.syMean * 0.8) {
+        // 2.2 s 的硬间隔：真人 15–20 次/分，不设间隔会眨成 32 次/分（实测）
+        if (s.pauseArmed && t - (s.blinkStart ?? -1e9) > 2200) {
+          s.pauseArmed = false;
+          s.blinkStart = t;
+          // 计数 + 记录眨眼时刻的包络高度：无头验证用（应该只在低谷眨）
+          s.blinkN = (s.blinkN || 0) + 1;
+          s.blinkSy = Math.max(s.blinkSy || 0, sy);
+        }
+      } else s.pauseArmed = true;
+      return 1;
+    }
     if (s.blinkAt === undefined) s.blinkAt = t + 900 + Math.random() * 4200;
     if (t >= s.blinkAt) {
       s.blinkStart = s.blinkAt;
       s.blinkAt = t + (Math.random() < 0.22 ? 320 : 2400 + Math.random() * 5600);
     }
-    if (s.blinkStart === undefined) return 1;
-    const u = (t - s.blinkStart) / 150;
-    if (u < 0 || u >= 1) return 1;
-    return u < 0.3 ? 1 - u / 0.3 : (u - 0.3) / 0.7;
+    return 1;
   }
 
   document.getElementById('status').textContent = '加载 Live2D…';
@@ -465,7 +510,7 @@ const app = new PIXI.Application({
       if (!s.model) return `${s.i} x=${Math.round(s.x)} (no model)`;
       const b = s.model.getBounds();
       const p = s.poseDbg;
-      const pv = p ? ` turn=${p.turn.toFixed(1)} nod=${p.nod.toFixed(1)} lean=${p.lean.toFixed(1)} tilt=${(p.tilt||0).toFixed(1)} look=${p.look.toFixed(2)} eyeX=${(p.eyeX||0).toFixed(2)} eyeY=${(p.eyeY||0).toFixed(2)} hair=${(p.hair||0).toFixed(3)} sy=${(p.sy||0).toFixed(2)} mo=${(p.mouth||0).toFixed(2)} g=${p.g}` : '';
+      const pv = p ? ` turn=${p.turn.toFixed(1)} nod=${p.nod.toFixed(1)} lean=${p.lean.toFixed(1)} tilt=${(p.tilt||0).toFixed(1)} look=${p.look.toFixed(2)} eyeX=${(p.eyeX||0).toFixed(2)} eyeY=${(p.eyeY||0).toFixed(2)} hair=${(p.hair||0).toFixed(3)} sy=${(p.sy||0).toFixed(2)} mo=${(p.mouth||0).toFixed(2)} eye=${(p.eye===undefined?1:p.eye).toFixed(2)} bl=${p.bl||0} blsy=${(p.blsy||0).toFixed(2)} g=${p.g}` : '';
       return `${s.i} x=${Math.round(s.x)} mx=${Math.round(s.model.x)} baseY=${Math.round(s.baseY)} b=[${Math.round(b.left)}..${Math.round(b.right)}] w=${Math.round(b.width)}${pv}`;
     }).join('\n');
     const base = `charH=${charH}\n` + seatLines();
@@ -557,7 +602,7 @@ const app = new PIXI.Application({
       // 头部才有「跟着字往下压」的感觉；各座位相位不同，不是整齐的节拍器。
       // 鲸鱼娘的张嘴参数没绑几何，只有 GPT / Claude 看得出效果。
       const sp = t / 1000 + w.phase;
-      const sy = Math.abs(Math.sin(sp * 5.5) * 0.72 + Math.sin(sp * 8.9) * 0.28);
+      const sy = speechEnv(s, t);
       if (forcedMouth !== null) s.mouth = forcedMouth;
       else if (s.speaking) s.mouth = 0.10 + 0.90 * sy;
       else s.mouth *= 0.86;
@@ -659,7 +704,8 @@ const app = new PIXI.Application({
       // ?debug=1 的 overlay 会把这一帧写进模型的数值贴出来。像素 diff 在无头截图里
       // 有 ~600px 的噪声地板（场景微尘 + AA），微妙动作只有看数字才判得准。
       s.poseDbg = { turn, nod, lean, tilt, look: s.lookSmooth || 0, hair, eyeX, eyeY,
-                    sy: s.speaking ? sy : 0, mouth: s.mouth,
+                    sy: s.speaking ? sy : 0, mouth: s.mouth, eye,
+                    bl: s.blinkN || 0, blsy: s.blinkSy || 0,
                     g: (forceGest ? forceGest.id : (s.g && s.g.g.id)) || '-' };
       applyPoseParams(s.model, pose);
       if (s.altModel && s.altModel.visible) {
@@ -695,6 +741,8 @@ const app = new PIXI.Application({
   let speakerI = -1;
   function speak(i, ms) {
     const s = seats[i]; s.speaking = true;
+    // 开口前先等一个换气口再眨：把随机眨眼的进度清掉，pauseArmed 从头计时
+    s.blinkStart = undefined; s.pauseArmed = false;
     speakerI = i;
     showBubble(i, LINES[i % LINES.length]);
     setTimeout(() => {
