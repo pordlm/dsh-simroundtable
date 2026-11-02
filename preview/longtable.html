@@ -82,12 +82,17 @@ const MODELS = {
     dy: -25
   },
   Claude: {
-    url: '../assets/build/claude-parts/p2l/claude.model3.json',
+    url: '../assets/build/claude-v2/claude.layout.model3.json',
     // 全身像（3 头身，墨迹 1836px 高）：按 charH/2048 缩放后头高 76.8px，与 GPT(0.85×756px→76.6px) 齐平。
     // 但全身像的“脚底”比半身像低 44px，直接摆下巴会悬在桌沿之上；以眼睛高度对齐邻居，
     // 实测 dy=0 时眼线比 GPT 高 36px，故下移 30
-    scale: 1.0,
-    dy: 30,
+    scale: 1.1,
+    dy: 45,
+    // v2（PSD2Live layout manifest 出模）把睁眼三件绑到 ParamEyeLOpen/ROpen，
+    // 所以这一座位可以由舞台自己驱动眨眼；闭眼件是常显层，眼睛=1 时被睁眼件盖住
+    blink: true,
+    // 待机里随机做的几个小动作（纯参数合成，不播放 motion，避免和每帧写参数打架）
+    gestures: true,
     // 抱书版：出模后把下面这行取消注释即可启用（同座位叠一层，__setPose(4,'alt') 交叉淡化）
     // alt: { url: '../assets/build/claude-book/p2l/claude-book.model3.json' }
   }
@@ -128,9 +133,21 @@ window.addEventListener('resize', fit);
   const still = q.get('still') === '1';
   // 调试用：只加载指定座位的模型（8 个模型一起加载会拖慢无头截图）
   const soloSeat = q.has('solo') ? Number(q.get('solo')) : null;
+  // 调试用：只加载列表里的座位，如 ?only=4,5（无头截图时 6 个模型太重会挂）
+  const onlySeats = q.has('only')
+    ? new Set(q.get('only').split(',').map(v => parseInt(v, 10)).filter(v => !isNaN(v)))
+    : null;
   // 调试用：强制某个座位一直在发言（截图验证口型）
   const speakSeat = q.has('speak') ? Number(q.get('speak')) : null;
   const noChairs = q.get('nochairs') === '1';
+  // 截图校验用：?eye=0 把眼睛钉在闭、?gest=nod:0.5 把某个小动作钉在包络的某一相位
+  const pinEye = q.has('eye') ? Math.max(0, Math.min(1, Number(q.get('eye')))) : null;
+  const forceGest = (() => {
+    const v = q.get('gest');
+    if (!v) return null;
+    const [id, u] = v.split(':');
+    return { id, u: u === undefined ? 0.5 : Number(u) };
+  })();
   const count = Math.max(2, Math.min(8, Number(q.get('n') || 8)));
   // 2048 atlases are drawn at ~0.1 scale on the stage; without mipmaps a
 // 1px outline aliases into a stair-stepped halo ("edges look rough").
@@ -226,6 +243,12 @@ const app = new PIXI.Application({
       core.setParameterValueById('ParamAngleY', p.nod);
       core.setParameterValueById('ParamBodyAngleZ', p.lean);
       core.setParameterValueById('ParamMouthOpenY', p.mouth);
+      // 只有把眼睛绑成 toggle 变体的模型（Claude v2）才能靠参数眨眼：
+      // 1 显示睁眼三件、0 露出常显的闭眼件。没绑的模型不能写这个参数。
+      if (p.eye !== undefined) {
+        core.setParameterValueById('ParamEyeLOpen', p.eye);
+        core.setParameterValueById('ParamEyeROpen', p.eye);
+      }
       if (!keepIdle) {
         for (const id of PHONE_PARAMS) { try { core.setParameterValueById(id, 0); } catch (e) { /* ignore */ } }
         try { core.setParameterValueById('ParamBreath', p.breath); } catch (e) { /* ignore */ }
@@ -234,11 +257,48 @@ const app = new PIXI.Application({
     } catch (e) { /* ignore */ }
   }
 
+  // 待机小动作：纯参数偏移，时长 dur 毫秒，env = sin(πu) 做出"起-落"的包络。
+  // 之所以不用 model.motion()：舞台每帧都在写同一批参数，动作曲线会被覆盖成抖。
+  const GESTURES = [
+    { id: 'nod',   dur: 1100, f: u => ({ nod: -11 * Math.sin(Math.PI * u) }) },
+    { id: 'bow',   dur: 1500, f: u => ({ nod: -16 * Math.sin(Math.PI * u) }) },
+    { id: 'shake', dur: 900,  f: u => ({ turn: 8 * Math.sin(Math.PI * u * 4) * Math.sin(Math.PI * u) }) },
+    { id: 'tilt',  dur: 1300, f: u => ({ lean: 7 * Math.sin(Math.PI * u) }) },
+    { id: 'look',  dur: 1600, f: u => ({ turn: 13 * Math.sin(Math.PI * u) }) }
+  ];
+  function gestureOffsets(s, t) {
+    if (!s.g) {
+      if (t < s.nextG) return null;
+      // 负号权重：待机里点头/歪头比摇头更常见
+      const pool = s.speaking ? [0, 1, 1, 3, 4] : [0, 0, 1, 2, 3, 3, 4, 4];
+      const g = GESTURES[pool[Math.floor(Math.random() * pool.length)]];
+      s.g = { g, t0: t };
+      s.nextG = t + g.dur + 2200 + Math.random() * 5200;
+    }
+    const u = (t - s.g.t0) / s.g.g.dur;
+    if (u >= 1) { s.g = null; return gestureOffsets(s, t); }
+    return s.g.g.f(Math.max(0, u));
+  }
+
+  // 眨眼：睁 1 → 闭 0 → 睁 1，闭眼段只占 30%，看起来才像真眨眼而不是慢闭
+  function blinkValue(s, t) {
+    if (s.blinkAt === undefined) s.blinkAt = t + 900 + Math.random() * 4200;
+    if (t >= s.blinkAt) {
+      s.blinkStart = s.blinkAt;
+      s.blinkAt = t + 2400 + Math.random() * 5600;
+    }
+    if (s.blinkStart === undefined) return 1;
+    const u = (t - s.blinkStart) / 150;
+    if (u < 0 || u >= 1) return 1;
+    return u < 0.3 ? 1 - u / 0.3 : (u - 0.3) / 0.7;
+  }
+
   document.getElementById('status').textContent = '加载 Live2D…';
   let loaded = 0;
   await Promise.all(seats.map(async s => {
     try {
       if (soloSeat !== null && s.i !== soloSeat) { loaded++; return; }
+      if (onlySeats && !onlySeats.has(s.i)) { loaded++; return; }
       const seatCfg = MODELS[NAMES[s.i % 8]] || {};
       const modelUrl = seatCfg.url || '../assets/models/whale-girl/c_0120.model3.json';
       const seatH = charH * (seatCfg.scale || 1);
@@ -287,6 +347,7 @@ const app = new PIXI.Application({
         } catch (e) { console.error('alt load failed', s.i, e); }
       }
       s.model = model;
+      s.cfg = seatCfg;
       loaded++;
     } catch (e) { console.error('load failed', s.i, e); }
   }));
@@ -358,9 +419,23 @@ const app = new PIXI.Application({
         s.altModel.rotation = s.model.rotation;
       }
 
-      applyPoseParams(s.model, { turn, nod, lean, mouth: s.mouth, breath });
+      // 会演小动作的座位：把额外偏移叠到待机/发言的曲线上，眼睛按自己的节奏眨
+      let eye;
+      if (s.cfg && s.cfg.gestures) {
+        const off = forceGest
+          ? (GESTURES.find(x => x.id === forceGest.id) || GESTURES[0]).f(forceGest.u)
+          : gestureOffsets(s, t);
+        if (off) {
+          nod += off.nod || 0;
+          turn += off.turn || 0;
+          lean += off.lean || 0;
+        }
+      }
+      if (s.cfg && s.cfg.blink) eye = pinEye !== null ? pinEye : blinkValue(s, t);
+
+      applyPoseParams(s.model, { turn, nod, lean, mouth: s.mouth, breath, eye });
       if (s.altModel && s.altModel.visible) {
-        applyPoseParams(s.altModel, { turn, nod, lean, mouth: s.mouth, breath });
+        applyPoseParams(s.altModel, { turn, nod, lean, mouth: s.mouth, breath, eye });
       }
     }
   }, null, PIXI.UPDATE_PRIORITY.LOW);

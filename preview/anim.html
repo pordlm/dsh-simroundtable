@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>anim filmstrip</title>
+<style>
+  html, body { margin: 0; background: #10141b; color: #9fe; font: 12px/1.4 monospace; }
+  #meta { padding: 4px 8px; }
+  #strip { display: flex; flex-wrap: wrap; gap: 2px; padding: 2px; }
+  .cell { position: relative; }
+  .cell span { position: absolute; left: 3px; top: 2px; color: #6f9; font-size: 11px; text-shadow: 0 0 3px #000; }
+</style>
+</head>
+<body>
+<div id="meta">loading…</div>
+<div id="strip"></div>
+<script src="../assets/vendor/live2dcubismcore.min.js"></script>
+<script src="../assets/vendor/pixi.min.js"></script>
+<script src="../assets/vendor/cubism4.min.js"></script>
+<script>
+(async () => {
+  const q = new URLSearchParams(location.search);
+  const modelUrl = q.get('model') || '../assets/build/claude-v2/claude.layout.model3.json';
+  const frames = Number(q.get('frames') || 8);
+  const secs = Number(q.get('secs') || 2.4);        // 一轮摇摆的总时长
+  const amp = Number(q.get('amp') || 8);            // AngleX 振幅
+  const ampZ = Number(q.get('ampz') || 0);          // AngleZ 振幅
+  const scale = Number(q.get('scale') || 0.3);
+  const dt = 1 / 60;
+
+  const app = new PIXI.Application({
+    width: 16, height: 16, backgroundAlpha: 0, autoStart: false,
+    antialias: true, preserveDrawingBuffer: true,
+  });
+  // 不挂到 body 上，只要 renderer 存在即可
+  const W = Math.round(2048 * scale), H = Math.round(2048 * scale);
+  app.renderer.resize(W, H);
+
+  const model = await PIXI.live2d.Live2DModel.from(modelUrl, { autoInteract: false, autoUpdate: false });
+  try { model.internalModel.eyeBlink = undefined; } catch (e) {}
+  model.anchor.set(0, 0);
+  model.scale.set(scale);
+  model.position.set(0, 0);
+  app.stage.addChild(model);
+
+  const core = model.internalModel.coreModel;
+  const set = (id, v) => { try { core.setParameterValueById(id, v); } catch (e) {} };
+  set('ParamEyeLOpen', 1); set('ParamEyeROpen', 1);
+
+  const strip = document.getElementById('strip');
+  const stepSecs = secs / frames;
+  const stepsPerFrame = Math.max(1, Math.round(stepSecs / dt));
+  const t0 = performance.now();
+
+  for (let i = 0; i < frames; i++) {
+    // 该帧起点决定目标角度，然后在 physics 里连续推进 stepsPerFrame 帧
+    for (let k = 0; k < stepsPerFrame; k++) {
+      const t = (i * stepsPerFrame + k) * dt;
+      const ph = (t / secs) * Math.PI * 2;
+      set('ParamAngleX', amp * Math.sin(ph));
+      set('ParamAngleZ', ampZ * Math.cos(ph));
+      model.update(dt * 1000);
+    }
+    const rt = PIXI.RenderTexture.create({ width: W, height: H });
+    app.renderer.render(app.stage, { renderTexture: rt, clear: true });
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    const canvas = app.renderer.extract.canvas(rt);
+    if (q.get('native') !== '1') {
+      canvas.style.width = (W / 2) + 'px';
+      canvas.style.height = (H / 2) + 'px';
+    }
+    cell.appendChild(canvas);
+    const tag = document.createElement('span');
+    tag.textContent = `${(i * stepSecs).toFixed(2)}s`;
+    cell.appendChild(tag);
+    strip.appendChild(cell);
+    rt.destroy(true);
+  }
+
+  const ms = Math.round(performance.now() - t0);
+  document.getElementById('meta').textContent =
+    `${modelUrl.split('/').pop()} frames=${frames} secs=${secs} amp=${amp} ampz=${ampZ} ${ms}ms`;
+  document.title = 'READY';
+})().catch(e => {
+  document.getElementById('meta').textContent = 'ERR ' + e.message;
+  document.title = 'ERR';
+  console.error(e);
+});
+</script>
+</body>
+</html>

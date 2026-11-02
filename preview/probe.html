@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>probe</title>
+<style>
+  html,body{margin:0;padding:0;background:#00ff00;overflow:hidden}
+  canvas{display:block}
+</style>
+<script src="../assets/vendor/live2dcubismcore.min.js"></script>
+<script src="../assets/vendor/pixi.min.js"></script>
+<script src="../assets/vendor/cubism4.min.js"></script>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<script type="module">
+// Minimal deterministic probe: load one model, pin a set of parameters, render
+// exactly one frame, then stop.  No ticker, no UI, no blinking -- so a headless
+// --screenshot cannot race the animation or hang on an endless rAF loop.
+//
+//   ?model=<path>            model3.json (default: the Claude build)
+//   ?p=EyeLOpen:0,AngleX:20  parameters to pin before the single render
+//   ?scale=1                 canvas scale (1 = 2048 canvas pixels)
+const q = new URLSearchParams(location.search);
+const MODEL = q.get('model') || '../assets/build/claude-parts/p2l/claude.model3.json';
+const SCALE = Number(q.get('scale') || 1);
+const CW = 2048, CH = 2048;
+const W = Math.round(CW * SCALE), H = Math.round(CH * SCALE);
+
+const app = new PIXI.Application({
+  view: document.getElementById('cv'),
+  width: W, height: H,
+  backgroundAlpha: 0,
+  antialias: true,
+  autoStart: false,
+});
+document.getElementById('cv').style.width = W + 'px';
+document.getElementById('cv').style.height = H + 'px';
+
+const model = await PIXI.live2d.Live2DModel.from(MODEL, { autoInteract: false, autoUpdate: false });
+app.stage.addChild(model);
+model.anchor.set(0, 0);
+model.scale.set(SCALE);
+const b = model.getLocalBounds();
+model.position.set(-b.x * SCALE, -b.y * SCALE);
+
+const pins = (q.get('p') || '').split(',').map(s => s.trim()).filter(Boolean);
+const cm = model.internalModel.coreModel;
+// Kill the automatic blink: it rewrites ParamEyeLOpen/ParamEyeROpen on every
+// update, so a pinned eye value would be undone before the single render.
+model.internalModel.eyeBlink = undefined;
+const applied = [];
+for (const pin of pins) {
+  const i = pin.indexOf(':');
+  if (i < 0) continue;
+  const id = pin.slice(0, i).trim();
+  const v = Number(pin.slice(i + 1));
+  if (!id || Number.isNaN(v)) continue;
+  cm.setParameterValueById(id.startsWith('Param') ? id : 'Param' + id, v);
+  applied.push(id + '=' + v);
+}
+model.update(16.6);
+app.renderer.render(app.stage);
+
+const meta = document.createElement('div');
+meta.id = 'meta';
+meta.style.cssText = 'position:fixed;left:0;top:0;font:12px monospace;color:#000;background:#fff;padding:2px 4px';
+meta.textContent = 'READY ' + (applied.join(' ') || 'noparam') + ' size=' + W + 'x' + H;
+document.body.appendChild(meta);
+document.title = 'READY';
+</script>
+</body>
+</html>

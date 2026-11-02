@@ -253,7 +253,7 @@ canvas = Image.fromarray(np.dstack([bleed(carr[..., :3], carr[..., 3]), carr[...
 | `eye close` | 无变体参数绑定 → 常显图层，盖住睁眼 | 没有眨眼动画，眼睛就是母图的半眯眼 |
 | `mouth open` | 无 lip 层 → PSD2Live 自动生成常显口线，闭口也有一道弧 | 没有口型同步 |
 
-这两件要恢复，得先让 PSD2Live 把它们当成**变体**（`ParamEyeLOpen` / `ParamMouthOpenY` 绑定）——CLI 构建不出这种绑定（`switchId` 全 0），需要在 PSD2Live 的图层表格里手动指定，或者干脆进 Cubism 5.3 手绑。**舞台尺寸下没必要**：座位里头只有 ~76px 高，眼睛 ~10px、嘴 ~3px，眨眼与口型都读不出来。
+这两件要恢复，得先让 PSD2Live 把它们当成**变体**（`ParamEyeLOpen` / `ParamMouthOpenY` 绑定）——CLI 构建不出这种绑定（`switchId` 全 0）。**已解决，见 §13**：走 GUI 自带 MCP 的 `import_layout`，manifest 里给每层写 `variant`，v2 模型现在能眨眼、能开口，并且顺带把 6 张图集压成 1 张。
 
 ## 11. 接进长桌舞台
 
@@ -261,15 +261,18 @@ canvas = Image.fromarray(np.dstack([bleed(carr[..., :3], carr[..., 3]), carr[...
 
 ```js
 Claude: {
-  url: '../assets/build/claude-parts/p2l/claude.model3.json',
-  scale: 1.0,
-  dy: 30
+  url: '../assets/build/claude-v2/claude.layout.model3.json',   // v2，见 §13
+  scale: 1.1,
+  dy: 45,
+  blink: true,
+  gestures: true
 }
 ```
 
 - **不需要 `faceDx`**：母图左右完全对称（留绿 129 == 129），脸本来就在中线。
 - `scale` 与 `dy` 的推导见 §10.1；改 `dy` 后重截 `?n=6&still=1` 时，用橙色像素检测（`(r>150)&(r-b>60)&(g>60)&(g<190)`，只统计 x 760..1180）量头顶 y，比肉眼可靠。
-- 预览页：`preview/gpt-model.html?model=../assets/build/claude-parts/p2l/claude.model3.json&idle=0&noeye=1&z=2`。
+- 无头截图时用 `?only=4,5` 只加载 Claude 与 GPT 两个模型（6–8 个模型一起加载会把无头 Edge 挂死）。
+- 预览页：`preview/gpt-model.html?model=../assets/build/claude-v2/claude.layout.model3.json&idle=0&noeye=1&z=2`。
 ## 12. 抱书姿势变体（两个 moc3 + 舞台交叉淡化）
 
 PSD2Live 没有"姿势切换"的作者接口（`psd2live.json` 里 26 层 `switchId` 全为 0），所以抱书版做成**第二个 moc3**，和空手版共用同一套部件，只换手臂和书：
@@ -332,3 +335,82 @@ node tools\relay-grab-imagegen.mjs --chat <同上> --out D:\dsh_simroundtable\as
 三个坑：`relay.config.json` 必须**纯 ASCII**（PS 5.1 按 GBK 读会 `ConvertFrom-Json` 崩）；执行策略要 `-NoProfile -ExecutionPolicy Bypass -File`；只操作 `window.name==='dsh-automation'` 的标签页，要关只用 `relay.ps1 down`（禁止按进程名杀浏览器）。
 
 下一步（未做）：按 §12.1 的坐标切 `handwear-l/r` 与 `objects` 三件，其余 21 件复用，出 `claude-book.model3.json`，再取消 `preview/longtable.html:92` 的 `alt` 注释。
+
+## 13. v2 出模管线：layout manifest → PSD2Live MCP（眨眼/口型终于能用）
+
+§10.4 里「没有眨眼、没有口型」的限制在 v2 解掉了。CLI 只能吃 PSD，但 **PSD2Live 3.6.7 的 GUI 自带一套 HTTP MCP 服务**，里面有 `project/import_layout`、未发布的 `rig_generate`、`project/export_model`，可以把「每层绑哪个变体参数」直接写进 manifest，绕开 GUI 手点。
+
+### 13.1 环境与客户端
+
+- GUI 必须开着（`Start-Process tools\psd2live\app\PSD2Live.exe`），12s 后 `netstat -ano | findstr 23871` 应见 LISTENING；端点是 `http://127.0.0.1:23871/mcp`（默认端口见 `tools/psd2live/app/app/resources/mcp_proxy.py:26 DEFAULT_PORT = 23871`）。
+- 客户端：`assets/_raw/psd2live_mcp.py`（自己写的 JSON-RPC，无第三方依赖）
+
+  ```powershell
+  python assets\_raw\psd2live_mcp.py tools                 # 列 28 个工具
+  python assets\_raw\psd2live_mcp.py schema physics        # 单个工具的 op 与字段
+  python assets\_raw\psd2live_mcp.py call workspace_inspect '{"request":{"scope":"project"}}'
+  ```
+
+- 三个必知坑：
+  1. `initialize` 之后客户端会发 `notifications/initialized`，服务端回 `-32601 Server does not support notifications/initialized` —— 这是正常的，客户端里对 `notifications/*` 吞掉错误即可；
+  2. 结果在 `structuredContent.data`，`request_id` 重复使用会 `request_id_reused`，每次调用要带新 ID；
+  3. `wait_ms` 上限 30000，导出大模型别写成 60000（会 `invalid_request`）。
+- 工具 `physics` / `project` / `motion` / `rig_deform` 等是**工具**，`physics_put` / `rig_generate` / `import_layout` 是**op**：写成 `{"op": "put", "request": {...}}`（前缀由工具名给出），直接 `call physics_put` 会 `Tool physics_put not found`。
+
+### 13.2 manifest 与脚本
+
+`assets/_raw/make_layout_manifest.py` 把 `assets/build/claude-parts/parts/*.png`（每件 2048² RGBA）裁到 alpha bbox，以「图片尺寸 = rect 尺寸」写 `assets/build/claude-layout/{parts/,claude.layout.json}`；`LAYERS` 是 5 元组 `(stem, name, split, param_l, param_r)`，z 序 back→front。
+
+`assets/_raw/claude_v2_build.py [--import]`：inspect →（`--import` 时重跑 manifest + `import_layout` + `discard_unsaved`）→ `rig_generate`（走 `workspace_call`）→ `export_model` 到 `assets/build/claude-v2`。
+
+产物：`claude.layout.moc3` **715904B**、**只有一张 4096 图集**（v1 是 6 张；bbox 裁剪后密度不变但省了大半纹理）、`claude.layout.model3.json`、`physics3.json`、`cmo3` 10.8MB。
+
+### 13.3 变体语义：`toggle` =「参数为 1 时可见」
+
+这是最容易绑反的一条。第一版把 `eye close` 绑成 `toggle(ParamEyeLOpen)`，结果睁眼时反而画上闭眼睑。正确的**手绑式**结构（已落地）：
+
+| 层 | 绑定 | 含义 |
+|---|---|---|
+| `eye close` | **无变体**，紧贴 `face` 之上的普通层 | 常显的闭眼睑，作为底 |
+| `eyewhite` / `irides` / `eyelash` | `toggle(ParamEyeLOpen)`（右眼 `ParamEyeROpen`） | 参数 1 时可见，盖住闭眼件 |
+| `mouth open`（含自动拆出的 Upper/Lower lip outline） | `toggle(ParamMouthOpenY)` | 口线与口腔一起隐藏，闭口不再留弧 |
+
+好处是不需要反向参数，也不需要 `ParamEyeLOpen=1` 之外的逻辑；代价是闭眼件必须放在睁眼三件**下面**。
+
+验证：`preview/probe.html?model=../assets/build/claude-v2/claude.layout.model3.json&p=EyeLOpen:0`（闭眼 = 睫毛线）与 `:1`（睁眼 = 琥珀眼），`diff>24` 2882px。
+
+> `probe.html` 里必须写 `model.internalModel.eyeBlink = undefined;`（在设参数之前）。pixi-live2d 的自动眨眼每帧把 `ParamEyeLOpen` 写回 1，第一次对比两张图只差 2 字节就是它干的。
+
+### 13.4 头发「诡异摆动」= 物理参数太软，不是绑定错
+
+`workspace_inspect {"scope":"physics"}` 里 PSD2Live 生成的预设：`PhysicsHairBack`（`output ParamHairBack` **scale 2.061**、`mobility 0.95`、`delay 0.8`）、`PhysicsHairFront`（scale 1.522、mobility 0.77、delay 1.45）。
+
+问题在于 **`front hair` 是一整块网格，同时包含刘海和两侧长发**：任何摆动都会把刘海拖到眼睛上，看起来就是「头发在脸上滑」。手工作品里刘海是刚性跟随头部的，所以这里：
+
+```python
+TUNE = {
+    # 后发留一点点跟随感，但幅度压到 0.6 倍、mobility 0.45
+    "PhysicsHairBack": {"output_scale": 0.60, "mobility": 0.45, "delay": 0.70, "acceleration": 1.4},
+    "PhysicsHairFront": {"enabled": False},     # 刘海+侧发直接刚性跟头
+}
+```
+
+脚本 `assets/_raw/tune_physics.py [--show|--export-only]` 负责写这两组并重导出（`physics3.json` 是独立文件，改物理不必重做 rig，但要用 `export_model` 重新落盘）。验证用 `preview/anim.html?frames=8&secs=2.4&amp=8`：它按 `AngleX = 8·sin(2πt)` 连续推进 physics，把 8 帧画进一条胶片，`?native=1` 出原生尺寸方便放大看头。
+
+### 13.5 舞台能演的小动作与眨眼
+
+`preview/longtable.html` 的 `MODELS.Claude`：
+
+```js
+Claude: {
+  url: '../assets/build/claude-v2/claude.layout.model3.json',
+  scale: 1.1,     // 1.0 时比 GPT 显小，抬到 1.1
+  dy: 45,         // 放大后头顶上移 ~15px，dy 从 30 补到 45
+  blink: true,    // 只有绑了 toggle 的 v2 才能写 ParamEyeLOpen/ROpen
+  gestures: true  // 待机时随机点头/低头/摇头/歪头/转头
+}
+```
+
+- 小动作是**纯参数合成**（`GESTURES`：nod −11°、bow −16°、shake ±8°×4 次、tilt 7°、look 13°，包络 `sin(πu)`），**不要用 `model.motion()`**：舞台每帧都在写同一批参数，动作曲线会被覆盖成抖。
+- 眨眼 `blinkValue()`：150ms 里 30% 闭合、70% 张开，间隔 2.4–8s 随机；闭眼靠 `ParamEyeLOpen=0` 露出下面的闭眼件。
+- 截图校验参数：`?eye=0|1` 钉住眼睛、`?gest=nod:0.5` 钉住某个动作的包络相位、`?only=4,5` 只加载指定座位（8 个模型一起加载时无头 Edge 会挂）。
