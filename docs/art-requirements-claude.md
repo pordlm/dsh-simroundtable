@@ -1384,3 +1384,27 @@ longtable.html?only=4&speak=4&eye=1&nogest=1&tpin=1400
 
 量 diff 时必须把框收到角色身上（`[430:730, 470:700]`）：整帧 diff 9363 px 里
 有 8000 是发言气泡与名牌在动，跟角色无关。
+
+## 22. 口型在 v3 里还活着（一次差点误判）
+
+用 `probe.html?scale=1&raw=1&p=EyeLOpen:1,EyeROpen:1,MouthOpenY:<0|0.55|1>`
+渲三帧、按「猜的」嘴部框去算 diff，得到 **0**——差点因此宣布「v3 重建把口型绑定弄丢了」。
+实际原因是框猜错了：`?raw=1` 下人脸在渲染图里的位置并不是画布坐标，
+我把嘴的位置算到 `(950,520)-(1120,700)`，真正的嘴在 `(1005,575)-(1050,617)`。
+
+正确做法是**先对两张图求 diff 再找最大连通块**：
+
+```python
+d = np.abs(b - a).max(axis=2) > 18
+lab, n = ndimage.label(d)
+sz = ndimage.sum(d, lab, range(1, n + 1))
+# 最大块 (1005,575)-(1050,617) 1370px → 这就是嘴
+```
+
+结论：`MouthOpenY` 确实驱动 `mouth open` 的三个 drawable（本体 + upper/lower lip outline，
+见 `claude.layout.psd2live.json` 的 `layers` 表），`0 → 1` 在 1:1 下改 1370 px。
+产物 `preview/_mouth-strip.png`（`MouthOpenY` = 0 / 0.55 / 1.00，9×）。
+
+顺带确认尺寸：张嘴件的 `DEPTH` 只有 13 个画布像素（`make_mouth_open.py:34`），
+在座位尺度（`k≈0.167`）下等于约 2 px——**读不出来是尺寸问题，不是绑定问题**。
+所以发言时真正传递「在说话」的是音节包络带动的那点头、眨眼和气泡，嘴只是加分项。
