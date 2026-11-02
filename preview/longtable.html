@@ -61,6 +61,15 @@
 <script src="../assets/vendor/pixi.min.js"></script>
 <script src="../assets/vendor/cubism4.min.js"></script>
 <script>
+// 运行期异常收集：ticker 里任何一次抛错都会让「眨眼/动作/换姿势」静默失效，
+// 而无头截图看不到 console，所以把错误挂到 overlay 上（?debug=1）。
+window.__errs = [];
+window.addEventListener('error', e => {
+  if (window.__errs.length < 4) window.__errs.push(String(e.message || e));
+});
+window.addEventListener('unhandledrejection', e => {
+  if (window.__errs.length < 4) window.__errs.push('rejection: ' + String((e.reason && e.reason.message) || e.reason));
+});
 const STAGE_W = 1400, STAGE_H = 920;
 // 舞台是固定 1400x920 的逻辑坐标，靠 CSS transform 缩放贴合窗口。
 // 大屏上如果只放大位图，五官（尤其嘴）会被糊成一片 —— 所以把渲染表面按
@@ -154,6 +163,9 @@ window.addEventListener('resize', fit);
     const [id, u] = raw.split(':');
     return { id, u: Math.max(0, Math.min(1, Number(u ?? 0.5))) };
   })();
+  // ?nogest=1 关掉自动小动作：静帧截图要看「标准姿势」时必须能关，
+  // 否则随机抓到的可能是 happy 的 ^^ 眼或 tilt 的歪头。
+  const noGest = q.get('nogest') === '1';
 const count = Math.max(2, Math.min(8, Number(q.get('n') || 8)));
   // 2048 atlases are drawn at ~0.1 scale on the stage; without mipmaps a
 // 1px outline aliases into a stair-stepped halo ("edges look rough").
@@ -406,12 +418,20 @@ const app = new PIXI.Application({
   if (q.get('debug') === '1') {
     const d = document.createElement('div');
     d.style.cssText = 'position:absolute;left:8px;top:8px;z-index:30;font:11px/1.5 monospace;color:#9fe;background:rgba(0,0,0,.6);padding:6px;max-width:1380px;white-space:pre-wrap';
-    d.textContent = `charH=${charH}\n` + seats.map(s => {
+    const base = `charH=${charH}\n` + seats.map(s => {
       if (!s.model) return `${s.i} x=${Math.round(s.x)} (no model)`;
       const b = s.model.getBounds();
       return `${s.i} x=${Math.round(s.x)} mx=${Math.round(s.model.x)} baseY=${Math.round(s.baseY)} b=[${Math.round(b.left)}..${Math.round(b.right)}] w=${Math.round(b.width)}`;
     }).join('\n');
+    d.textContent = base;
     document.getElementById('stage').appendChild(d);
+    // 每 0.5s 刷新：有异常就把异常贴上来，没有就显示 fps，方便截图判读。
+    setInterval(() => {
+      const errs = window.__errs;
+      d.textContent = errs.length
+        ? base + `\nERR(${errs.length}): ` + errs.join(' | ')
+        : base + `\nfps=${document.getElementById('fps').textContent}`;
+    }, 500);
   }
 
   const t0 = performance.now();
@@ -490,7 +510,7 @@ const app = new PIXI.Application({
       if (s.cfg && s.cfg.gestures) {
         const off = forceGest
           ? (GESTURES.find(x => x.id === forceGest.id) || GESTURES[0]).f(forceGest.u)
-          : gestureOffsets(s, t);
+          : (noGest ? null : gestureOffsets(s, t));
         if (off) {
           nod += off.nod || 0;
           turn += off.turn || 0;

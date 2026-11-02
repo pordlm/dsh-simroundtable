@@ -336,6 +336,16 @@ node tools\relay-grab-imagegen.mjs --chat <同上> --out D:\dsh_simroundtable\as
 
 下一步（未做）：按 §12.1 的坐标切 `handwear-l/r` 与 `objects` 三件，其余 21 件复用，出 `claude-book.model3.json`，再取消 `preview/longtable.html:92` 的 `alt` 注释。
 
+### 12.4 舞台排障：运行期异常可见 + 「标准姿势」开关
+
+ticker 里任何一次抛错都会让眨眼/动作/换姿势**静默失效**（v2 就踩过：`forceGest` 未声明，每帧 `ReferenceError`，动作从来没执行过，而截图看起来只是「她不动」）。无头截图看不到 console，所以 `preview/longtable.html` 现在：
+
+- 顶部注册 `window.__errs`：`error` 与 `unhandledrejection` 各收前 4 条；
+- `?debug=1` 的 overlay 每 0.5s 刷新一次，有异常就贴 `ERR(n): …`，没有就贴 `fps=…` —— 截图即可判读，不用开 DevTools；
+- `?nogest=1` 关掉自动小动作（`gestureOffsets` 直接返回 null）。静帧验收必须带它：否则随机抓到的是 `happy` 的 ^^ 眼或 `tilt` 的歪头，很容易误判成「眼睛坏了」。
+
+判据示例（1000×900 窗口）：`?only=0,4,5&debug=1` → overlay 显示 `fps=43` 且无 `ERR` 行；`?only=4&still=1&eye=1&nogest=1` → 标准姿势下两颗琥珀眼睁开、嘴部一条笑弧、无绿边。
+
 ## 13. v2 出模管线：layout manifest → PSD2Live MCP（眨眼/口型终于能用）
 
 §10.4 里「没有眨眼、没有口型」的限制在 v2 解掉了。CLI 只能吃 PSD，但 **PSD2Live 3.6.7 的 GUI 自带一套 HTTP MCP 服务**，里面有 `project/import_layout`、未发布的 `rig_generate`、`project/export_model`，可以把「每层绑哪个变体参数」直接写进 manifest，绕开 GUI 手点。
