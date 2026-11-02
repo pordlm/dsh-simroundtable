@@ -93,8 +93,9 @@ const MODELS = {
     blink: true,
     // 待机里随机做的几个小动作（纯参数合成，不播放 motion，避免和每帧写参数打架）
     gestures: true,
-    // 抱书版：出模后把下面这行取消注释即可启用（同座位叠一层，__setPose(4,'alt') 交叉淡化）
-    // alt: { url: '../assets/build/claude-book/p2l/claude-book.model3.json' }
+    // 抱书版：同一个座位叠的第二层，用 __setPose(4,'alt') / ?pose=4:alt 交叉淡化。
+    // 这套 moc3 没有 handwear，tome 和双手是同一条 objects 画件（见 copilot 笔记）
+    alt: { url: '../assets/build/claude-book-model/claude-book.layout.model3.json' }
   }
 };
 const LINES = [
@@ -126,6 +127,8 @@ window.addEventListener('resize', fit);
   const q = new URLSearchParams(location.search);
   const isStatic = q.get('static') === '1';
   const forcedMouth = q.has('mouth') ? Number(q.get('mouth')) : null;
+  // 用 ?pose= 或 __setPose() 手动定住姿势时，关掉自动抱起/放下
+  let pinnedPose = q.has('pose') ? 1 : null;
   const keepIdle = q.get('idle') === '1';
   const keepPhones = q.get('phones') === '1';
   const freeze = q.get('freeze') === '1';
@@ -236,22 +239,35 @@ const app = new PIXI.Application({
   }
 
   // 主/备两层必须写同一套参数，否则交叉淡化时表情会跳
+  // 逐参数 try：鲸鱼娘/GPT 的 moc3 没有这里的某些参数（眼球、眉毛），缺一个不能连累后面
+  function sv(core, id, v) {
+    if (v === undefined) return;
+    try { core.setParameterValueById(id, v); } catch (e) { /* 该模型没有这个参数 */ }
+  }
   function applyPoseParams(model, p) {
     try {
       const core = model.internalModel.coreModel;
-      core.setParameterValueById('ParamAngleX', p.turn);
-      core.setParameterValueById('ParamAngleY', p.nod);
-      core.setParameterValueById('ParamBodyAngleZ', p.lean);
-      core.setParameterValueById('ParamMouthOpenY', p.mouth);
+      sv(core, 'ParamAngleX', p.turn);
+      sv(core, 'ParamAngleY', p.nod);
+      sv(core, 'ParamAngleZ', p.tilt);
+      sv(core, 'ParamBodyAngleZ', p.lean);
+      sv(core, 'ParamMouthOpenY', p.mouth);
+      sv(core, 'ParamMouthForm', p.mform);
+      sv(core, 'ParamEyeBallX', p.eyeX);
+      sv(core, 'ParamEyeBallY', p.eyeY);
       // 只有把眼睛绑成 toggle 变体的模型（Claude v2）才能靠参数眨眼：
       // 1 显示睁眼三件、0 露出常显的闭眼件。没绑的模型不能写这个参数。
       if (p.eye !== undefined) {
         core.setParameterValueById('ParamEyeLOpen', p.eye);
         core.setParameterValueById('ParamEyeROpen', p.eye);
       }
+      if (p.brow !== undefined) {
+        sv(core, 'ParamBrowLY', p.brow);
+        sv(core, 'ParamBrowRY', p.brow);
+      }
       if (!keepIdle) {
         for (const id of PHONE_PARAMS) { try { core.setParameterValueById(id, 0); } catch (e) { /* ignore */ } }
-        try { core.setParameterValueById('ParamBreath', p.breath); } catch (e) { /* ignore */ }
+        sv(core, 'ParamBreath', p.breath);
       }
       core.update();
     } catch (e) { /* ignore */ }
@@ -260,11 +276,16 @@ const app = new PIXI.Application({
   // 待机小动作：纯参数偏移，时长 dur 毫秒，env = sin(πu) 做出"起-落"的包络。
   // 之所以不用 model.motion()：舞台每帧都在写同一批参数，动作曲线会被覆盖成抖。
   const GESTURES = [
-    { id: 'nod',   dur: 1100, f: u => ({ nod: -11 * Math.sin(Math.PI * u) }) },
-    { id: 'bow',   dur: 1500, f: u => ({ nod: -16 * Math.sin(Math.PI * u) }) },
-    { id: 'shake', dur: 900,  f: u => ({ turn: 8 * Math.sin(Math.PI * u * 4) * Math.sin(Math.PI * u) }) },
-    { id: 'tilt',  dur: 1300, f: u => ({ lean: 7 * Math.sin(Math.PI * u) }) },
-    { id: 'look',  dur: 1600, f: u => ({ turn: 13 * Math.sin(Math.PI * u) }) }
+    { id: 'nod',     dur: 1100, f: u => ({ nod: -11 * Math.sin(Math.PI * u) }) },
+    { id: 'bow',     dur: 1500, f: u => ({ nod: -16 * Math.sin(Math.PI * u) }) },
+    { id: 'shake',   dur: 900,  f: u => ({ turn: 8 * Math.sin(Math.PI * u * 4) * Math.sin(Math.PI * u) }) },
+    { id: 'tilt',    dur: 1400, f: u => ({ tilt: 9 * Math.sin(Math.PI * u) }) },
+    { id: 'look',    dur: 1700, f: u => ({ turn: 13 * Math.sin(Math.PI * u), eyeX: 0.45 * Math.sin(Math.PI * u) }) },
+    { id: 'sidelong', dur: 1500, f: u => ({ eyeX: 0.6 * Math.sin(Math.PI * u), eyeY: -0.15 * Math.sin(Math.PI * u) }) },
+    { id: 'think',   dur: 1900, f: u => ({ tilt: 6 * Math.sin(Math.PI * u), eyeX: -0.35 * Math.sin(Math.PI * u), mform: -0.25 * Math.sin(Math.PI * u) }) },
+    { id: 'smile',   dur: 2100, f: u => ({ mform: 0.55 * Math.sin(Math.PI * u), brow: 0.2 * Math.sin(Math.PI * u) }) },
+    { id: 'huh',     dur: 1300, f: u => ({ tilt: -5 * Math.sin(Math.PI * u), brow: 0.75 * Math.sin(Math.PI * u), mform: -0.3 * Math.sin(Math.PI * u) }) },
+    { id: 'leanin',  dur: 1600, f: u => ({ lean: 6 * Math.sin(Math.PI * u), nod: -4 * Math.sin(Math.PI * u) }) }
   ];
   function gestureOffsets(s, t) {
     if (!s.g) {
@@ -343,7 +364,10 @@ const app = new PIXI.Application({
           s.altBaseY = s.baseY + (seatCfg.alt.dy || 0);
           s.poseT = 0;
           s.poseTarget = 0;
-          s.poseMs = 240;
+          s.poseMs = 700;
+          // 自动换姿势：空手待机一会儿就把书抱起来，抱一会儿再放下，让"会做动作"看得出来
+          s.autoPose = seatCfg.autoPose !== false;
+          s.poseNext = performance.now() + 3000 + Math.random() * 4000;
         } catch (e) { console.error('alt load failed', s.i, e); }
       }
       s.model = model;
@@ -380,9 +404,19 @@ const app = new PIXI.Application({
         const dd = Math.min(1, (app.ticker.deltaMS || 16.7) / (s.poseMs || 240));
         if (s.poseT < s.poseTarget) s.poseT = Math.min(s.poseTarget, s.poseT + dd);
         else if (s.poseT > s.poseTarget) s.poseT = Math.max(s.poseTarget, s.poseT - dd);
-        s.model.alpha = 1 - s.poseT;
-        s.altModel.alpha = s.poseT;
-        s.altModel.visible = s.poseT > 0.001;
+        // 交叉淡化用错开的窗口：主图先退、第二层后半段才进来，避免两张半透明叠出鬼影
+        s.model.alpha = Math.min(1, Math.max(0, 1 - s.poseT / 0.62));
+        s.altModel.alpha = Math.min(1, Math.max(0, (s.poseT - 0.38) / 0.62));
+        s.altModel.visible = s.altModel.alpha > 0.001;
+        // 自动抱起 / 放下：只在两端夹住时排下一次，避免切换中被反复重置
+        if (s.autoPose && pinnedPose === null && t > (s.poseNext || 0)
+            && Math.abs(s.poseT - s.poseTarget) < 0.01) {
+          const holding = s.poseTarget > 0.5;
+          s.poseTarget = holding ? 0 : 1;
+          s.poseMs = 700;
+          s.poseNext = t + (holding ? 9000 + Math.random() * 9000
+                                   : 12000 + Math.random() * 12000);
+        }
       }
       const w = s.wobble;
       if (forcedMouth !== null) s.mouth = forcedMouth;
@@ -420,7 +454,7 @@ const app = new PIXI.Application({
       }
 
       // 会演小动作的座位：把额外偏移叠到待机/发言的曲线上，眼睛按自己的节奏眨
-      let eye;
+      let eye, tilt, eyeX, eyeY, brow, mform;
       if (s.cfg && s.cfg.gestures) {
         const off = forceGest
           ? (GESTURES.find(x => x.id === forceGest.id) || GESTURES[0]).f(forceGest.u)
@@ -429,14 +463,18 @@ const app = new PIXI.Application({
           nod += off.nod || 0;
           turn += off.turn || 0;
           lean += off.lean || 0;
+          tilt = off.tilt;
+          eyeX = off.eyeX;
+          eyeY = off.eyeY;
+          brow = off.brow;
+          mform = off.mform;
         }
       }
       if (s.cfg && s.cfg.blink) eye = pinEye !== null ? pinEye : blinkValue(s, t);
 
-      applyPoseParams(s.model, { turn, nod, lean, mouth: s.mouth, breath, eye });
-      if (s.altModel && s.altModel.visible) {
-        applyPoseParams(s.altModel, { turn, nod, lean, mouth: s.mouth, breath, eye });
-      }
+      const pose = { turn, nod, lean, tilt, eyeX, eyeY, brow, mform, mouth: s.mouth, breath, eye };
+      applyPoseParams(s.model, pose);
+      if (s.altModel && s.altModel.visible) applyPoseParams(s.altModel, pose);
     }
   }, null, PIXI.UPDATE_PRIORITY.LOW);
 
@@ -468,6 +506,7 @@ const app = new PIXI.Application({
     if (!s || !s.altModel) return false;
     s.poseTarget = (which === 'alt' || which === 'book') ? 1 : 0;
     s.poseMs = ms || 240;
+    pinnedPose = 1;
     return true;
   };
   const poseQ = q.get('pose');
@@ -478,9 +517,9 @@ const app = new PIXI.Application({
       if (!s || !s.altModel) continue;
       const on = (which === 'alt' || which === 'book');
       s.poseT = on ? 1 : 0; s.poseTarget = s.poseT; s.poseMs = 1;
-      s.model.alpha = 1 - s.poseT;
-      s.altModel.alpha = s.poseT;
-      s.altModel.visible = s.poseT > 0.001;
+      s.model.alpha = on ? 0 : 1;
+      s.altModel.alpha = on ? 1 : 0;
+      s.altModel.visible = on;
     }
   }
 

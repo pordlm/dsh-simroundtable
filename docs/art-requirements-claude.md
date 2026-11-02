@@ -414,3 +414,57 @@ Claude: {
 - 小动作是**纯参数合成**（`GESTURES`：nod −11°、bow −16°、shake ±8°×4 次、tilt 7°、look 13°，包络 `sin(πu)`），**不要用 `model.motion()`**：舞台每帧都在写同一批参数，动作曲线会被覆盖成抖。
 - 眨眼 `blinkValue()`：150ms 里 30% 闭合、70% 张开，间隔 2.4–8s 随机；闭眼靠 `ParamEyeLOpen=0` 露出下面的闭眼件。
 - 截图校验参数：`?eye=0|1` 钉住眼睛、`?gest=nod:0.5` 钉住某个动作的包络相位、`?only=4,5` 只加载指定座位（8 个模型一起加载时无头 Edge 会挂）。
+
+## 14. 抱书版出模：新增一条 `objects` 画件
+
+第 12 节定了方案，这里记录**实际怎么做的**（成品 `assets/build/claude-book-model/claude-book.layout.model3.json`，moc3 700928B、单张 4096 图集 5.1MB、cmo3 11.6MB）。
+
+### 14.1 只重切三件
+
+`assets/_raw/cut_claude_book.py` 以抱书主图 `assets/incoming/claude-parts/P0-master-book.png` 为源（ink `(129,42)-(892,1494)`，与母图差 ≤2px），复用 `cut_claude.py` 的 `rect/poly/clean/col_classes`，只产 `objects`、`topwear`、`bottomwear` 三件；其余 20 件直接沿用 v2。
+
+映射仍走 `claude_to_canvas.py`（monkeypatch `CC.SRC/CC.DST/CC.INK=(130,43,893,1493)`、`TARGET_H=1836`）得到 `scale=1.2662 dx=376.3 dy=51.6`，与 v2 的 `1.2645/377.2/52.9` 只差零点几像素 —— 说明「局部改图」没有动主体位置，这是能复用部件的前提。
+
+### 14.2 书必须和双手合成同一条 `objects` 画件
+
+两只手抱的是同一本书，彼此刚性：把手从封面上切走会在皮面上留一个手形洞，而且手层一旦滑动就对不上书。所以这一版**整层删掉 `handwear`**，书 + 双手 + 一点袖褶全部进 `objects`，排在层序最前（`headwear` 之后）。
+
+书的分割**不要试颜色分割**（失败三次，记在这里省时间）：
+
+1. `mx<180 & r−b>20` 会把袖口的褐色十字绑带一起算进去，`closing(4)+fill_holes` 直接填成整个 ROI 矩形（132901px，bbox 横跨 320..719）；
+2. 加 `binary_opening(5×5)` 后又只剩 10656px（只剩中央金纹）；
+3. 对 `tome|hands` 做 `fill_holes` 会因为袖子与书相接而桥接，把整个胸带吞掉（`topwear` 只剩 22.5k 像素，且全是头发色 `(236,124,79)`）。
+
+**收敛的写法是反着定义**（`cut_claude_book.py`）：
+
+```python
+roi  = rect(345, 505, 700, 825)
+hair = (sat > 0.45) & (mx > 200)                              # 亮橙头发
+lace = (mn > 205) & (sat < 0.16) & ((r - g) < 12)             # 奶白蕾丝
+mask = roi & body & ~hair & ~lace
+mask = binary_opening(mask, np.ones((3,3))) · binary_closing(2)
+tome = fill_holes(biggest_blob(mask))                          # 90087px, bbox (345,505)-(699,824)
+```
+
+边缘不齐不要紧：书是画在 `topwear` **之上**的，而 `topwear` 故意保留了书本像素（`rect(300,495,760,800) & body & ~neckwear`，不减书），万一 `objects` 变形露边，底下是同一张画，看不出来。`bottomwear` 同理（裙摆多边形不再排除书）。
+
+### 14.3 `--book` profile 与出模
+
+`assets/_raw/make_layout_manifest.py` 现支持 `--parts/--out/--name/--book`：`LAYERS_BOOK = [层序去掉 handwear] + [("objects","objects",False,None,None)]`。出模链 `assets/_raw/claude_book_build.py`：切件 → 映射 → 复制 v2 的 20 件 + 覆盖 3 件 + 删 `handwear-l/r` → 生成 manifest → MCP `import_layout`(`discard_unsaved`) → `rig_generate` → `export_model`。
+
+预期告警只有 `Duplicate layer names detected: legwear, footwear, eye close, eyewhite, irides, eyelash`（左右件同名，与 v2 相同，无害）。
+
+### 14.4 舞台上的抱书
+
+```js
+Claude: {
+  url: '../assets/build/claude-v2/claude.layout.model3.json',
+  alt: { url: '../assets/build/claude-book-model/claude-book.layout.model3.json' },
+  scale: 1.1, dy: 45, blink: true, gestures: true
+}
+```
+
+- 两层模型共用同一 `k`/锚点，`alt` 只多一个 `dy`；`s.model.alpha` 与 `s.altModel.alpha` 用**错开的窗口**（主图先退到 0.62、第二层从 0.38 才进来），避免两张半透明叠出鬼影。
+- 自动换姿势：`poseNext` 到点就 `poseTarget` 翻转（抱 9–18s、放下 12–24s，淡化 700ms），`?pose=4:alt` 或 `__setPose(4,'alt')` 会钉住并关掉自动切换。
+- `applyPoseParams(alt, pose)` 对第二层同样生效，所以抱书时也会眨眼、点头、说话。
+- **注意**：无头 Edge 的 `--virtual-time-budget` 不推进 `performance.now()`，所以自动抱书在截图里验不出来（`?pose=4:alt` 可以）；真浏览器里正常。
