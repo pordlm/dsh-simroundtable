@@ -188,10 +188,10 @@ rest = almond & ~lash          # irides 与 eyewhite 共用这一份遮罩和母
 ```
 
 - **sclera 判据必须是中性色 `(r-g)<12`，不能用 `(mn>190)&(sat<0.25)`**：后者把奶油 sclera 当成皮肤剔掉，杏仁中间被打洞，脸上刷肤色后就成了虹膜外面一圈白环（就是用户说的「白光」）。
-- **`face` 层要把眼睛的洞补掉**，否则睁眼件一动就露出母图里冻结的眼睛。用 `cv2.inpaint(master, dilate(almond,2), 4, cv2.INPAINT_TELEA)`，不要平涂成肤色 —— 平涂会在眼周留一圈浅色环。
+- **`face` 层必须把母图自己的眼睛和嘴都挖空**，否则所有部件都是叠在一张冻结的原图上「晃」，用户的原话是「你弄了背景怎么也是一张原主图啊，现在一坨部件在主图上晃，你新画的嘴也在原来的嘴下面」。用 `cv2.inpaint(master, dilate(eye∪mouth, 2), 4, cv2.INPAINT_TELEA)`，不要平涂成肤色 —— 平涂会在眼周留一圈浅色环。注意 `face_rgb` 必须在**嘴部切件算完之后**再算，否则拿不到 `mouth_close` / `mouth_open` 的掩码。
 - 校验工具：`python assets/_raw/_cl_face_cmp.py 820 440 1300 580 3.0` 会按 PSD z 序叠回 2048 并和母图并排，打印 `diff>28` 与 `mean|d|`（眼带实测 `6483/67200`、`mean 10.10`，头发对照区 `mean 4.21`）。
 - 杏仁外缘仍有一圈很淡的边（母图 sclera 本身就接近肤色），座位尺寸下不可见。
-- 一度以为「晃动时脸被浅色楔形遮住」是 `eye close` 图层在 `ParamEyeLOpen=1` 时仍可见（`?eye=0`/`?eye=1` 对比无法区分，见 `preview/gpt-model.html` 的 `?eye=` 调试参数）。**实际是 §10.2c 的白边**：`eye close` 的上睑件边缘被重采样成了纯白，头部一转就把这圈白拉成一整片。白边修掉后 `?p=AngleX:30` 渲染干净，`eye_close` 不需要摘。
+- 一度以为「晃动时脸被浅色楔形遮住」是 `eye close` 图层在 `ParamEyeLOpen=1` 时仍可见（`?eye=0`/`?eye=1` 对比无法区分，见 `preview/gpt-model.html` 的 `?eye=` 调试参数）。白边（§10.2c）修掉后楔形消失了，但**`eye close` 仍然要摘掉**：它没有绑到任何变体参数（`claude.psd2live.json` 里 `parameter:''`、`switchId:0`），是个常显图层；`face` 把眼洞 inpaint 掉之后，盖在上面就只剩一片闭着的眼皮（详见 §10.4 的取舍）。
 
 ### 10.2b 嘴：要用 `fill_holes` 封成实心，不能只取暗色轮廓
 
@@ -204,6 +204,13 @@ mouth  = fill_holes(closing(m_dark | m_pink, 2)) & mrect   # 再取最大连通�
 ```
 
 母图 791px、2048 画布 1520px（旧版只有 517px 的轮廓）。
+
+**但封成实心之后 `mouth open` 反而要摘掉。** 渲染里闭口状态多出一道细弧（「双层嘴」）——用 `assets/_raw/_probe_mouth.py` 分别丢掉 `mouth_open` / `mouth_close` 各建一版定位到：细弧来自 `mouth open` 层。查官方 spec（`psd2live/master/docs/en/spec/PSD_LAYER_SPEC.md`）：
+
+> A mouth with its own lips or lines gets no generated outline.
+> For painted lips, or a cleaner open and close, split the mouth into two groups as hand riggers do: `mouth inside` / `upper teeth` / `lower teeth` / `tongue` / `upper lip` / `lower lip` / `upper lip line` / `lower lip line`.
+
+我们的嘴是一整只椭圆、既没有 `upper lip` / `lower lip` 层，于是 PSD2Live **自动生成了上下口线**，而生成的口线是常显的（不随 `ParamMouthOpenY` 隐藏），闭口时它就是那道弧。所以 `CLAUDE_PARTS` 里 `mouth_open` 已注释掉。真要做能张开的嘴，必须先在母图上把嘴画成分层结构（口腔 / 上齿 / 下齿 / 舌 / 上唇 / 下唇 / 唇线），一件不能少。
 
 ### 10.2c 边缘发白：重采样必须在「颜色 ≤ alpha」的约束下做
 
@@ -237,7 +244,16 @@ canvas = Image.fromarray(np.dstack([bleed(carr[..., :3], carr[..., 3]), carr[...
 
 ### 10.4 成品参数
 
-`{layers: 26, drawables: 29, deformers: 25, parameters: 20, atlasPages: 7}`，moc3 736000B；warnings 只有 Duplicate layer names（`legwear/footwear/handwear/eyewhite/irides/eyelash`，PSD2Live 靠 `-l/-r` 后缀区分，属正常）+ `DrawOrdersRenumbered`。
+`{layers: 21, drawables: 22, deformers: 25, parameters: 20, atlasPages: 6}`，moc3 约 700KB；warnings 只有 Duplicate layer names（`legwear/footwear/handwear/eyewhite/irides/eyelash`，PSD2Live 靠 `-l/-r` 后缀区分，属正常）+ `DrawOrdersRenumbered`。
+
+**为了「一张干净的脸」主动摘掉了两层**（都在 `assets/_raw/build_claude_model.py` 的 `CLAUDE_PARTS` 里注释着，附原因）：
+
+| 摘掉的层 | 原因 | 代价 |
+| --- | --- | --- |
+| `eye close` | 无变体参数绑定 → 常显图层，盖住睁眼 | 没有眨眼动画，眼睛就是母图的半眯眼 |
+| `mouth open` | 无 lip 层 → PSD2Live 自动生成常显口线，闭口也有一道弧 | 没有口型同步 |
+
+这两件要恢复，得先让 PSD2Live 把它们当成**变体**（`ParamEyeLOpen` / `ParamMouthOpenY` 绑定）——CLI 构建不出这种绑定（`switchId` 全 0），需要在 PSD2Live 的图层表格里手动指定，或者干脆进 Cubism 5.3 手绑。**舞台尺寸下没必要**：座位里头只有 ~76px 高，眼睛 ~10px、嘴 ~3px，眨眼与口型都读不出来。
 
 ## 11. 接进长桌舞台
 
