@@ -471,8 +471,10 @@ const app = new PIXI.Application({
         s.altModel.rotation = s.model.rotation;
       }
 
-      // 会演小动作的座位：把额外偏移叠到待机/发言的曲线上，眼睛按自己的节奏眨
-      let eye, tilt, eyeX, eyeY, brow, mform, happy, hair;
+      // 会演小动作的座位：把额外偏移叠到待机/发言的曲线上，眼睛按自己的节奏眨。
+      // 这些量每帧都要给 0 兜底：参数写入是「跳过 undefined」，若留 undefined，
+      // 上一个动作的值会停在模型上（歪头就永久歪着）。
+      let eye, tilt = 0, eyeX = 0, eyeY = 0, brow = 0, mform = 0, happy = 0, hair = 0;
       if (s.cfg && s.cfg.gestures) {
         const off = forceGest
           ? (GESTURES.find(x => x.id === forceGest.id) || GESTURES[0]).f(forceGest.u)
