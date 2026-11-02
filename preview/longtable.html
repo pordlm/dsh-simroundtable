@@ -241,6 +241,13 @@ const app = new PIXI.Application({
     } catch (e) { /* ignore */ }
   }
 
+  // pixi 的自动眨眼每帧会自己写 ParamEyeLOpen：既覆盖 blinkValue() 的曲线，又让主层和
+  // 第二姿势层各眨各的——座位静帧常随机拍在半睁上，看起来像「眼睛变小」。关掉它，
+  // 眨眼只由 blinkValue() 一条曲线驱动，两层因此逐帧一致。
+  function dropAutoBlink(model) {
+    try { if (model && model.internalModel) model.internalModel.eyeBlink = undefined; } catch (e) { /* ignore */ }
+  }
+
   // 主/备两层必须写同一套参数，否则交叉淡化时表情会跳
   // 逐参数 try：鲸鱼娘/GPT 的 moc3 没有这里的某些参数（眼球、眉毛），缺一个不能连累后面
   function sv(core, id, v) {
@@ -353,6 +360,7 @@ const app = new PIXI.Application({
       model.position.set(s.x + faceDx, s.baseY);
       model.zIndex = s.i;
       app.stage.addChild(model);
+      dropAutoBlink(model);
       if (keepIdle) model.motion('idle');
       else if (freeze) {
         if (!keepPhones) {
@@ -378,6 +386,7 @@ const app = new PIXI.Application({
           alt.visible = false;
           app.stage.addChild(alt);
           dropPhonePose(alt);
+          dropAutoBlink(alt);
           s.altModel = alt;
           s.altBaseY = s.baseY + (seatCfg.alt.dy || 0);
           s.poseT = 0;
@@ -422,9 +431,12 @@ const app = new PIXI.Application({
         const dd = Math.min(1, (app.ticker.deltaMS || 16.7) / (s.poseMs || 240));
         if (s.poseT < s.poseTarget) s.poseT = Math.min(s.poseTarget, s.poseT + dd);
         else if (s.poseT > s.poseTarget) s.poseT = Math.max(s.poseTarget, s.poseT - dd);
-        // 交叉淡化用错开的窗口：主图先退、第二层后半段才进来，避免两张半透明叠出鬼影
-        s.model.alpha = Math.min(1, Math.max(0, 1 - s.poseT / 0.62));
-        s.altModel.alpha = Math.min(1, Math.max(0, (s.poseT - 0.38) / 0.62));
+        // 交叉淡化：第二层在前半段淡入、主层在后半段淡出，任何时刻上层都是不透明的，
+        // 所以整条曲线不会出现「两层各 20% → 座位背景透出来」的短暂透明。
+        // 旧写法把窗口错开成 0.38..0.62 两段，t=0.5 时两层各 0.19，角色会瞬间变淡一层，
+        // 看起来像重影/错位。
+        s.model.alpha = s.poseT <= 0.5 ? 1 : Math.max(0, 1 - (s.poseT - 0.5) / 0.5);
+        s.altModel.alpha = s.poseT <= 0.5 ? Math.min(1, s.poseT / 0.5) : 1;
         s.altModel.visible = s.altModel.alpha > 0.001;
         // 自动抱起 / 放下：只在两端夹住时排下一次，避免切换中被反复重置
         if (s.autoPose && pinnedPose === null && t > (s.poseNext || 0)
@@ -496,7 +508,24 @@ const app = new PIXI.Application({
 
       const pose = { turn, nod, lean, tilt, eyeX, eyeY, brow, mform, happy, hair, mouth: s.mouth, breath, eye };
       applyPoseParams(s.model, pose);
-      if (s.altModel && s.altModel.visible) applyPoseParams(s.altModel, pose);
+      if (s.altModel && s.altModel.visible) {
+        applyPoseParams(s.altModel, pose);
+        // 物理是每个模型各自算的：两层各跑一套头发/身体物理，几秒后相位就错开，
+        // 淡化时看到「两份头发在互相错位」。把主层的全部参数值抄给第二层
+        // （部件相同、参数相同 → 除了手臂和书，两层逐像素一致），错位立刻消失。
+        try {
+          const cm = s.model.internalModel.coreModel;
+          const ca = s.altModel.internalModel.coreModel;
+          if (!s.paramIds) {
+            s.paramIds = cm._parameterIds
+              ? cm._parameterIds.slice()
+              : Array.from({ length: cm.getParameterCount() }, (_, i) => cm.getParameterId(i));
+          }
+          for (const id of s.paramIds) {
+            try { ca.setParameterValueById(id, cm.getParameterValueById(id)); } catch (e) { /* id 不在第二层 */ }
+          }
+        } catch (e) { /* coreModel 形状变了就跳过同步，别把整帧弄挂 */ }
+      }
     }
   }, null, PIXI.UPDATE_PRIORITY.LOW);
 
