@@ -508,6 +508,29 @@ python assets\_raw\cubism_api.py call GetCurrentModelUID '{}'
 - 同一时间桌面处于锁屏状态（`mcp__windows__Snapshot` 返回 `No windows found` / `No active window found`），**GUI 点击无法进行**，所以这一项只能等用户在场时点两下，脚本已经备好。
 - 结论：objective「用 Cubism API 做眨眼」在产物层面已由 §13 的 PSD2Live MCP 达成（真眨眼 + 真口型 + 抱书换姿势），Cubism API 仅作为**调试/试参数**的旁路保留，不阻塞交付。
 
+### 15.5 那个开关到底在哪（2026-11-03 round 2，反编译 + GUI 尝试记录）
+
+**反编译结论**（`G:\Live2D Cubism\Live2D Cubism 5.3\app\lib\Live2D_Cubism.jar`，全 jar 逐 entry 搜 ASCII `22033` 只命中一处）：
+
+- 实现全在 `com/live2d/cubism/doc/webSocket/`：`y.class`（含默认端口常量）、`CExternalAppManager`、`CExternalAppAuthManager`、`CExternalAppIndicatorPanel`（状态栏那个小图标）、`CExternalAppSettingDialog`（设置对话框）、`CmdRegisterPlugin`、`Notify*FileExported`。
+- 授权/令牌落盘在 **`ExternalApp_user.xml`**（`CExternalAppAuthManager` 的 `XML_FILENAME` + `ExternalAppAuthManager_Save`，含 `apps{origin→{token, accessTime, authentication, unauthorized}}`、`KEY_LATERONCE`）。
+- 配置键在 `j$a` 里：`DEFAULT_SERVER_PORT`、**`KEY_ENABLED`**、`KEY_TOKEN`、`KEY_VIEWS`、`KEY_EXPORT_FILEPATH`；`l$a` 有 `isAllowRemoteConnection`（远程连接开关）。
+- 菜单命令 id 是 **`command_externalAppSetting`** —— GUI 里「设置 / 环境设置 → 外部应用程序集成」调的就是它。
+
+**为什么我没能自己打开**（三条都试过，记下来省得下次再撞）：
+
+1. **配置文件还不存在**：`%APPDATA%`、`%LOCALAPPDATA%`、`Documents`、`%USERPROFILE%`、`G:\Live2D Cubism` 递归搜 `ExternalApp*.xml` **零命中**；`C:\Users\pordl\AppData\Roaming\Live2D\Cubism5.3_Editor\` 下只有 `.tmp\property\default_class_key\*.ser`、`.property\...\drawMethodVersion_model.ser`、`logs\log.txt` 等，grep `ExternalApp|22033` 也零命中。→ 文件是**第一次打开设置对话框时才创建**，不能手写伪造（schema 靠序列化，写错只会被忽略）。
+2. **GUI 被一个卡死的恢复对话框占着**：点「继续使用」后弹「进度 / 打开模型文件」模态框卡在 0%，Cancel 与 Esc 都无效（上一会话 `Restore unsaved edits` 流程触发）。杀掉 3 个 `java.exe`（`app\jre\bin\java.exe -classpath "app\lib\Live2D_Cubism.jar;…"`）重启后虽然能起来（`java now: 1`），但 `22033` 仍不监听 —— 说明**打开文档 ≠ 打开服务**。
+3. **UI 自动化驱动不了 Java 菜单**：`SunAwtFrame` 只暴露 6 个 UIA 子元素（TitleBar / 系统菜单栏 / 最小化 / 最大化 / 关闭），进程里 **没有加载 `WindowsAccessBridge-64.dll`**（`Get-Process java | %{$_.Modules}` 里零命中）→ 菜单项无法按名字定位，只能盲点坐标，风险不值得。
+
+**给用户的三步（在场时 30 秒）**：
+
+1. Cubism 编辑器里打开 `D:\dsh_simroundtable\assets\build\claude-v3\model\claude.layout.cmo3`；
+2. 「设置 → 环境设置 → 外部应用程序集成」勾选启用（端口保持 `22033`）；
+3. 之后我这边跑 `python assets\_raw\cubism_api.py status`，第一次会弹 Allow，勾上「Allow」即可；再跑 `params` / `values` / `set` 验证读写。
+
+**已验的失败面**（证明门确实在服务端，不在脚本）：`cubism_api.py status` → `ConnectionRefusedError [WinError 10061]`；`Get-NetTCPConnection -LocalPort 22033` 计数 0（重启编辑器、命令行直接打开 cmo3 后都是 0）。
+
 ## 16. v3：^^ 笑眼（叠加件 + `ParamEyeBallForm`）
 
 ### 16.1 为什么是「叠一张画」
