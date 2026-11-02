@@ -102,6 +102,10 @@ const MODELS = {
     blink: true,
     // 待机里随机做的几个小动作（纯参数合成，不播放 motion，避免和每帧写参数打架）
     gestures: true,
+    // 前发微摆：PhysicsHairFront 被关掉了（整块网格同时含刘海与侧发，软阈值会把刘海拖到眼上），
+    // 但完全不动又像蜡像。这里只用一个很轻的参数摆动补回呼吸感——振幅 0.12 以内肉眼只见到「活着」，
+    // 超过 0.25 前发就会开始左右甩、露出额头上的皮肤接缝。
+    sway: true,
     // 抱书版：同一个座位叠的第二层，用 __setPose(4,'alt') / ?pose=4:alt 交叉淡化。
     // 这套 moc3 没有 handwear，tome 和双手是同一条 objects 画件（见 copilot 笔记）
     alt: { url: '../assets/build/claude-book-model/claude-book.layout.model3.json' }
@@ -437,7 +441,7 @@ const app = new PIXI.Application({
       if (!s.model) return `${s.i} x=${Math.round(s.x)} (no model)`;
       const b = s.model.getBounds();
       const p = s.poseDbg;
-      const pv = p ? ` turn=${p.turn.toFixed(1)} nod=${p.nod.toFixed(1)} lean=${p.lean.toFixed(1)} tilt=${(p.tilt||0).toFixed(1)} look=${p.look.toFixed(2)} g=${p.g}` : '';
+      const pv = p ? ` turn=${p.turn.toFixed(1)} nod=${p.nod.toFixed(1)} lean=${p.lean.toFixed(1)} tilt=${(p.tilt||0).toFixed(1)} look=${p.look.toFixed(2)} hair=${(p.hair||0).toFixed(3)} g=${p.g}` : '';
       return `${s.i} x=${Math.round(s.x)} mx=${Math.round(s.model.x)} baseY=${Math.round(s.baseY)} b=[${Math.round(b.left)}..${Math.round(b.right)}] w=${Math.round(b.width)}${pv}`;
     }).join('\n');
     const base = `charH=${charH}\n` + seatLines();
@@ -579,10 +583,14 @@ const app = new PIXI.Application({
 
       // 眼珠跟着头一起朝发言人（幅度最小，太大就成对眼了）
       if (s.lookSmooth) eyeX += s.lookSmooth * 0.55;
+      // 两个不同周期的正弦叠加，避免看出机械的来回摆；相位按座位错开，六个座位不会同拍。
+      if (s.cfg && s.cfg.sway) {
+        hair += 0.085 * Math.sin(t / 1500 + s.i * 1.7) + 0.035 * Math.sin(t / 620 + s.i * 2.3);
+      }
       const pose = { turn, nod, lean, tilt, eyeX, eyeY, brow, mform, happy, hair, mouth: s.mouth, breath, eye };
       // ?debug=1 的 overlay 会把这一帧写进模型的数值贴出来。像素 diff 在无头截图里
       // 有 ~600px 的噪声地板（场景微尘 + AA），微妙动作只有看数字才判得准。
-      s.poseDbg = { turn, nod, lean, tilt, look: s.lookSmooth || 0,
+      s.poseDbg = { turn, nod, lean, tilt, look: s.lookSmooth || 0, hair,
                     g: (forceGest ? forceGest.id : (s.g && s.g.g.id)) || '-' };
       applyPoseParams(s.model, pose);
       if (s.altModel && s.altModel.visible) {
