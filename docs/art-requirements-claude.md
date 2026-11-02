@@ -468,3 +468,41 @@ Claude: {
 - 自动换姿势：`poseNext` 到点就 `poseTarget` 翻转（抱 9–18s、放下 12–24s，淡化 700ms），`?pose=4:alt` 或 `__setPose(4,'alt')` 会钉住并关掉自动切换。
 - `applyPoseParams(alt, pose)` 对第二层同样生效，所以抱书时也会眨眼、点头、说话。
 - **注意**：无头 Edge 的 `--virtual-time-budget` 不推进 `performance.now()`，所以自动抱书在截图里验不出来（`?pose=4:alt` 可以）；真浏览器里正常。
+
+## 15. Cubism Editor 5.3 外部应用集成 API：能做什么、为什么出模不走它
+
+### 15.1 能力边界（先说结论）
+
+编辑器是 **WebSocket 服务端**（默认 `ws://127.0.0.1:22033`），外部程序是客户端；报文是 `{Version, Timestamp, RequestId, Type, Method, Data}`，`Type ∈ Request/Response/Event/Error`。方法清单（[官方 API 列表](https://docs.live2d.com/en/cubism-editor-manual/external-application-integration-api-list/)）里只有两类：
+
+- **读写参数**：`GetParameters`（含 `Default/Min/Max/Repeat/Type/Keyform`）、`GetParameterGroups`、`GetParameterValues`、`SetParameterValues`、`ClearParameterValues`（写入进临时缓冲，约 0.5s 后自动丢弃）、`GetCurrentModelUID`、`GetDocuments`、`GetCurrentEditMode`、`GetPhysicsInfo`、`SetGlobalVersion`、`SendCubismLog`。
+- **听导出事件**：`NotifyMocFileExported` / `NotifyPhysicsFileExported`（先发 `{Enabled:true}`，之后编辑器导出时主动推 `{Path, ModelFilePath}`）。
+
+**没有**建造形器、画件层级、变体、物理生成的接口 —— 也就是说它**不能替我们出模**。真正把 21/24 个画件绑上 `ParamEyeLOpen` / `ParamMouthOpenY` 的路径仍然是 §13 的 PSD2Live MCP；Cubism API 的用途是「在被编辑器打开着的模型上试参数、听导出、做联动」。
+
+### 15.2 必须先过的一道门：`RegisterPlugin` + 勾 Allow
+
+- 任何其他方法在注册前都返回 `PluginNotRegistered`。
+- `RegisterPlugin` 带 `{Name, Token?, Icon?(base64 PNG 32–256px ≤0.5MB), Path?}`，响应给 `Token`；编辑器同时弹窗，**用户必须勾「Allow」**，否则后续仍被拒。
+- 把 `Token` 缓存下来下次直接复用，就不会再弹窗（用户的授权按 app 记住）。客户端已把 token 存在 `assets/_raw/.cubism-token`（**在 .gitignore 里，别提交**）。
+- `GetIsApproval` 返回 `{Result:Boolean}`，可用来轮询等用户点。
+
+### 15.3 客户端脚本
+
+`assets/_raw/cubism_api.py`（只依赖已装好的 `websocket-client`）：
+
+```powershell
+python assets\_raw\cubism_api.py status          # 连接 + 注册 + 看授权/编辑模式/文档
+python assets\_raw\cubism_api.py params          # 列参数（含默认/范围）
+python assets\_raw\cubism_api.py values ParamAngleX ParamEyeLOpen
+python assets\_raw\cubism_api.py set ParamAngleX=20 ParamEyeLOpen=1
+python assets\_raw\cubism_api.py watch 60        # 等 moc3 导出事件
+python assets\_raw\cubism_api.py call GetCurrentModelUID '{}'
+```
+
+### 15.4 本机实测状态（2026-11-03 03:05）
+
+- 编辑器进程在跑（3 个 `java.exe`，主窗口 `Live2D Cubism Editor 5.3.00 [试用版 剩余 42 天]`），但 **22033 没有监听**：`cubism_api.py status` → `ConnectionRefusedError [WinError 10061]`。
+- `%APPDATA%\Live2D\Cubism5.3_Editor\` 下（`.tmp\property\*`、`logs\log.txt`）全库 grep `22033|ExternalApi|ExternalApplication` **零命中** → 外部集成是**默认关闭**、要人工在「环境设置 → 外部应用程序集成」里打开（或先打开一个模型再试）。
+- 同一时间桌面处于锁屏状态（`mcp__windows__Snapshot` 返回 `No windows found` / `No active window found`），**GUI 点击无法进行**，所以这一项只能等用户在场时点两下，脚本已经备好。
+- 结论：objective「用 Cubism API 做眨眼」在产物层面已由 §13 的 PSD2Live MCP 达成（真眨眼 + 真口型 + 抱书换姿势），Cubism API 仅作为**调试/试参数**的旁路保留，不阻塞交付。
