@@ -405,29 +405,40 @@ const app = new PIXI.Application({
       else dropPhonePose(model);
       // 同座位可再叠一层"第二姿势"（如抱书版）：默认全透明，靠 __setPose() 交叉淡化。
       // 两个 moc3 共用同一套部件与同一 transform，所以淡化时只有手臂和书在渐变。
-      if (seatCfg.alt && seatCfg.alt.url) {
-        try {
-          const alt = await PIXI.live2d.Live2DModel.from(seatCfg.alt.url, { autoInteract: false, autoUpdate: !freeze });
-          const altScale = k * (seatCfg.alt.scale || 1);
-          alt.scale.set(altScale);
-          alt.anchor.set(0.5, 1);
-          alt.position.set(s.x + faceDx, s.baseY + (seatCfg.alt.dy || 0));
-          alt.zIndex = s.i + 0.001;
-          alt.alpha = 0;
-          alt.visible = false;
-          app.stage.addChild(alt);
-          dropPhonePose(alt);
-          dropAutoBlink(alt);
-          s.altModel = alt;
-          s.altBaseY = s.baseY + (seatCfg.alt.dy || 0);
-          s.poseT = 0;
-          s.poseTarget = 0;
-          s.poseMs = 700;
-          // 自动换姿势：空手待机一会儿就把书抱起来，抱一会儿再放下，让"会做动作"看得出来
-          s.autoPose = seatCfg.autoPose !== false;
-          s.poseNext = performance.now() + 3000 + Math.random() * 4000;
-        } catch (e) { console.error('alt load failed', s.i, e); }
-      }
+      //
+      // 懒加载：第二层自带一整张 4096 图集和一套物理，8 个座位全预载会白吃显存和首屏时间，
+      // 而用户第一眼看到的还是空手站着的她。所以只在真的要抱起书时才拉模型。
+      s.k = k;
+      const hasAlt = !!(seatCfg.alt && seatCfg.alt.url);
+      s.loadAlt = hasAlt ? async () => {
+        if (s.altModel) return s.altModel;
+        if (s.altPromise) return s.altPromise;
+        s.altPromise = (async () => {
+          try {
+            const alt = await PIXI.live2d.Live2DModel.from(seatCfg.alt.url, { autoInteract: false, autoUpdate: !freeze });
+            const altScale = k * (seatCfg.alt.scale || 1);
+            alt.scale.set(altScale);
+            alt.anchor.set(0.5, 1);
+            alt.position.set(s.x + faceDx, s.baseY + (seatCfg.alt.dy || 0));
+            alt.zIndex = s.i + 0.001;
+            alt.alpha = 0;
+            alt.visible = false;
+            app.stage.addChild(alt);
+            dropPhonePose(alt);
+            dropAutoBlink(alt);
+            s.altModel = alt;
+            s.altBaseY = s.baseY + (seatCfg.alt.dy || 0);
+            return alt;
+          } catch (e) { console.error('alt load failed', s.i, e); return null; }
+        })();
+        return s.altPromise;
+      } : null;
+      s.poseT = 0;
+      s.poseTarget = 0;
+      s.poseMs = 700;
+      // 自动换姿势：空手待机一会儿就把书抱起来，抱一会儿再放下，让"会做动作"看得出来
+      s.autoPose = hasAlt && seatCfg.autoPose !== false;
+      s.poseNext = performance.now() + 3000 + Math.random() * 4000;
       s.model = model;
       s.cfg = seatCfg;
       loaded++;
@@ -483,6 +494,11 @@ const app = new PIXI.Application({
     }
     for (const s of seats) {
       if (!s.model) continue;
+      // 懒加载的第二层：到时间先把模型拉起来，下一次 tick 才真正开始抱书
+      if (s.loadAlt && !s.altModel && s.autoPose && pinnedPose === null && t > (s.poseNext || 0)) {
+        s.loadAlt();
+        s.poseNext = t + 1500;
+      }
       // 姿势交叉淡化：poseT 0=空手版 1=抱书版，按 deltaMS 推进，两端都夹在目标值上
       if (s.altModel) {
         const dd = Math.min(1, (app.ticker.deltaMS || 16.7) / (s.poseMs || 240));
@@ -495,6 +511,8 @@ const app = new PIXI.Application({
         s.model.alpha = s.poseT <= 0.5 ? 1 : Math.max(0, 1 - (s.poseT - 0.5) / 0.5);
         s.altModel.alpha = s.poseT <= 0.5 ? Math.min(1, s.poseT / 0.5) : 1;
         s.altModel.visible = s.altModel.alpha > 0.001;
+        // 藏起来的时候连物理一起停：第二层看不见却还在逐帧算，8 个座位就是白烧 CPU
+        s.altModel.autoUpdate = s.altModel.visible && !freeze;
         // 自动抱起 / 放下：只在两端夹住时排下一次，避免切换中被反复重置
         if (s.autoPose && pinnedPose === null && t > (s.poseNext || 0)
             && Math.abs(s.poseT - s.poseTarget) < 0.01) {
@@ -647,10 +665,12 @@ const app = new PIXI.Application({
   // 切姿势：__setPose(座位号, 'alt'|'main', 毫秒)；截图用 ?pose=4:alt（直接跳到终态，不等淡化）
   window.__setPose = (i, which, ms) => {
     const s = seats[i];
-    if (!s || !s.altModel) return false;
-    s.poseTarget = (which === 'alt' || which === 'book') ? 1 : 0;
-    s.poseMs = ms || 240;
-    pinnedPose = 1;
+    if (!s) return false;
+    const on = (which === 'alt' || which === 'book');
+    const go = () => { s.poseTarget = on ? 1 : 0; s.poseMs = ms || 240; pinnedPose = 1; };
+    if (s.altModel) go();
+    else if (s.loadAlt) s.loadAlt().then(go);   // 懒加载：第一次切姿势时再拉模型
+    else return false;
     return true;
   };
   const poseQ = q.get('pose');
@@ -658,12 +678,17 @@ const app = new PIXI.Application({
     for (const spec of poseQ.split(',')) {
       const [si, which] = spec.split(':');
       const s = seats[parseInt(si, 10)];
-      if (!s || !s.altModel) continue;
+      if (!s) continue;
       const on = (which === 'alt' || which === 'book');
-      s.poseT = on ? 1 : 0; s.poseTarget = s.poseT; s.poseMs = 1;
-      s.model.alpha = on ? 0 : 1;
-      s.altModel.alpha = on ? 1 : 0;
-      s.altModel.visible = on;
+      const apply = () => {
+        if (!s.altModel) return;
+        s.poseT = on ? 1 : 0; s.poseTarget = s.poseT; s.poseMs = 1;
+        s.model.alpha = on ? 0 : 1;
+        s.altModel.alpha = on ? 1 : 0;
+        s.altModel.visible = on;
+        s.altModel.autoUpdate = on && !freeze;
+      };
+      if (s.altModel) apply(); else if (s.loadAlt) s.loadAlt().then(apply);
     }
   }
 

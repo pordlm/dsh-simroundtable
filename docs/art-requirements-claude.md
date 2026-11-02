@@ -444,6 +444,40 @@ if (s.cfg && s.cfg.sway) {
   这类 0.1 量级的参数用像素 diff 完全判不出来（噪声地板 600px 起）。
 - 注意 `?nogest=1` 只关动作，**不关**这个待机摆动——它是「活体状态」不是「动作」。
 
+### 12.9 抱书那层改为懒加载 + 藏起来就停物理（round 14）
+
+第二姿势（`claude-book`）是同一座位的第二层 moc3，一开始是**在座位加载时一起预载**的。
+问题有两个：抱书版自带一整张 4096 图集和一套物理，八个座位全预载等于首屏多等一倍、显存翻倍；
+而且它 90% 时间是 `visible = false`，却仍在逐帧算物理。
+
+改成两件事：
+
+```js
+// 座位加载：只登记一个加载器，不拉模型
+const hasAlt = !!(seatCfg.alt && seatCfg.alt.url);
+s.loadAlt = hasAlt ? async () => { … Live2DModel.from(seatCfg.alt.url) … } : null;
+s.autoPose = hasAlt && seatCfg.autoPose !== false;
+
+// ticker：到点了先拉模型，下一帧再开始淡入；藏起来时停物理
+if (s.loadAlt && !s.altModel && s.autoPose && pinnedPose === null && t > (s.poseNext || 0)) {
+  s.loadAlt(); s.poseNext = t + 1500;
+}
+s.altModel.autoUpdate = s.altModel.visible && !freeze;
+```
+
+要点：
+
+- `loadAlt` 用 `s.altPromise` 去重；`?pose=4:alt` 与 `__setPose()` 都改成 `.then(apply)`，
+  所以「立刻切到抱书」仍然成立（截图验证方式与以前一致）。
+- **`hasAlt` 这个判断不能省**：第一版把所有座位都挂上 `loadAlt`，于是 GPT/深鲸座位在
+  `?debug=1` 的 ticker 里每 1.5s 抛一次 `TypeError: seatCfg.alt is undefined`——
+  正是 §12.4 那套 `window.__errs` 面板把它抓出来的（`ERR(1): …`）。非抱书模型的座位
+  `s.loadAlt` 必须是 `null`、`s.autoPose` 必须是 `false`。
+- 验证：`?only=0,4,5&still=1&eye=1&nogest=1&debug=1` 的 HUD 只有座位 0/4/5 三行有模型、
+  没有 `ERR(...)` 行；`?only=4&pose=4:alt&still=1&eye=1` 里她仍然抱着书（懒加载路径走得通）。
+- 局限：无头截图里 `performance.now()` 不推进，所以「等 3–7 秒自己抱起书」这条自动路径
+  只能靠真浏览器看——但它是同一段 ticker 逻辑，`?pose=` 已经证明加载与淡入是对的。
+
 ## 13. v2 出模管线：layout manifest → PSD2Live MCP（眨眼/口型终于能用）
 
 §10.4 里「没有眨眼、没有口型」的限制在 v2 解掉了。CLI 只能吃 PSD，但 **PSD2Live 3.6.7 的 GUI 自带一套 HTTP MCP 服务**，里面有 `project/import_layout`、未发布的 `rig_generate`、`project/export_model`，可以把「每层绑哪个变体参数」直接写进 manifest，绕开 GUI 手点。
