@@ -507,3 +507,60 @@ python assets\_raw\cubism_api.py call GetCurrentModelUID '{}'
 - `%APPDATA%\Live2D\Cubism5.3_Editor\` 下（`.tmp\property\*`、`logs\log.txt`）全库 grep `22033|ExternalApi|ExternalApplication` **零命中** → 外部集成是**默认关闭**、要人工在「环境设置 → 外部应用程序集成」里打开（或先打开一个模型再试）。
 - 同一时间桌面处于锁屏状态（`mcp__windows__Snapshot` 返回 `No windows found` / `No active window found`），**GUI 点击无法进行**，所以这一项只能等用户在场时点两下，脚本已经备好。
 - 结论：objective「用 Cubism API 做眨眼」在产物层面已由 §13 的 PSD2Live MCP 达成（真眨眼 + 真口型 + 抱书换姿势），Cubism API 仅作为**调试/试参数**的旁路保留，不阻塞交付。
+
+## 16. v3：^^ 笑眼（叠加件 + `ParamEyeBallForm`）
+
+### 16.1 为什么是「叠一张画」
+
+这个 rig **没有眼球变形器**：`ParamEyeBallX/Y` 写进去画面一个像素都不变（`?sacc=0:0` vs `?sacc=0.2:0.12` 在脸框内 `diff>24 = 0/10800`）。所以换表情只能用**另一张画盖上去**，和 §13.3 的闭眼件同一思路。
+
+`assets/_raw/make_happy_eyes.py` 为每只眼生成一张 2048 画布件：
+
+1. **底色 = 从 `face.png` 就地取的肤色补丁**（脸的母图已将眼睛与嘴 inpaint 掉，所以补丁与周围皮肤同源、无缝）；
+2. 上面画一条 **∩ 形粗弧**，颜色取该眼睫毛最暗像素的中位色（实测 `(58,44,46)`），粗细沿弧做锥形（中段 16px、两端收细）；
+3. 4× 超采样画完再 LANCZOS 缩回，避免锯齿。
+
+弧先画在**独立透明图层**再 `alpha_composite` 到补丁上 —— 直接往肤色上画会被混合成灰，座位尺寸（2048→270px，k≈0.13）下就看不见了。这也是为什么初版 2–6px 的笔触在舞台上「眼睛直接消失、看不见笑弧」：笔触被降采样平均到皮肤色里去了。
+
+### 16.2 manifest 三个坑（都验证过）
+
+| 坑 | 症状 | 解法 |
+| --- | --- | --- |
+| 图层名带 `eye` 会被**按名字推断分区** | 即使显式给了 `tags` 也被折进 `irides`，`ArtMeshIridesL/R` 同时被 `ParamEyeLOpen` 与 `ParamEyeBallForm` 抢，出现 `MOC3: UnsupportedChange(... ChannelDemotedToStatic(channel=OPACITY))` 且画面毫无变化 | 名字避开 `eye`（用 `squint`）+ `layer["tags"] = ["eyewear"]`，生成独立的 `ArtMeshEyewear` / `ArtMeshEyewear2` |
+| `ParamProportion` 不能当开关 | `?p=Proportion:0` vs `:1` 全图 `diff = 57721`，会连带其它部件变形 | 用 `ParamEyeBallForm` |
+| `PhysicsEyeJelly` 每帧写 `ParamEyeBallForm` | 舞台写了 1 又被物理覆盖回 0（`physics` 输出覆盖参数） | `physics {"op":"put","id":"PhysicsEyeJelly","enabled":false}`；代价只是眼球少一点点果冻感 |
+
+### 16.3 构建与验收
+
+```powershell
+C:\dev\python 3.12.0\python.exe assets\_raw\make_happy_eyes.py   # -> assets/build/claude-happy/parts/eye_happy-{l,r}.png
+C:\dev\python 3.12.0\python.exe assets\_raw\claude_v3_build.py   # -> assets/build/claude-v3/model/ (moc3 720640 B)
+```
+
+`claude_v3_build.py` 会把 v2 的 26 件 + 2 件笑眼拼进 `assets/build/claude-v3/parts`，走 manifest → MCP `import_layout` → `rig_generate` → 三项物理调校 → `export_model`。**重新 import 会把物理重置成预设的松软值**，所以 v2 的调校（§13.4）必须在每次 build 里重放，否则橡皮筋摆动复发。
+
+验收（probe 页面，`?p=EyeBallForm:0/1`）：`diff>24 = 1696`，左眼 817px、右眼 859px、嘴 0px；暗像素 左 320→85、右 396→158，且 1 状态下暗像素顶边呈 ∩（`524,517,510,506,503,501,…`）→ 弧真的盖住了原眼。
+
+### 16.4 舞台
+
+- `MODELS.Claude.url` → `../assets/build/claude-v3/model/claude.layout.model3.json`；
+- `applyPoseParams` 写 `sv(core,'ParamEyeBallForm', p.happy)`；
+- 待机行为表新增 `{ id:'happy', dur:1600, f:u=>({ happy: Math.sin(Math.PI*u) > 0.2 ? 1 : 0, mform: 0.4*Math.sin(Math.PI*u) }) }`，并进入待机池；
+- 抱书版 `claude-book-model` 也重出了（705216 B，含同样的两件笑眼 + 三项物理），`applyPoseParams(alt, pose)` 对 alt 层一样生效。
+
+### 16.5 踩到的舞台 bug：`?gest=` 一直是坏的
+
+`preview/longtable.html` 的 ticker 里写着 `const off = forceGest ? … : …`，但 **`forceGest` 从来没被声明过** —— 每帧抛 `ReferenceError`，于是第 457 行之后的所有参数写入（小动作、眨眼）统统没执行过。之前「`?gest=nod:0.5` 与基线差 2239px」其实是场景里的随机微尘在动，不是动作生效。
+
+修法：在 `pinEye` 旁边补上解析
+
+```js
+const forceGest = (() => {
+  const raw = q.get('gest');
+  if (!raw) return null;
+  const [id, u] = raw.split(':');
+  return { id, u: Math.max(0, Math.min(1, Number(u ?? 0.5))) };
+})();
+```
+
+修完的实测：`?only=4&eye=0` vs `?eye=1` 差异聚成两个 16×9px 的块（`(995,483)-(1011,492)` / `(1023,484)-(1039,492)`）= 两只眼在闭；`?gest=happy:0.5` 时眼睛区域暗像素从 37 降到 0（原眼被肤色补丁盖住），只剩一圈浅弧 —— 与 probe 结论一致。**在座位尺寸上笑眼读作「弯弯的闭眼」是分辨率极限，不是 bug**。

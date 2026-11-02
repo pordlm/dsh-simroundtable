@@ -82,7 +82,7 @@ const MODELS = {
     dy: -25
   },
   Claude: {
-    url: '../assets/build/claude-v2/claude.layout.model3.json',
+    url: '../assets/build/claude-v3/model/claude.layout.model3.json',
     // 全身像（3 头身，墨迹 1836px 高）：按 charH/2048 缩放后头高 76.8px，与 GPT(0.85×756px→76.6px) 齐平。
     // 但全身像的“脚底”比半身像低 44px，直接摆下巴会悬在桌沿之上；以眼睛高度对齐邻居，
     // 实测 dy=0 时眼线比 GPT 高 36px，故下移 30
@@ -145,6 +145,15 @@ window.addEventListener('resize', fit);
   const noChairs = q.get('nochairs') === '1';
   // 截图校验用：?eye=0 把眼睛钉在闭、?gest=nod:0.5 把某个小动作钉在包络的某一相位
   const pinEye = q.has('eye') ? Math.max(0, Math.min(1, Number(q.get('eye')))) : null;
+  // ?gest=happy:0.5 pins one idle gesture at a phase of its envelope (for stills).
+  // Without this the ticker threw a ReferenceError here every frame, which meant
+  // no gesture *and* no blink ever reached the model.
+  const forceGest = (() => {
+    const raw = q.get('gest');
+    if (!raw) return null;
+    const [id, u] = raw.split(':');
+    return { id, u: Math.max(0, Math.min(1, Number(u ?? 0.5))) };
+  })();
 const count = Math.max(2, Math.min(8, Number(q.get('n') || 8)));
   // 2048 atlases are drawn at ~0.1 scale on the stage; without mipmaps a
 // 1px outline aliases into a stair-stepped halo ("edges look rough").
@@ -249,6 +258,8 @@ const app = new PIXI.Application({
       sv(core, 'ParamMouthForm', p.mform);
       sv(core, 'ParamEyeBallX', p.eyeX);
       sv(core, 'ParamEyeBallY', p.eyeY);
+      // v3 的 ^^ 笑眼：一条叠在睁眼之上的画件，toggle 绑在 ParamEyeBallForm 上
+      sv(core, 'ParamEyeBallForm', p.happy);
       // 只有把眼睛绑成 toggle 变体的模型（Claude v2）才能靠参数眨眼：
       // 1 显示睁眼三件、0 露出常显的闭眼件。没绑的模型不能写这个参数。
       if (p.eye !== undefined) {
@@ -278,6 +289,7 @@ const app = new PIXI.Application({
     { id: 'sidelong', dur: 1500, f: u => ({ eyeX: 0.6 * Math.sin(Math.PI * u), eyeY: -0.15 * Math.sin(Math.PI * u) }) },
     { id: 'think',   dur: 1900, f: u => ({ tilt: 6 * Math.sin(Math.PI * u), eyeX: -0.35 * Math.sin(Math.PI * u), mform: -0.25 * Math.sin(Math.PI * u) }) },
     { id: 'smile',   dur: 2100, f: u => ({ mform: 0.55 * Math.sin(Math.PI * u), brow: 0.2 * Math.sin(Math.PI * u) }) },
+    { id: 'happy',   dur: 1600, f: u => ({ happy: Math.sin(Math.PI * u) > 0.2 ? 1 : 0, mform: 0.4 * Math.sin(Math.PI * u) }) },
     { id: 'huh',     dur: 1300, f: u => ({ tilt: -5 * Math.sin(Math.PI * u), brow: 0.75 * Math.sin(Math.PI * u), mform: -0.3 * Math.sin(Math.PI * u) }) },
     { id: 'leanin',  dur: 1600, f: u => ({ lean: 6 * Math.sin(Math.PI * u), nod: -4 * Math.sin(Math.PI * u) }) }
   ];
@@ -285,7 +297,7 @@ const app = new PIXI.Application({
     if (!s.g) {
       if (t < s.nextG) return null;
       // 负号权重：待机里点头/歪头比摇头更常见
-      const pool = s.speaking ? [0, 1, 1, 3, 4] : [0, 0, 1, 2, 3, 3, 4, 4];
+      const pool = s.speaking ? [0, 1, 1, 3, 4] : [0, 0, 1, 2, 3, 3, 4, 4, 7];
       const g = GESTURES[pool[Math.floor(Math.random() * pool.length)]];
       s.g = { g, t0: t };
       s.nextG = t + g.dur + 2200 + Math.random() * 5200;
@@ -449,7 +461,7 @@ const app = new PIXI.Application({
       }
 
       // 会演小动作的座位：把额外偏移叠到待机/发言的曲线上，眼睛按自己的节奏眨
-      let eye, tilt, eyeX, eyeY, brow, mform;
+      let eye, tilt, eyeX, eyeY, brow, mform, happy;
       if (s.cfg && s.cfg.gestures) {
         const off = forceGest
           ? (GESTURES.find(x => x.id === forceGest.id) || GESTURES[0]).f(forceGest.u)
@@ -462,12 +474,13 @@ const app = new PIXI.Application({
           eyeX = off.eyeX;
           eyeY = off.eyeY;
           brow = off.brow;
+          happy = off.happy;
           mform = off.mform;
         }
       }
       if (s.cfg && s.cfg.blink) eye = pinEye !== null ? pinEye : blinkValue(s, t);
 
-      const pose = { turn, nod, lean, tilt, eyeX, eyeY, brow, mform, mouth: s.mouth, breath, eye };
+      const pose = { turn, nod, lean, tilt, eyeX, eyeY, brow, mform, happy, mouth: s.mouth, breath, eye };
       applyPoseParams(s.model, pose);
       if (s.altModel && s.altModel.visible) applyPoseParams(s.altModel, pose);
     }
