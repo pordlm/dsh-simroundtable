@@ -145,13 +145,7 @@ window.addEventListener('resize', fit);
   const noChairs = q.get('nochairs') === '1';
   // 截图校验用：?eye=0 把眼睛钉在闭、?gest=nod:0.5 把某个小动作钉在包络的某一相位
   const pinEye = q.has('eye') ? Math.max(0, Math.min(1, Number(q.get('eye')))) : null;
-  const forceGest = (() => {
-    const v = q.get('gest');
-    if (!v) return null;
-    const [id, u] = v.split(':');
-    return { id, u: u === undefined ? 0.5 : Number(u) };
-  })();
-  const count = Math.max(2, Math.min(8, Number(q.get('n') || 8)));
+const count = Math.max(2, Math.min(8, Number(q.get('n') || 8)));
   // 2048 atlases are drawn at ~0.1 scale on the stage; without mipmaps a
 // 1px outline aliases into a stair-stepped halo ("edges look rough").
 if (PIXI.BaseTexture && PIXI.BaseTexture.defaultOptions) {
@@ -302,11 +296,12 @@ const app = new PIXI.Application({
   }
 
   // 眨眼：睁 1 → 闭 0 → 睁 1，闭眼段只占 30%，看起来才像真眨眼而不是慢闭
+  // 偶尔连眨两下（间隔 320ms），真人也会这样
   function blinkValue(s, t) {
     if (s.blinkAt === undefined) s.blinkAt = t + 900 + Math.random() * 4200;
     if (t >= s.blinkAt) {
       s.blinkStart = s.blinkAt;
-      s.blinkAt = t + 2400 + Math.random() * 5600;
+      s.blinkAt = t + (Math.random() < 0.22 ? 320 : 2400 + Math.random() * 5600);
     }
     if (s.blinkStart === undefined) return 1;
     const u = (t - s.blinkStart) / 150;
