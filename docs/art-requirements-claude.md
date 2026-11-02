@@ -563,4 +563,31 @@ const forceGest = (() => {
 })();
 ```
 
-修完的实测：`?only=4&eye=0` vs `?eye=1` 差异聚成两个 16×9px 的块（`(995,483)-(1011,492)` / `(1023,484)-(1039,492)`）= 两只眼在闭；`?gest=happy:0.5` 时眼睛区域暗像素从 37 降到 0（原眼被肤色补丁盖住），只剩一圈浅弧 —— 与 probe 结论一致。**在座位尺寸上笑眼读作「弯弯的闭眼」是分辨率极限，不是 bug**。
+修完的实测：`?only=4&eye=0` vs `?eye=1` 差异聚成两个 16×9px 的块（`(995,483)-(1011,492)` / `(1023,484)-(1039,492)`）= 两只眼在闭；`?gest=happy:0.5` 时眼睛区域暗像素从 37 降到 0（原眼被肤色补丁盖住），只剩一圈浅弧 —— 与 probe 结论一致。**在座位尺寸上笑眼读作「弯弯的闭眼」是分辨率极限，不是 bug**（后来把弧加粗到 `TMAX = 24` canvas px，座位尺度下更清楚，`_h3-face-ab.png` 左右对照）。
+
+### 16.6 哪些参数真的绑了画件（实测表）
+
+`probe.html&scale=0.32`，一次只写一个参数，与默认渲染比 `diff>24` 的像素数（模型 `claude-v3`）：
+
+| 参数 | 值 | diff px | 结论 |
+| --- | --- | --- | --- |
+| `ParamBodyAngleX` | 15 | 65258 | 躯干左右 |
+| `ParamAngleZ` | 15 | 42014 | 歪头 |
+| `ParamBodyAngleY` | 15 | 41077 | 躯干前后 |
+| `ParamBodyAngleZ` | 15 | 34066 | 躯干侧倾 |
+| `ParamAngleX` | 20 | 25688 | 转头 |
+| `ParamBreath` | 1 | 22667 | 呼吸 |
+| `ParamBodyLean` | 1 | 19102 | 前倾 |
+| `ParamProportion` | 0.5 | 18268 | 体型（会连带整体变形，别当开关） |
+| `ParamHairFront` | 1 | 17149 | 前发另一次摆动 |
+| `ParamAngleY` | 20 | 17142 | 点头 |
+| `ParamMouthOpenY` | 1 | 138 | 只有嘴（座位 3px） |
+| `ParamHairBack` | 1 | **0** | 后发没绑 |
+| `ParamMouthForm` | 1 | **0** | 嘴形没绑 |
+| `ParamBrowLY/RY` | 1 | **0** | 眉毛没绑 |
+| `ParamEyeBallX/Y` | ±0.6 | **0** | 眼球没绑（§16.1） |
+| `ParamEyeBallForm` | 0→1 | 1696 | 只驱动 v3 的笑眼件 |
+
+四个 `.exp3.json`（Smile/Sad/Angry/Surprised）写的正是 `ParamMouthForm`、`ParamBrowLY/RY`、`ParamEyeLOpen`、`ParamMouthOpenY` —— 前两组没绑画件，所以 `?expr=Smile` 与不传 expression 的渲染**逐像素相同**（差 610px 全在顶部 meta 文字上）。**expression 目前等于空操作，不要指望它**；要表情就按 §16 叠画件，或者像舞台那样直接写参数。
+
+`GESTURES` 已据此重写（`assets/_raw/_patch_gestures.py`）：只用上表里非零的参数，`const env = u => Math.sin(Math.PI * u)`，12 个动作 —— `nod`(−11° `AngleY`)、`bow`、`shake`、`tilt`(`AngleZ`)、`look`、`glance`、`think`(`tilt`+`nod`+`hair .25`)、`smile`/`happy`(`ParamEyeBallForm`)、`huh`、`leanin`(`ParamBodyLean`)、`hairtoss`(`ParamHairFront` 0.9·sin(2πu))。验证：`?only=4&eye=1` 与 `&gest=hairtoss:0.35` 差 20334px，其中头发区三块 `(957,436)-(1082,590)` 共 5041px（另有 13737px 是场景微尘，详见 §16.5），肉眼见发梢外扬。**动作代码里再出现 `mform`/`brow`/`eyeX` 就是重新引入安慰剂**。
