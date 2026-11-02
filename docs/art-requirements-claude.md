@@ -934,3 +934,30 @@ parts["eye_close-*"] = clean(fp, 60)  # RGB 取原母图（半睁的眼弧）
 验收入口：`probe.html?model=../assets/build/claude-v3/model/claude.layout.model3.json&scale=0.75&p=EyeLOpen:1`
 看整身（1600² 无头截图），耳朵与缎带两处 crop 3× 复核；再用 `p=AngleX:25,AngleZ:8` 与静止帧对比，
 差 ≈ 220k px 说明变形器没被破坏。
+
+### 16.16 「没有任何件认领」的像素：白缎带整段漏底（round 12）
+
+§16.15 的 2px 生长修掉了「两件各让开 1px」的缝，但 1700² 整身图里右鬓那两条**白缎带仍然是断的**：
+带子中间被挖出一块块背景绿。这不是缝，而是**没有任何件覆盖**：母图上那些像素是角色本体
+（`body == True`），但 20 个件的 mask 一个都没圈到它们 —— 生长是从已有 mask 往外长，源头没有就长不出来。
+
+判据（`cut_claude.py`，保存循环之前）：
+
+```python
+cov = np.zeros((H, W), bool)
+for _m in parts.values():
+    cov |= _m
+missing = body & ~cov          # 8461 px
+```
+
+修复方式不是「全塞给最上层」——那样这块像素会跟着错误的变形器动（塞进 `headwear` 就会被头的摆动带走）。
+改成**按邻居多数票归属**：每个 ≥40px 的 `missing` 连通块，看它外圈 3px 内已覆盖像素属于哪个件最多，
+就把整块并给那个件，于是缎带自然归到旁边的 `front hair` / `headwear`，随它们一起动。
+
+- 实测：`unclaimed pixels: 8461, patched 6539`（剩下的都是 <40px 的碎点，肉眼不可见）。
+- 重建：`claude_to_canvas.py` → `make_mouth_open.py` → `claude_v3_build.py --import`（`322112B`）→
+  `claude_book_build.py`（`316224B`）→ `claude_v3_gif.py --target gif --size 560 --fps 16`。
+- 验收：`probe.html?...&scale=0.78&p=EyeLOpen:1` 的 1700² 整身，`(930,330)-(1080,570)` crop 3× ——
+  缎带连续、无绿楔；座位尺度 `?only=0,4,5&still=1&eye=1&nogest=1` 与抱书 `?only=4&pose=4:alt&eye=1` 都正常。
+- 这条修法与 §16.15 互补：**生长治「缝」，认领治「漏」**。任何新母图切件后都该跑一次这个统计，
+  `unclaimed pixels` 应当接近 0。
