@@ -80,6 +80,14 @@ const MODELS = {
     // 缩小后下巴会掉到桌沿以下，所以再整体上提 25px 补回来
     scale: 0.85,
     dy: -25
+  },
+  Claude: {
+    url: '../assets/build/claude-parts/p2l/claude.model3.json',
+    // 全身像（3 头身，墨迹 1836px 高）：按 charH/2048 缩放后头高 76.8px，与 GPT(0.85×756px→76.6px) 齐平。
+    // 但全身像的“脚底”比半身像低 44px，直接摆下巴会悬在桌沿之上；以眼睛高度对齐邻居，
+    // 实测 dy=0 时眼线比 GPT 高 36px，故下移 30
+    scale: 1.0,
+    dy: 30
   }
 };
 const LINES = [
