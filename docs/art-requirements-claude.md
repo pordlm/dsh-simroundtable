@@ -638,3 +638,64 @@ python assets\_raw\claude_v3_gif.py --target gif --size 560 --fps 16
 ```
 
 脚本做的是 `import_layout(v3) → rig_generate → 重放 PHYSICS → project export_target`，`settings` 里 `clip=Idle`、`physics=true`、`background=00000000`（透明）。两个 `losses` 是必然的：GIF 把 deformers/parameters 烘成像素，且只有 256 色 + 1-bit 透明。要更清楚的动图就换 `--target webp`（`--target mp4` 需要在 `settings` 里传 `ffmpeg=<绝对路径>`）。**注意 import 会把物理重置回软默认**，所以脚本里必须重放 `tune_physics.PHYSICS`，否则头发又变橡皮筋。
+
+### 16.9 张口件：程序化重画（心形舌头「大球」→ 干净小 o）
+
+母图给的张口件不能直接用：bbox `1005,575-1043,618`（39×44 canvas px，比闭口 27×10 大一圈）、
+舌头画成**心形**、整体深栗色，而且中心比闭口（`(1029, 591.5)`）**高约 9px**。放到 244px 高的座位上就是
+「两条小撇突然变成一颗大球还往上跳」。
+
+改成程序化画（`assets/_raw/make_mouth_open.py`，`SS = 4` 超采样，固定 `SIZE = (28.0, 21.0)` canvas px）：
+
+```python
+LIP           = (198, 126, 118)
+CAVITY_TOP    = (118, 46, 42)
+CAVITY_BOTTOM = (176, 84, 76)
+TONGUE        = (224, 140, 138)
+```
+
+- 椭圆唇环 + 竖向渐变口腔 + 下三分之一软组织（`GaussianBlur(1.1*SS)`），整体再 `0.35*SS` 柔化。
+- **不要牙齿白条**：模糊后压在暗腔上会读成一块灰污渍（见 `preview/_qm2-ab.png`）。
+- 中心实时读 `mouth_close.png` 的 alpha 中心，所以闭口/张口天然同心，参数一推不会跳。
+
+验收：`preview/_qm3-ab.png`（0.5 尺度，闭口两撇 vs 张口小 o）、`preview/_s-mouth-ab.png`
+（座位尺度 5×，`?n=6&still=1&only=4&eye=1&mouth=0/1`）——244px 座位高度上说话读得出来。
+
+### 16.10 眼睛：不要拆三件，用「一件 + 睁闭共用轮廓」
+
+三件（`eyelash` / `irides` / `eyewhite`）这条路走不通，两个原因叠加：
+
+1. 三张 mask 各自按颜色算，边界互不吻合；上睑那道**镜面高光**（`mn>200`、`r-g<10`）会被 sclera 掩码吃掉，
+   留在眼皮上 = 1:1 看到的白色锯齿。
+2. `face` 层用 `cv2.INPAINT_TELEA` 补洞时，会把洞缘（眼白/高光）往里扩散成一圈比周围亮的皮，
+   三件贴回去就出现「空心圈 + 白刺」。
+
+终态（`assets/_raw/cut_claude.py` 的 `master_eye`）：**睁、闭共用同一个 footprint**
+
+```python
+near     = dilate(almond, 6)
+arc      = closing(rect(box) & (cc["mx"] < 150), 2) & near
+lid_skin = (cc["mn"] > 180) & (cc["sat"] < 0.45)
+lid      = fill_holes(near & (lid_skin | arc)) & near
+lid      = fill_holes(closing(lid, 3x3))
+parts["eyewhite-*"] = clean(lid, 60)   # RGB 取母图（睁眼）
+parts["eye_close-*"] = clean(lid, 60)  # RGB 取 claude-close.png（闭眼）
+```
+
+两者 alpha 完全一致 → 眼球尺寸在睁闭之间**永不跳**。删掉 `irides` / `eyelash` 四件后部件数 24 → 20，
+`claude.layout.moc3` 662144 B（抱书版 646848 B）。
+
+配套三处必须一起改：
+
+- **上睑高光洗色**（`assets/_raw/_patch_eye_spec.py`）：`mn>200 & (r-g)<10 & mx>170` 且落在
+  `aperture = fill_holes(comp) & lid` 之外的高光像素，用 `face_rgb` 同位置颜色覆盖（眼珠里的高光保留）。
+- **face 的洞不要再用 TELEA**（`assets/_raw/_patch_face_fill.py`）：改用
+  `ring = dilate(face_paint,7) & ~face_paint & body & (sat<0.30) & (mn>150)` 的**中位皮肤色**整片填 + 3px 羽化。
+  验收口径：眼带里 `mn>235` 的亮像素右眼 378 → 106（`preview/_qc-eyes-ab.png` 上下并排）。
+- **笑眼补丁跟随眼形**（`assets/_raw/make_happy_eyes.py`）：alpha 用
+  `dilate(eye_union, 5)` + `GaussianBlur(σ=2)`，**不要再 `cv2.inpaint`** —— face 已经是平色，
+  重填只会把眉毛/额头的亮部搬进来，`EyeBallForm:1` 时额头上出现一块米色方块。
+
+验收：`preview/_qc-happy3-face.png`（4×，两道粗黑 ∩ 弧干净坐在皮肤上）、座位尺度
+`preview/_fin2-happy.png` vs `_fin2-eye0.png`（`diff>24 = 5236px`，bbox `(953,437)-(1075,590)`，
+笑眼与眨眼在 244px 高度上都读得清）。
