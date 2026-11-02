@@ -118,11 +118,20 @@ const LINES = [
   "我同意前面，但补充一点：排期要写进职责。"
 ];
 
+// 自适应分辨率：舞台逻辑尺寸固定 1400×920，实际渲染缓冲 = baseRes()×quality。
+// 弱机器（集成显卡 / 6~8 个座位同屏）会把 quality 降下来保住帧率，画面略软但不再卡顿。
+let quality = 1;
+let qAuto = true;
+function baseRes(){
+  return Math.min(3, Math.max(1,
+    Math.min(window.innerWidth / STAGE_W, window.innerHeight / STAGE_H) * (window.devicePixelRatio || 1)));
+}
+
 function fit(){
   const s = Math.min(window.innerWidth / STAGE_W, window.innerHeight / STAGE_H);
   document.getElementById('fit').style.transform = `translate(-50%,-50%) scale(${s})`;
   if (APP) {
-    const r = Math.min(3, Math.max(1, s * (window.devicePixelRatio || 1)));
+    const r = baseRes() * quality;
     if (Math.abs(APP.renderer.resolution - r) > 0.01) {
       APP.renderer.resolution = r;
       APP.renderer.resize(STAGE_W, STAGE_H);
@@ -167,6 +176,12 @@ window.addEventListener('resize', fit);
   // 否则随机抓到的可能是 happy 的 ^^ 眼或 tilt 的歪头。
   const noGest = q.get('nogest') === '1';
 const count = Math.max(2, Math.min(8, Number(q.get('n') || 8)));
+  // ?q=off 关掉自适应；?qforce=0.6 把 quality 钉死（对比截图 / 复现性能问题用）
+  if (q.get('q') === 'off') qAuto = false;
+  if (q.has('qforce')) {
+    qAuto = false;
+    quality = Math.max(0.4, Math.min(1, Number(q.get('qforce')) || 1));
+  }
   // 2048 atlases are drawn at ~0.1 scale on the stage; without mipmaps a
 // 1px outline aliases into a stair-stepped halo ("edges look rough").
 if (PIXI.BaseTexture && PIXI.BaseTexture.defaultOptions) {
@@ -175,7 +190,7 @@ if (PIXI.BaseTexture && PIXI.BaseTexture.defaultOptions) {
 const app = new PIXI.Application({
     view: document.getElementById('seats'), width: STAGE_W, height: STAGE_H,
     backgroundAlpha: 0, antialias: true, autoDensity: true,
-    resolution: Math.min(3, Math.max(1, Math.min(window.innerWidth / STAGE_W, window.innerHeight / STAGE_H) * (window.devicePixelRatio || 1)))
+    resolution: baseRes() * quality
   });
   APP = app;
   fit();
@@ -441,7 +456,21 @@ const app = new PIXI.Application({
     const t = still ? 0 : performance.now() - t0;
     frames++;
     if (t - lastFps > 700) {
-      document.getElementById('fps').textContent = Math.round(frames * 1000 / (t - lastFps));
+      const fpsNow = Math.round(frames * 1000 / (t - lastFps));
+      document.getElementById('fps').textContent = qAuto
+        ? `${fpsNow} res=${APP.renderer.resolution.toFixed(2)}`
+        : `${fpsNow} res=${APP.renderer.resolution.toFixed(2)} (fixed)`;
+      // 自适应：低于 26 帧就往下降一档（最低 0.70，座位尺度下眼睛还能读清），
+      // 稳定高于 55 帧再慢慢加回去。只改渲染缓冲，不动舞台坐标/点击区域。
+      if (qAuto) {
+        if (fpsNow < 26 && quality > 0.70) quality = Math.max(0.70, quality - 0.06);
+        else if (fpsNow > 55 && quality < 1) quality = Math.min(1, quality + 0.04);
+        const want = baseRes() * quality;
+        if (Math.abs(APP.renderer.resolution - want) > 0.03) {
+          APP.renderer.resolution = want;
+          APP.renderer.resize(STAGE_W, STAGE_H);
+        }
+      }
       frames = 0; lastFps = t;
     }
     for (const s of seats) {

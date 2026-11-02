@@ -360,6 +360,32 @@ eyeX += s.lookSmooth * 0.55;  // ParamEyeBallX（再大就成对眼）
 
 `?speak=<seat>` + `?still=1` 可以钉住某个座位发言来验收：同一座位在 `?speak=0` 与 `?speak=4` 两张静帧之间实测差 **11575px**（bbox 覆盖两人，含头转与眼珠），肉眼在 5× 放大下能看到她朝发言人侧头。幅度上限刻意压小：超过 ±10° 时 3 头身的头会撞到旁边的椅子。
 
+### 12.6 弱机器自救：自适应渲染分辨率（round 10）
+
+舞台逻辑尺寸恒为 1400×920，渲染缓冲 = `baseRes() × quality`：
+
+```js
+function baseRes(){            // 跟随窗口与 devicePixelRatio，隐含 1..3 的上下限
+  return Math.min(3, Math.max(1,
+    Math.min(window.innerWidth / STAGE_W, window.innerHeight / STAGE_H) * (window.devicePixelRatio || 1)));
+}
+let quality = 1;               // 唯一的自适应旋钮
+```
+
+帧率统计处每 0.7s 判一次：`fpsNow < 26` 就 `quality -= 0.06`（**地板 0.70**），`fpsNow > 55` 则
+`quality += 0.04` 慢慢加回去；只有变化超过 0.03 才真的 `renderer.resize`，避免抖。overlay 里现在会写
+`fps=43 res=1.00`，调试时一眼能看出当前档位。手动入口：`?q=off` 关自适应、`?qforce=0.6` 钉死档位。
+
+**为什么地板是 0.70 而不是更低**：同场景对比（`?only=4&still=1&eye=1&nogest=1`，1000×900，
+crop `(500,470,600,560)`）`?qforce=1` 与 `?qforce=0.6` 的平均绝对差只有 3.55/255，但 0.6 那档
+**眼睛会糊成一坨深色**——座位尺度下眼睛是她唯一的表情出口，所以宁可少省一点显存也要保住 0.70。
+对比图 `preview/_q-cmp.png`（左 1.0 / 右 0.6）。
+
+**这一步的验证边界（重要）**：无头截图跑在 `--virtual-time-budget` 下，`performance.now()` 不推进，
+所以 `t - lastFps > 700` 永远不成立 → fps 计数器与自适应逻辑**在截图里根本不会触发**，
+overlay 永远显示 `fps=--`。也就是说：静态档位（`?qforce=`）可以用拼图对比验证，
+但「掉帧后自动降档」只能在真实浏览器里看。别把 `fps=--` 当成 bug，也别声称跑过自适应测试。
+
 ## 13. v2 出模管线：layout manifest → PSD2Live MCP（眨眼/口型终于能用）
 
 §10.4 里「没有眨眼、没有口型」的限制在 v2 解掉了。CLI 只能吃 PSD，但 **PSD2Live 3.6.7 的 GUI 自带一套 HTTP MCP 服务**，里面有 `project/import_layout`、未发布的 `rig_generate`、`project/export_model`，可以把「每层绑哪个变体参数」直接写进 manifest，绕开 GUI 手点。
