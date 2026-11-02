@@ -168,25 +168,41 @@ claude_check.py      # 可选：把 parts 按 z 序叠回，与母图并排对�
 
 高宽比 1.90 > 1.6，所以按**高度**映射（`TARGET_H=1836`），不能沿用 GPT 的按宽度映射 —— 否则竖长图会溢出画布。
 
-### 10.2 眼睛四件：用 open/close 差异找位置，用「最大 amber 连通块椭圆」定虹膜
+### 10.2 眼睛四件：不要在表情图上重切，直接用母图
 
-颜色判据单独用是不行的，实测三连坑：
+> 2026-11-02 修订。初版把眼三件切自 `claude-open.png`，结果渲染出来是「大圆睁眼 + 大片奶白眼白 + 白高光」，和母图的**半眯眼**完全不是一只眼睛，用户一眼就看出来「claude 直接在主图上错误」。表情图只该用于 `eye_close` 与 `mouth_open`，眼睛本体必须取母图。
 
-- `amber = (r-b>55)&(r>150)&(sat>0.45)` 在眼框里命中 12170px —— **头发是同一种橙色**，凸包直接等于整个眼睛矩形；
-- `white = (mn>225)&(sat<0.22)` 命中 1328px —— **眼白是暖奶油色，和皮肤几乎同色**（sclera `[253,244,239]` vs 皮肤 `[252,238,230]`）；
-- `dark = mx<130` 命中 1927px —— 包含**上睫毛弧 + 瞳孔 + 虹膜外圈深棕**。
-
-可靠做法：用睁眼图与闭眼图做差，`diff_regions()` 得到的连通块**就是眼睛本身**（左 `(368,250)-(481,395)` 6718px、右 `(532,294)-(657,430)` 6246px），再在块内：
+母图里眼睛的构成（8× 实拍）：厚藏青上睫线（外角上挑）、上睑压住虹膜上缘、赭橙渐变虹膜、虹膜下方两侧只有很窄的**奶油色 sclera**、底部一条细深色轮廓。四件都从母图这一块里切，只有 `eye_close` 取 `claude-close.png`：
 
 ```python
-opening = fill_holes(closing(comp, 2))
-amb = amber & opening; 取最大连通块          # 头发散点会把 bbox 撑到全眼，必须只留最大块
-iris  = ellipse(该块外接椭圆, rx*1.5+2, ry*1.35+2) & opening
-lash  = dark & opening & ~iris
-sclera= opening & ~iris & ~lash
+# 1) 定位：母图 rect(320,250,700,430) 内 (mx<150) 经 closing(4)+fill_holes，
+#    过滤 sum>=800 且 宽>=70 且 高<=60 且 320<=y0<=400，按 x 排序取前两
+#    实测 eyelash-l (367,344)-(471,379)、eyelash-r (558,338)-(657,374)
+# 2) 杏仁：中性色才是 sclera —— 皮肤 r-g≈14..22，sclera r-g<12
+neutral = (mn > 195) & ((r - g) < 12)
+blob    = ink | (neutral & dilate(ink, 8))
+almond  = fill_holes(dilate(blob, 2)) & ellipse(ink_bbox ± 2)
+# 3) 按墨迹切，不按语义切 —— 保证三件拼回去与母图逐像素一致
+lash = (mx < 150) & almond
+rest = almond & ~lash          # irides 与 eyewhite 共用这一份遮罩和母图颜色
 ```
 
-再补两条：`eyewhite` 只给虹膜做背衬（`dilate(iris,1) & almond & ~lash`），`eye_close` 用 `dilate(almond,4)` 限定范围以免眨眼时露背景。**每个件的 RGB 要按语义取源图**：眼三件取睁眼图、`eye_close` 取闭眼图、其余取母图 —— 都取母图会把闭眼姿态的皮肤色填进虹膜。
+- **sclera 判据必须是中性色 `(r-g)<12`，不能用 `(mn>190)&(sat<0.25)`**：后者把奶油 sclera 当成皮肤剔掉，杏仁中间被打洞，脸上刷肤色后就成了虹膜外面一圈白环（就是用户说的「白光」）。
+- **`face` 层要把眼睛的洞补掉**，否则睁眼件一动就露出母图里冻结的眼睛。用 `cv2.inpaint(master, dilate(almond,2), 4, cv2.INPAINT_TELEA)`，不要平涂成肤色 —— 平涂会在眼周留一圈浅色环。
+- 校验工具：`python assets/_raw/_cl_face_cmp.py 820 440 1300 580 3.0` 会按 PSD z 序叠回 2048 并和母图并排，打印 `diff>28` 与 `mean|d|`（眼带实测 `6483/67200`、`mean 10.10`，头发对照区 `mean 4.21`）。
+- 遗留：杏仁外缘仍有一圈很淡的边（母图 sclera 本身就接近肤色），座位尺寸下不可见；`ParamEyeLOpen` 在本模型上实测**几乎不改变画面**（`?eye=0`/`?eye=1` 对比无法区分，见 `preview/gpt-model.html` 新增的 `?eye=` 调试参数），所以 `eye close` 图层在静止时可能一直可见 —— 若要彻底干净，可从 `CLAUDE_PARTS` 里摘掉 `eye_close` 出模（眼型会比母图更「睁」）。
+
+### 10.2b 嘴：要用 `fill_holes` 封成实心，不能只取暗色轮廓
+
+`mouth_open` 初版写成 `rect & (mx<245) & (r-g>18)`：源图口腔内部是**亮粉**（`mx` 常 >245），整片被排除，只剩 ~3px 深色轮廓 → 张嘴时是个「深色空心圈 + 皮肤透过」的甜甜圈，而且它的顶边比 `mouth_close` 高 10px，会在嘴唇上方露出一道弧（用户说的「嘴上面没弄干净」）。正确规则：
+
+```python
+m_dark = mrect & (mx < 205) & ((r - g) > 25)
+m_pink = mrect & ((r - g) >= 45)          # 粉腔 r-g≈90，皮肤 r-g≈23 不会被吃
+mouth  = fill_holes(closing(m_dark | m_pink, 2)) & mrect   # 再取最大连通块
+```
+
+母图 791px、2048 画布 1520px（旧版只有 517px 的轮廓）。
 
 ### 10.3 另外四处必须避开的坑
 
@@ -255,3 +271,24 @@ Do not add any other prop, shadow, or background element.
 1. `ink bbox` 仍是 `(129,42)-(894,1494)` —— 变了就说明它顺手重画了别处，坐标映射会整体漂移；
 2. 手臂与头发/裙摆**不重叠**（重叠处切出来的手会在淡化时露馅）；
 3. 书和手**颜色可分**（书是深褐色、手是肤色），否则只能把"双臂+书"并成一件 `objects` 一起换。
+
+### 12.3 这张主图已经用中转站出好了（2026-11-02）
+
+不用再手工桥接：`relay-kit/` 能开着独立 Edge（CDP 9223）直接驱动 `https://ns01.plusai.io/`（ChatGPT 网页镜像）出图、也能**按附件局部改图**。
+
+- 已产出 `assets/incoming/claude-parts/P0-master-book.png`（1024×1536）：双臂抱合着的深褐古籍、其余不动；**ink bbox `(130,43)-(893,1493)`**，与母图 1px 内一致，`diff>24` 仅 9.96% —— 三件事的前两件已过。
+- 取图必须用 `relay-grab-imagegen.mjs`：生图渲染在 `div.group/imagegen-image` 的 `<img src="/backend-api/estuary/content?id=file_…">` 里，**没有** `data-message-author-role="assistant"`，所以 `relay-artifacts.mjs` / `relay-fetch-artifacts.mjs` 都扫不到（各报 0 条）；页面内 `fetch(url,{credentials:'include'})` 直接 200，不需要签名；卡片懒渲染，须等 5s 并 `scrollTo(0, body.scrollHeight)`。
+
+可复用命令（`relay-kit` 里）：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\relay.ps1 up       # status 确认 mine=true
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\relay.ps1 ask --new --file <png> --message "<§12.1 那段>" --timeout 120
+# 等 5–9 分钟；打出 REPLY (0 chars) / 正在处理图片… 属误报，别重发
+node tools\relay-grab-imagegen.mjs --chat <ask 打印的 CHAT 链接> --list
+node tools\relay-grab-imagegen.mjs --chat <同上> --out D:\dsh_simroundtable\assets\_raw\relay-test\
+```
+
+三个坑：`relay.config.json` 必须**纯 ASCII**（PS 5.1 按 GBK 读会 `ConvertFrom-Json` 崩）；执行策略要 `-NoProfile -ExecutionPolicy Bypass -File`；只操作 `window.name==='dsh-automation'` 的标签页，要关只用 `relay.ps1 down`（禁止按进程名杀浏览器）。
+
+下一步（未做）：按 §12.1 的坐标切 `handwear-l/r` 与 `objects` 三件，其余 21 件复用，出 `claude-book.model3.json`，再取消 `preview/longtable.html:92` 的 `alt` 注释。

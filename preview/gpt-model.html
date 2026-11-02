@@ -126,6 +126,7 @@ const app = new PIXI.Application({ view: document.getElementById('cv'),
     // 无头截图里 ?p=EyeLOpen:0 就永远看不到闭眼
     const noEye = new URLSearchParams(location.search).has('noeye');
     if (noEye) model.internalModel.eyeBlink = null;
+    const eyePin = Math.max(0, Math.min(1, Number(new URLSearchParams(location.search).get('eye') ?? 1) || 0));
 
     let idleOn = true;
     app.ticker.add(() => {
@@ -136,8 +137,9 @@ const app = new PIXI.Application({ view: document.getElementById('cv'),
       // 眼皮开合的关键形在该默认值下会把上睫毛压薄，截图就看着像"半睁"。这里补回
       // 睁眼值，也就是 Pixi 的 EyeBlink 平时在做的事。
       if (noEye) {
-        cm.setParameterValueById('ParamEyeLOpen', 1);
-        cm.setParameterValueById('ParamEyeROpen', 1);
+        // ?eye=0 可把钉住的值改成 0，用来验证 eye close 图层到底有没有绑上参数
+        cm.setParameterValueById('ParamEyeLOpen', eyePin);
+        cm.setParameterValueById('ParamEyeROpen', eyePin);
       }
     });
     document.querySelectorAll('[data-motion]').forEach(b => b.onclick = () =>

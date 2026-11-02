@@ -29,3 +29,8 @@ preview/l2d-test/
 # 本地抠图环境（rembg / onnxruntime，~2GB 不可提交）
 .venv-matte/
 
+# relay-kit 的浏览器配置与截图/临时目录（工具本体可单独入库）
+relay-kit/tools/relay.config.json
+shots/
+.tmp/
+
