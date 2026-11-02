@@ -591,3 +591,27 @@ const forceGest = (() => {
 四个 `.exp3.json`（Smile/Sad/Angry/Surprised）写的正是 `ParamMouthForm`、`ParamBrowLY/RY`、`ParamEyeLOpen`、`ParamMouthOpenY` —— 前两组没绑画件，所以 `?expr=Smile` 与不传 expression 的渲染**逐像素相同**（差 610px 全在顶部 meta 文字上）。**expression 目前等于空操作，不要指望它**；要表情就按 §16 叠画件，或者像舞台那样直接写参数。
 
 `GESTURES` 已据此重写（`assets/_raw/_patch_gestures.py`）：只用上表里非零的参数，`const env = u => Math.sin(Math.PI * u)`，12 个动作 —— `nod`(−11° `AngleY`)、`bow`、`shake`、`tilt`(`AngleZ`)、`look`、`glance`、`think`(`tilt`+`nod`+`hair .25`)、`smile`/`happy`(`ParamEyeBallForm`)、`huh`、`leanin`(`ParamBodyLean`)、`hairtoss`(`ParamHairFront` 0.9·sin(2πu))。验证：`?only=4&eye=1` 与 `&gest=hairtoss:0.35` 差 20334px，其中头发区三块 `(957,436)-(1082,590)` 共 5041px（另有 13737px 是场景微尘，详见 §16.5），肉眼见发梢外扬。**动作代码里再出现 `mform`/`brow`/`eyeX` 就是重新引入安慰剂**。
+
+### 16.7 笑眼补丁要「洗色」，不然会露出橘色假虹膜
+
+`face.png` 的眼窝是 `claude_to_canvas.py` 用 `cv2.INPAINT_TELEA` 填的，而 TELEA 会把原眼睛的橙色低频**抹成一块橙色污渍**。笑眼件的肤色补丁如果直接抠 `face.png`，`happy = 1` 盖住真眼之后，那块污渍就变成「假虹膜」（`preview/_pb-hi2-face.png` 左眼内侧的橘点）。
+
+修法（`make_happy_eyes.py`）：
+
+1. 掩码 = `eyewhite | irides | eyelash` 三件 alpha 并集，先 `cv2.dilate(np.ones((11,11)))`，再并上一切非肤色像素（`sat > 40 | max < 190`）—— 把眼窝、上下眼睑、睫毛残留全算进去；
+2. 对补丁做 `cv2.inpaint(patch, mask, 9, cv2.INPAINT_TELEA)`，从四周干净皮肤往里填；
+3. 弧必须画在**独立透明层**再 `alpha_composite` 到补丁上（直接 `draw` 在 RGBA 上会和肤色混成灰）；
+4. `pad = 16`、羽化 `ramp = 4`，`TMAX = 18` canvas px，`sin(πu)**0.45` 做锥形——细了在座位尺度（k≈0.13）会被降采样平均进皮肤色，粗了像画了两条眉毛。
+
+重出后 v3 是 `claude.layout.moc3 720896B`、抱书版 `705536B`（各 16 个文件）。
+
+### 16.8 出一段演示 GIF（不用浏览器）
+
+舞台只能无头截单座位，`?n=6` 会挂；要动态展示就用 PSD2Live 的 `export_target`：
+
+```powershell
+python assets\_raw\claude_v3_gif.py --target gif --size 560 --fps 16
+# -> assets/build/claude-v3/media/claude.layout.gif（Idle 片段，192 帧）
+```
+
+脚本做的是 `import_layout(v3) → rig_generate → 重放 PHYSICS → project export_target`，`settings` 里 `clip=Idle`、`physics=true`、`background=00000000`（透明）。两个 `losses` 是必然的：GIF 把 deformers/parameters 烘成像素，且只有 256 色 + 1-bit 透明。要更清楚的动图就换 `--target webp`（`--target mp4` 需要在 `settings` 里传 `ffmpeg=<绝对路径>`）。**注意 import 会把物理重置回软默认**，所以脚本里必须重放 `tune_physics.PHYSICS`，否则头发又变橡皮筋。

@@ -20,6 +20,7 @@
 //
 //   ?model=<path>            model3.json (default: the Claude build)
 //   ?p=EyeLOpen:0,AngleX:20  parameters to pin before the single render
+//   ?expr=Smile              apply one expression from the model3.json first
 //   ?scale=1                 canvas scale (1 = 2048 canvas pixels)
 const q = new URLSearchParams(location.search);
 const MODEL = q.get('model') || '../assets/build/claude-parts/p2l/claude.model3.json';
@@ -50,6 +51,12 @@ const cm = model.internalModel.coreModel;
 // update, so a pinned eye value would be undone before the single render.
 model.internalModel.eyeBlink = undefined;
 const applied = [];
+// Optional expression: it has to be applied *before* the single update, otherwise
+// the additive/multiply pass runs after our pinned values and wipes them.
+const expr = q.get('expr');
+if (expr) {
+  try { model.expression(expr); applied.push('expr=' + expr); } catch (e) { applied.push('expr!' + expr); }
+}
 for (const pin of pins) {
   const i = pin.indexOf(':');
   if (i < 0) continue;
