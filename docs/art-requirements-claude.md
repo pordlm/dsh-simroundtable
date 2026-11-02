@@ -1107,3 +1107,34 @@ missing = body & ~cov          # 8461 px
 `EyeLOpen:0` 时虹膜随 toggle 消失、回到原画的半闭眼（`_iris-open-close.png`）；
 座位尺度 `?only=4&still=1&eye=1` 的脸依旧干净（`_irisstage-face.png` 7×）。
 重建：`claude.layout.moc3 344000B`（26 个件，多出 `irides-l/-r`）、抱书版 `338432B`、GIF 15048555B。
+
+### 16.19 九个极限姿态的压力测试：没有洞，也没有漏底（round 17）
+
+目标是「能动的小克」，所以不能只验收静止帧：要在参数端点上扫一遍会不会露底、破面、漏绿。
+
+九帧（`probe.html?model=…&scale=0.62&bg=%23101418`）：静止；`AngleX:30,AngleY:-20`；
+`AngleX:-30,AngleY:20`；`AngleZ:20`；`EyeLOpen:0.5,EyeROpen:0.5,EyeBallX:0.85,EyeBallY:0.5`；
+`MouthOpenY:1,MouthForm:-0.6`；`BodyAngleX:12,BodyAngleZ:8,Breath:0.8`；
+`HairFront:0.14,HairBack:0.6`；抱书版 `AngleX:-18,AngleZ:-10`。
+审计脚本 `assets/_raw/audit_poses.py` 对每张输出
+`bg / sil / main / holes(>=40px 的背景色空洞) / white / green`，判据是「有洞 or 绿色渗漏 >200px」。
+
+两个必须记住的坑，都和**背景色**有关：
+
+1. `probe.html` 的页面底色是 `#00ff00`（切图检查用的 chroma key），左上角还有一个白色 meta 文本框。
+   第一次在 `(2,2)` 采背景色 → 采到那块白，`sil` 把整张画布都算成主体，指标全错。
+   改成从 `a[-3, -3]`（右下角）采。
+2. 绿底上「绿色渗漏」永远是 4k–11k 像素：半透明的发丝尖与缎带边和 `#00ff00` 混合后
+   `g > r+70` 成立，而角色身上根本没有绿色。**这是假阳性，不是模型缺陷。**
+   于是给 `probe.html` 加了 `?bg=%23101418`（`document.documentElement/body` 的 background），
+   在深色页面重拍，`green` 全部归零 —— 这也更接近真实舞台（深色会场）。
+
+深色重拍后的结果：**9/9 帧 `holes=[]`、`green=0`**，主体 424832–450021px，
+拼图 `preview/_pose-matrix.png`（3×3，crop `(300,180,900,1000)`）。
+
+判读注意：拼图里 `AngleZ:20` 那格左下角看着像一块黑色楔形，3× 并排对照 `_n0`/`_n3`
+（`preview/_z-wedge.png`）证明那是**她自己的后发**，静止帧同一位置也在，不是破面。
+
+姿态确实生效（以静止帧为基、1200²、`diff>24`）：`AngleX+30` 132329px、`AngleZ+20` 191795px、
+body twist 281243px、hair 41903px、抱书 212499px、eyes half+ball 8972px、mouth open 3464px。
+顶部 `y<40` 的差是 meta 参数文本本身变了，不是画面。

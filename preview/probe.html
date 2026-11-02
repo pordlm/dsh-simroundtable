@@ -25,6 +25,12 @@
 const q = new URLSearchParams(location.search);
 const MODEL = q.get('model') || '../assets/build/claude-parts/p2l/claude.model3.json';
 const SCALE = Number(q.get('scale') || 1);
+// ?bg=%23101014 replaces the chroma-key page colour.  Keep the default green for
+// cut-out inspection, but audit renders on a dark page: semi-transparent parts
+// (hair tips, ribbon edges) blend with the backdrop, and against #00ff00 they read
+// as green leakage that does not exist on the actual stage.
+const BG = q.get('bg');
+if (BG) document.documentElement.style.background = document.body.style.background = BG;
 const CW = 2048, CH = 2048;
 const W = Math.round(CW * SCALE), H = Math.round(CH * SCALE);
 
