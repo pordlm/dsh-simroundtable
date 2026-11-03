@@ -2224,3 +2224,62 @@ $b='http://127.0.0.1:8848/preview/probe.html?model=../assets/build/claude-v3/mod
 
 `_penab.py` 产出 `preview/_pensive-ab.png`（`(950,545)-(1130,665)` 4× 并排）。判据：
 等宽、两端圆的微下弯线，没有分叉、没有残留的嘴角尖。
+
+## 37. 张嘴件从哪来：母图特写出图 → 裁件
+
+`mouth_open` 换了四代。前三代是自己用 Pillow 画的（见 §36），结论是**画不出来**：
+眼睛、头发可以用规则拼，嘴不行——它的好坏全在「开口弧线的曲率 + 舌头露多少 +
+描边粗细」这三件事上，参数化之后怎么看都像碗。最后有效的是**让出图模型在母图
+的脸部特写上改嘴，再从那张图里裁件**。
+
+### 37.1 三种问法，只有一种能用
+
+| 问法 | 结果 | 结论 |
+| --- | --- | --- |
+| 直接让它「画一张张开的嘴」 | 单独一张嘴的设计图，脱离脸的比例与画风 | 贴上去比例/线色都对不上，弃 |
+| 发**整身母图**说「只改嘴，其余像素不动」 | 它把整张重画了：`diff>24` 有 53859 px，线条全挪位；第一版还给嘴加了高光和白边（像涂口红） | 整身图只能当风格参考，不能当取件源 |
+| 发**脸部特写**（母图裁 810×510、3×）说「只在这张特写里改嘴，其余一个像素不动」 | 得到 1602×982 的特写，平涂、细棕线、深栗红口腔、下唇内侧一小条粉舌 | **采用**：源分辨率足够，裁到 47 px 仍然干净 |
+
+值得记的是：整身重画那张的嘴单独裁出来只有 38×27 px，而且是个偏圆的「D 形」——
+**它在原图里看着正常，是因为贴在 1024 宽的整身上只有 4% 的高度；放大成 47 px 的
+独立画件就露馅**（`preview/_mouth-3way.png` 第三格）。所以取件源必须比成品大一个
+数量级，而不是「原图里看着对就行」。
+
+### 37.2 裁件四步（`assets/_raw/use_generated_mouth2.py`）
+
+1. **alpha 用周围肤色算**，不是白底抠图——嘴长在皮肤上，没有背景可键。
+   `skin = 裁框四周 12 px 的中位色`（实测 `[253,229,219]`），
+   `alpha = clip((max|px-skin| - 5) / 12, 0, 1)`；口腔/舌头/描边离肤色都远，皮肤处归零。
+2. **反预乘**：`rgb = (a - skin*(1-alpha)) / max(alpha,0.05)`，否则缩小的时候肤色被
+   拖进边缘，一圈发白。
+3. **先 8× 再降**：源框 315×130 → 8× → LANCZOS 到 47 px 宽，边缘只有 1 px 过渡。
+4. **锚点**：闭口件的上缘中线（`top=589`、`cx=1028`），开口件的顶边压在同一条线上，
+   宽度取 **47 px**（与闭口件相同），高度自然得到 19 px。这样切换只换「开口」，不动嘴位。
+
+产物 `parts/mouth_open.png` 落在 `(1005,589)-(1052,608)`；PSD2Live 构建日志应打印
+`mouth open rect={'left': 1005, 'top': 589, 'width': 47, 'height': 19}`。
+
+### 37.3 验证
+
+```powershell
+# 1:1 层面对照（face + 闭口 / face + 张口）
+& "C:\dev\python 3.12.0\python.exe" assets\_raw\_mouth_gen_pair.py
+
+# rig 层面：probe 固定参数，scale .42 下裁嘴部 6×
+# ?scale=0.42&raw=1&model=/assets/build/claude-v3/model/claude.layout.model3.json&p=ParamMouthOpenY:0|1
+```
+
+`preview/_m3-pair.png`：闭口是一条上扬的浅弧，张口是同一位置的深栗色开口 + 小舌，
+描边粗细与脸上其他线一致。v3 moc3 `344576 B`，book moc3 `339008 B`（两套都重建过）。
+
+### 37.4 复现命令
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\relay-kit\tools\relay.ps1 ask --chat <会话> \
+  --file assets\incoming\claude-parts\mouth-ref.png --message "<只改嘴的要求>" --timeout 45
+node relay-kit\tools\relay-grab-imagegen.mjs --chat <会话> --list
+node relay-kit\tools\relay-grab-imagegen.mjs --chat <会话> --out assets\incoming\claude-parts\mouthgen3
+```
+
+`relay.ps1 ask` 基本都会报 `Error: Request timed out`（出图 5–9 分钟，远长于脚本等待），
+**不代表失败**：用 `relay-tabs.mjs` 找会话地址，再用 `--list` 看图片条数涨没涨。
