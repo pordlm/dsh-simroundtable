@@ -44,7 +44,7 @@ const WHALE={key:"whale-girl",url:"../assets/models/whale-girl/c_0120.model3.jso
 const LOOK_OFF=new URLSearchParams(location.search).get('nolook')==='1';
 const RIGS={
   claude:{url:"../assets/build/claude-v3/model/claude.layout.model3.json",scale:1.42,dx:0,dy:44,mouth:true,cut:true},
-  gpt:{url:"../assets/build/gpt-p2l/p2l/gpt.model3.json",scale:.85,dx:111,dy:-25,mouth:true}
+  gpt:{url:"../assets/build/gpt-half-atlas2048/gpt.model3.json",scale:.85,dx:111,dy:-25,mouth:true}
 };
 function characterFor(name){
   const key=String(name||"").toLowerCase();

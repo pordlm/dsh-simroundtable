@@ -696,3 +696,57 @@ cmd /c $cmd
   定位再向两侧取窗口，`re.sub(r'<[^>]+>', '|', seg)` 剥标签。
 - dump 里的中文是乱码（编码问题），数字可靠。
 
+## 13. 半画布 + `--atlas 2048`：把六张 4096 压成六张 2048
+
+§12 记过「`--atlas` 只是页大小上限」——在 2048 画布的 rig 上试什么都不动，
+因为那块 rig 的岛真的放不进 2048。真要降页大小，得先降**画布**，再让 `--atlas`
+去卡住页上限；两步一起做才有效果。
+
+### 13.1 做法
+
+`assets/_raw/gpt_half_canvas.py`：
+
+1. 把 `assets/build/gpt-p2l/parts`（2048²）缩到 1024²，写进 `assets/build/gpt-half/parts`；
+2. `B.CANVAS = 1024` 后复用 `build_gpt_model.build_psd()` 重写 PSD；
+3. 跑 `PSD2Live.exe ... --atlas 2048 --mesh-spacing 64`。
+
+```powershell
+& "C:\dev\python 3.12.0\python.exe" assets\_raw\gpt_half_canvas.py
+# 只出 4096 的版本（默认 --atlas 4096）：
+#   assets/build/gpt-half/p2l            3 页 4096  解码 201 MB
+# 再用 2048 页上限重跑一次：
+#   assets/build/gpt-half-atlas2048      6 页 2048  解码  96 MB  ← 线上用这个
+```
+
+**缩图必须在预乘空间做**（`resize_premultiplied()`）：直通 alpha 的 LANCZOS
+负瓣会让 `rgb > alpha`，后面的反预乘把那些像素推成纯白，头发边缘就会出现一圈白边
+—— 与 `claude_to_canvas.py` 里 `premult_resize()` 修的是同一类缺陷。
+
+### 13.2 数字（同一张 PSD，只改页上限）
+
+| 构建 | 画布 | 页 | 解码 RGBA | PNG 合计 |
+| --- | --- | --- | --- | --- |
+| `assets/build/gpt-p2l/p2l`（旧，线上曾用） | 2048 | 6 × 4096² | 403 MB | 8.3 MB |
+| `assets/build/gpt-half/p2l` | 1024 | 3 × 4096² | 201 MB | 2.85 MB |
+| `assets/build/gpt-half-atlas2048` | 1024 | 6 × 2048² | **96 MB** | 2.65 MB |
+
+注意中间那行的反直觉之处：只降画布会让**页数减半、页大小不变**，省一半；
+再卡 `--atlas 2048` 才把每页也砍到四分之一，合计省 4.2 倍。
+
+### 13.3 画质验收
+
+`preview/probe.html?model=...&raw=1` 分别在 1:1 原生尺度各渲一张
+（新 rig 要加 `&scale=2`，因为它的画布只有旧版一半），同尺寸逐像素比：
+
+```
+mean 1.25 / p99 26 / diff>24 = 11087 of 1,000,000 (1.1%)
+```
+
+差异全部落在发丝与描边的一像素级采样上，座尺度（模型高约 155 px）看不出来。
+
+### 13.4 线上落点
+
+`lib/stage.js` 的 `CHARACTERS.gpt` 现在指向 `build/gpt-half-atlas2048`，贴图是
+`gpt.2048/texture_0N.png`；`preview/stage-760.html` 的 `RIGS.gpt.url` 同步。
+`npm test` 里 `test/stage.test.mjs` 的 `characterRoutes()` 会 stat 每个文件，
+所以路径写错会直接测试失败，不用靠肉眼。
