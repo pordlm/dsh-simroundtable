@@ -199,11 +199,30 @@
   所以"截图看起来没问题"完全不能证明时序是对的。
 - **修法**：`fx.g.f((t - fx.start) / fx.g.dur)`。`lib/client.js:2197` 与
   `preview/longtable.html:390` 一直是对的，只有 showcase 这一页漏了 `/dur`。
-- **验证**：按 60 fps 采样，逐帧最大增量 `nod 0.52° / bow 0.56° / shake 0.74° / tilt 0.34°`
+- **验证**：按 60 fps 采样，逐帧最大增量 `nod 0.71° / bow 0.74° / shake 0.84° / tilt 0.52°`
   （脚本 `assets/_raw/_smooth.py`）；定格相位也变得可预测 ——
-  `?gest=shake:0.5` 必然是 `turn = 6·sin(1.5π)·sin(0.5π) = -6°`，`?gest=bow:0.5` 必然是 `nod = -16°`。
+  `?gest=shake:0.25` 必然是 `turn = 8·sin(0.5π)·sin(0.25π) ≈ 5.7°`，`?gest=bow:0.5` 必然是 `nod = -24°`。
 - **教训**：凡是"时间 → 相位"的映射，函数签名里就该写清 `u` 是归一化相位；
   一个页面传毫秒、另一个传比例，是这类 bug 的标准形态。
+
+### 4.10 动作"不明显"：幅度对半砍，而且只有旋转没有低头
+
+`ParamAngleY` 的像素响应（900²、`scale=0.5`、`bg=#ffffff`）：`-11°` 就有 `diff>24 = 39991 px`，
+`-18°` 才 `52247 px` —— 也就是说 **-11 已经是"动了"，只是不够"像点头"**，而 -17/-18 仍然远未失真。
+一次到位的调法：
+
+- 别按直觉一点点加，直接量像素（-11 → -17 是 1.5 倍，观感差别很大）；
+- 只转 `AngleX/AngleY` 读起来像"整个人被转了一下"；点头补 `lean: 1.5`、鞠躬补 `lean: 5`
+  才有"身子跟着动"的重量感（`lean` → `ParamBodyAngleY`/`ParamBodyLean`）；
+- 摇头的来回次数比幅度更影响观感：`±8°` 两摆 / 1000 ms（≈2 Hz）比 `±6°` 三摆 / 1150 ms
+  （≈2.6 Hz）更容易读清，且座位尺寸下不会把侧发甩成两层（§4.8）。
+
+### 4.11 `?gest=id:u` 定格别靠挪 `fx.start`
+
+第一版写 `fx.start = performance.now() - u * fx.g.dur`：无头截图里 `t` 可能被 `?tpin`/`?noidle`
+钉成常数、或早就跑过一轮，`t - fx.start` 一减就是随机相位，同一 URL 两次截图能差一整轮动作。
+现在用显式的 `fx.frozen = u`，帧循环里 `fx.g.f(fx.frozen != null ? fx.frozen : (t - fx.start) / fx.g.dur)`，
+并且 `fx.frozen != null` 时跳过"到点自动清空"，定格才是真的定格。
 
 ---
 

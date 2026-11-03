@@ -69,21 +69,21 @@ const NO_EYE = q.has('noeye');
 const NO_IDLE = q.has('noidle');
 
 const GESTURES = [
-  { id:'nod',      label:'点头',   dur:1100, f:u => { const e = Math.sin(Math.PI*u); return { nod:-11*e }; } },
-  { id:'bow',      label:'鞠躬',   dur:1500, f:u => { const e = Math.sin(Math.PI*u); return { nod:-16*e, lean:2*e }; } },
+  { id:'nod',      label:'点头',   dur:1250, f:u => { const e = Math.sin(Math.PI*u); return { nod:-17*e, lean:1.5*e }; } },
+  { id:'bow',      label:'鞠躬',   dur:1700, f:u => { const e = Math.sin(Math.PI*u); return { nod:-24*e, lean:5*e }; } },
   // 摇头：三个来回 / 1.15 s（≈2.6 Hz）、±6°。原来的 ±8° 四个来回（4.4 Hz）在 6% 座位比例下
   // 一帧就能让侧发横跨脸部 30+ px，看起来像两层错位；同时给 ParamHairFront 一个滞后四分之一
   // 周期的量，头发像被甩出去再跟回来，而不是硬跟着头一起转。
-  { id:'shake',    label:'摇头',   dur:1150, f:u => { const e = Math.sin(Math.PI*u), s = Math.sin(Math.PI*3*u), c = Math.cos(Math.PI*3*u); return { turn:6*s*e, hair:-0.16*c*e }; } },
-  { id:'tilt',     label:'歪头',   dur:1400, f:u => { const e = Math.sin(Math.PI*u); return { tilt:9*e }; } },
-  { id:'look',     label:'远望',   dur:1700, f:u => { const e = Math.sin(Math.PI*u); return { turn:13*e, tilt:3*e }; } },
-  { id:'glance',   label:'瞥一眼', dur:1300, f:u => { const e = Math.sin(Math.PI*u); return { turn:-9*e, tilt:-3*e }; } },
-  { id:'think',    label:'思考',   dur:1900, f:u => { const e = Math.sin(Math.PI*u); return { tilt:6*e, nod:-3*e, hair:0.25*e }; } },
+  { id:'shake',    label:'摇头',   dur:1000, f:u => { const e = Math.sin(Math.PI*u), s = Math.sin(Math.PI*2*u), c = Math.cos(Math.PI*2*u); return { turn:8*s*e, hair:-0.10*c*e }; } },
+  { id:'tilt',     label:'歪头',   dur:1400, f:u => { const e = Math.sin(Math.PI*u); return { tilt:14*e }; } },
+  { id:'look',     label:'远望',   dur:1700, f:u => { const e = Math.sin(Math.PI*u); return { turn:20*e, tilt:5*e }; } },
+  { id:'glance',   label:'瞥一眼', dur:1300, f:u => { const e = Math.sin(Math.PI*u); return { turn:-14*e, tilt:-5*e }; } },
+  { id:'think',    label:'思考',   dur:1900, f:u => { const e = Math.sin(Math.PI*u); return { tilt:10*e, nod:-6*e, hair:0.3*e }; } },
   { id:'smile',    label:'微笑',   dur:2100, f:u => { const e = Math.sin(Math.PI*u); return { mform:0.6*e, eye:1-0.35*e }; } },
-  { id:'happy',    label:'开心',   dur:1600, f:u => { const e = Math.sin(Math.PI*u); return { happy:e, nod:4*e, hair:0.2*e }; } },
-  { id:'huh',      label:'疑惑',   dur:1300, f:u => { const e = Math.sin(Math.PI*u); return { tilt:-7*e, brow:0.6*e }; } },
-  { id:'leanin',   label:'凑近',   dur:1600, f:u => { const e = Math.sin(Math.PI*u); return { lean:6*e, nod:-4*e }; } },
-  { id:'hairtoss', label:'甩发',   dur:1200, f:u => { const e = Math.sin(Math.PI*u); return { hair:0.6*e, turn:4*e }; } },
+  { id:'happy',    label:'开心',   dur:1600, f:u => { const e = Math.sin(Math.PI*u); return { happy:e, nod:7*e, hair:0.25*e }; } },
+  { id:'huh',      label:'疑惑',   dur:1300, f:u => { const e = Math.sin(Math.PI*u); return { tilt:-11*e, brow:0.6*e }; } },
+  { id:'leanin',   label:'凑近',   dur:1600, f:u => { const e = Math.sin(Math.PI*u); return { lean:10*e, nod:-7*e }; } },
+  { id:'hairtoss', label:'甩发',   dur:1200, f:u => { const e = Math.sin(Math.PI*u); return { hair:0.8*e, turn:6*e }; } },
 ];
 
 const sliders = [
@@ -221,12 +221,12 @@ async function boot() {
     // （第一版写成 NO_IDLE ? 0 : (tpin...)，于是 ?noidle=1&tpin=1400 实际还是 t=0，
     //  两帧截图只差 348px，差点被当成「说话态没驱动」）。
     const t = (T_PIN !== null && Number.isFinite(T_PIN)) ? T_PIN : (NO_IDLE ? 0 : performance.now());
-    if (fx && t - fx.start >= fx.g.dur) { fx = null; for (const b of document.querySelectorAll('#gGrid button')) b.classList.remove('on'); }
+    if (fx && fx.frozen == null && t - fx.start >= fx.g.dur) { fx = null; for (const b of document.querySelectorAll('#gGrid button')) b.classList.remove('on'); }
 
     // u 必须是 0..1 的归一化相位：这里原来传的是「已经过去的毫秒数」，于是每条曲线
     // 都在毫秒尺度上振荡（sin(π*ms) 的周期只有 2 ms）—— 点一下按钮就鬼畜抖动。
     // lib/client.js 与 longtable.html 一直是对的，只有这页漏了 /dur。
-    const off = fx ? fx.g.f((t - fx.start) / fx.g.dur) : {};
+    const off = fx ? fx.g.f(fx.frozen != null ? fx.frozen : (t - fx.start) / fx.g.dur) : {};
     const env = speakOn ? speechEnv(t) : 0;              // 语音包络：口型与点头共用
     const sy = speakOn ? 0.10 + 0.90 * env : state.MouthOpenY;
     const talkNod = speakOn ? 5.2 * (env - 0.5) : 0;     // (env-0.5) 才有回位
@@ -318,7 +318,9 @@ async function boot() {
     ' 个 · 贴图 ' + Math.round(model.width) + 'x' + Math.round(model.height);
   // ?book=1 直接进抱书姿势；?gest=nod:0.5 可定格某个动作，都是给无头截图用的
   if (q.has('book')) document.getElementById('btnBook').click();
-  if (q.has('gest')) { const [id, u] = q.get('gest').split(':'); trigger(id); fx.start = performance.now() - (Number(u) || 0.5) * fx.g.dur; }
+  // 定格某个动作：`?gest=nod:0.5` 把相位钉在 u=0.5。不要靠「把 fx.start 往前挪」来定格，
+  // 那要依赖 performance.now()，无头截图里 t 可能被 tpin/NO_IDLE 冻住，两边一相减就是随机相位。
+  if (q.has('gest')) { const [id, u] = q.get('gest').split(':'); trigger(id); fx.frozen = Number.isFinite(Number(u)) ? Number(u) : 0.5; }
 }
 boot().catch(e => { errBox.textContent = 'load failed: ' + (e && e.stack || e); });
 </script>
