@@ -2151,3 +2151,76 @@ foreach($p in @('AngleX:30','AngleX:-30','AngleY:25','AngleY:-25','BodyAngleZ:12
 24 簇分布在 x 278..736 / y 135..660，正是胸衣、围裙与白色蕾丝，不是未上色破洞
 （`preview/_p39w_crop.png` 放大 2× 可直接看）。脚本注释里那句「她的裙子与缎带本来
 就是白的，white 只有超过很高门槛才有意义」就是这个意思。
+
+## 36. 表情只能靠换件：`ParamMouthForm` 是空转的
+
+用户看完演示页说「思考时一微笑是不是比较奇怪」。查下来这不是动作幅度问题，而是
+**这个 rig 根本不会换表情**：笑是画在闭口件里的，参数表里的 `ParamMouthForm`
+没有任何变形器消费。
+
+### 36.1 怎么确认它是空转
+
+```powershell
+$b='http://127.0.0.1:8848/preview/probe.html?model=../assets/build/claude-v3/model/claude.layout.model3.json&scale=0.5&bg=%23ffffff'
+# 打开 $b&p=ParamMouthForm:0 / :-1 / :1 三张
+```
+
+0 与 ±1 之间 `diff>24` 只有 **273 / 21 px**，且差异 bbox 是 `(130,4)-(230,12)` ——
+左上角那行元信息文字。参数确实在（`workspace_overview` 的 20 个参数里有它），但
+没有 mesh 绑它，写什么都不会动。
+
+同一结论适用于 `ParamBrowLY/RY`（母图里没有眉毛）与 `*.exp3.json`：PSD2Live 导出的
+表情只写 `ParamMouthForm`/`ParamEyeLOpen`/`ParamBrowLY,RY`，两项空转、一项与眨眼抢
+参数，所以**表情一套都没接进舞台**。眼睛的 ^^ 靠 `squint-l/r` 换件 +
+`ParamEyeBallForm`，不是表情文件。
+
+### 36.2 加一件「平嘴」覆盖件（三轮才成）
+
+`assets/_raw/make_mouth_flat.py` 从 `face.png` + `mouth_close.png` 生成
+`parts/mouth_flat.png`：
+
+- **底**：`face.png` 原像素（脸已用平皮肤填过洞），alpha 取笑嘴自身 footprint 的
+  `dilate 11×11 + GaussianBlur σ2.6`。用矩形会把下巴糊成浅色方块；`dilate 7×7`
+  时笑嘴两个上扬的嘴角会从补丁边缘漏出来，像「平嘴两侧各挑一根小尖」。
+- **线**：`draw.line(width=2.6*SS, joint="curve")` + 两端 `draw.ellipse` 圆头，
+  中点下弯 `1.2*4u(1-u)` px，颜色取笑嘴最暗 40% 像素的中位色 `(146,77,64)`。
+  **不要用两端收细的多边形**：楔形在 `SS=4` 下塌到 1 px 以下，LANCZOS 缩回后右端
+  裂成两股尾巴 —— 试了两轮、加大 `dilate` 也没用，因为那两股是线自己。
+
+### 36.3 层名决定它是不是「嘴」
+
+| 写法 | 结果 |
+| --- | --- |
+| `("mouth_flat", "mouth flat", …, "ParamMouthForm", None)` | role = `mouth`，被拆成 `… / Upper lip outline` + `Lower lip outline` 三个 drawable，`variant` 被嘴系统忽略 → 参数 0/1 只差 21 px |
+| 再加 `tags: ["objects"]` | 仍是 role = `mouth`（**归类先看层名，再看 tags**） |
+| `("mouth_flat", "pensive line", …)` | role 消失、不再拆唇轮廓，`variant: ParamMouthForm` 生效 → 0/1 差 **337 px**，bbox 落在嘴部 |
+
+文件名（stem）可以带 `mouth`，**显示名不行**。同一条规律解释了 `eye_happy` 为什么
+要 `tags: ["eyewear"]`：它虽是眼，但不想被并进 `eyecatch`/`irides`。
+
+### 36.4 接入舞台（三处）
+
+`ParamMouthForm` 是 toggle：值到 1 显示平嘴件。曲线给一个 `mform` 分量即可 ——
+`think` 全程 1、`huh` 0.8、`smile` **绝不能给**（否则「微笑」变成平嘴）。
+
+| 文件 | 曲线 | 写参数 |
+| --- | --- | --- |
+| `preview/claude-showcase.html` | `think`/`huh` 的 `f()` 返回 `mform` | 已有 `sv(core,'ParamMouthForm',p.mform)` |
+| `preview/longtable.html` | 同上（`mform = off.mform` 已就位） | 已有 `sv(core,'ParamMouthForm',p.mform)` |
+| `lib/client.js` | `STAGE_GESTURES.think` | 新增 `core.setParameterValueById("ParamMouthForm", …)`（try/catch：鲸鱼娘/GPT 没这件） |
+
+重建两个 rig：`claude_v3_build.py --import` → `344640 claude.layout.moc3`；
+`claude_book_build.py` → `339072`。`LAYERS_BOOK` 是 `LAYERS` 去掉 `handwear`，
+所以抱书版自动带上同一件。
+
+### 36.5 验收
+
+```powershell
+# 定格思考动作中点：嘴应是一条平线而不是笑弧
+& .\assets\_raw\shot.ps1 -Url 'http://127.0.0.1:8848/preview/claude-showcase.html?gest=think:0.5&zoom=1&noidle=1' -Out preview\_think2.png -W 900 -H 900 -WaitMs 14000
+# 1:1 形状对照：左笑、右平嘴
+& python assets\_raw\_penab.py
+```
+
+`_penab.py` 产出 `preview/_pensive-ab.png`（`(950,545)-(1130,665)` 4× 并排）。判据：
+等宽、两端圆的微下弯线，没有分叉、没有残留的嘴角尖。

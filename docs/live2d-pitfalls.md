@@ -260,3 +260,26 @@
    挂死时按 `CommandLine -like '*edge-gpt*'` 杀 msedge 再删 `%TEMP%\edge-gpt`。
 9. **`Start-Process -RedirectStandardOutput` 会把 pwsh 挂住**：用 `cmd /c start /b`。
 10. **一次 PowerShell 调用只跑一个截图**（工具硬超时 170–200 s），`Start-Job` 拿不到文件。
+
+### 3.8 覆盖件叫 `mouth xxx` 会被「说话嘴」系统收走
+
+症状：加了一件平嘴覆盖件、manifest 里写了 `variant: {type:"toggle", parameter:"ParamMouthForm"}`，
+但 probe 里 `ParamMouthForm:0` 与 `:1` 只差 21 px（且 bbox 在左上角元信息文字上）。
+
+原因：PSD2Live 的 `RigBuilder` **先按层名归类**，名字含 `mouth` 就进说话嘴系统，
+被拆成 `xxx / Upper lip outline` / `Lower lip outline`，并绑到 `ParamMouthOpenY`
+而不是你写的 `variant`。`tags: ["objects"]` 也救不了（tags 在归类之后）。
+
+修法：改**显示名**（`"pensive line"`），文件名可保留 `mouth_flat`。修完
+`workspace_overview` 的 `layers` 从 29 降到 27（少两个唇轮廓），`ParamMouthForm`
+0/1 差 337 px 且 bbox 落在嘴部。见 `docs/art-requirements-claude.md` §36.3。
+
+### 3.9 形态类描线别用「两端收细的多边形」
+
+症状：4× 放大下，一条平嘴线的右端裂成两股细尾巴。
+
+原因：多边形在两端把厚度收到 1 px 以下，`SS=4` 超采样再 LANCZOS 缩回时半透明边缘
+被振铃撕开。加大补丁 alpha 的 `dilate` 没用 —— 分叉是线自己。
+
+修法：`draw.line(width=w*SS, joint="curve")` + 两端 `draw.ellipse(r=w*SS/2)` 圆头，
+宽度恒定；要「中间厚两端薄」的观感就整体调 `w`，不要逐点算宽度。见 §36.2。
