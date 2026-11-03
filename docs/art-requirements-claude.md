@@ -2284,3 +2284,92 @@ node relay-kit\tools\relay-grab-imagegen.mjs --chat <会话> --out assets\incomi
 
 `relay.ps1 ask` 基本都会报 `Error: Request timed out`（出图 5–9 分钟，远长于脚本等待），
 **不代表失败**：用 `relay-tabs.mjs` 找到会话地址，再用 `--list` 看图片条数涨没涨。
+
+## 38. 三格联图取件：一次拿齐嘴的三个状态（round 39）
+
+§37 是一张一张问出来的：先要「张开嘴的特写」，再要「整身只改嘴」。两次出图之间
+脸的比例、线宽、腮红位置都会漂一点，所以每裁一件都要重新对齐锚点。这一轮换了个
+问法：**一次出一张 1×3 的联图**，三格同一张脸、只有嘴不同，位置天然对齐。
+
+### 38.1 怎么问
+
+```
+把这张脸部特写做成 1×3 的三格联图，三格的脸、头发、衣服、姿势、线条粗细、
+上色完全一致，只有嘴不同：
+  第 1 格：闭嘴微笑（一条上扬的细弧）
+  第 2 格：微张（小圆口，露一点舌头）
+  第 3 格：张口说话（圆口，深处暗红，下方粉色舌）
+纯绿色背景，格与格之间不要留白、不要文字说明、不要边框。
+```
+
+出图 `Three-Panel-Chibi-Mouth-Expressions__…png` = **2172×724**，正好三等分 724/格。
+
+### 38.2 切法：面板按等分，嘴靠肉眼量
+
+- **面板**：背景是一整片连着画过去的，格与格之间没有 gutter，`panel_columns()`
+  这类「找背景列」的检测会返回 **1 列**。直接 `w // 3` 等分。
+- **嘴的 bbox 不要用颜色键**：这张图里头发是橙红、腮红是浅红，`(r<210)&(r-b>25)`
+  会把发梢和腮红一起吃进来，bbox 能到 300 px 宽；换成「模糊背景差」
+  `(gaussian(gray,14)-gray)>14` 也一样会吃到下巴的阴影边界。
+  有效办法是**3× 裁图肉眼量**（`preview/_mw0.png`–`_mw2.png`），三格嘴都在
+  y≈470–530、以面板中心 ±110 以内：
+
+  | 格 | 嘴 bbox（原图像素） | 尺寸 | 裁后目标宽 |
+  | --- | --- | --- | --- |
+  | 闭口 | `(286,486)-(352,510)` | 66×24 | 47（与既有闭口件同宽） |
+  | 微张 | `(1016,485)-(1076,518)` | 60×33 | 45 |
+  | 张口 | `(1722,466)-(1812,534)` | 90×68 | 48 |
+
+- **alpha 用裁框四周的肤色中位色**，`clip((max|px-skin|-8)/20)`，再 `grey_erosion(1)`
+  削掉出图自带的 1 px 浅色光晕（同 §37.2 第 3 步）。
+- **落位用「上唇线」而不是顶边**：每件在件内的上唇线位置不同（微张 3 px、张口 5 px），
+  统一贴到画布 `cx=1028`、`y=589`：
+
+  ```python
+  y = 589 - line_in_piece
+  canvas.alpha_composite(piece, (1028 - piece.width // 2, y))
+  ```
+
+  这样切换时是「下唇往下掉」，不是整张嘴上下跳。产物
+  `mouth_mid.png`（bbox `(1007,588)-(1051,611)`）、`mouth_open.png`（`(1004,586)-(1052,620)`）。
+
+### 38.3 PSD2Live 只认两个 `mouth_*` 状态
+
+加了 `mouth_mid.png` 之后，`parts` 是 28 个文件，但导出的 `psd2live.json` 里只有：
+
+```json
+{"source": "mouth close", "type": "preset", "tag": "mouth_close",  "parameter": "",                "switchId": 0}
+{"source": "mouth open",  "type": "toggle", "tag": "mouth_open",   "parameter": "ParamMouthOpenY", "switchId": 0}
+```
+
+第三件**被静默丢掉**（没有报错、没有 warn），`ParamMouthOpenY` 依旧是二值 toggle。
+所以「闭嘴 / 微张 / 全张」三态在 PSD2Live 里做不到；要么去 Cubism 5.3 手加一层
+`ParamMouthOpenY` 的三段开关，要么接受两态 + 交叉淡化。
+
+### 38.4 交叉淡化为什么不再出 U 形
+
+旧版出 U 形是两个原因叠起来的：①开口件自己是「平顶 + 大条浅粉舌 + 四角硬切」；
+②闭口件淡出时把笑线一起带走，开口件又贴在笑线下方，于是中间态看到「一条笑线 +
+下面一块淡白的 U」。
+
+这一版两条都消掉了：开口件是从联图里裁的**真圆口**，顶边直接压在笑线上
+（`top=586`，比闭口件只低 2 px）。fade 到 0.35 时看到的是「笑线还在、下面刚裂开
+一小道暗口」，0.7 以后才出现完整圆口 + 粉舌 —— 读起来是「嘴唇分开」而不是「换了个嘴」。
+四态对照：`preview/_ms3-sheet.png`（0 / 0.35 / 0.7 / 1，2×）。
+
+### 38.5 验收
+
+```powershell
+& "C:\dev\python 3.12.0\python.exe" assets\_raw\strip3_mouths.py    # 切三件 + _strip3-cuts.png
+& "C:\dev\python 3.12.0\python.exe" assets\_raw\strip3_canvas.py    # 落到 2048 画布
+& "C:\dev\python 3.12.0\python.exe" assets\_raw\claude_v3_build.py --import
+& "C:\dev\python 3.12.0\python.exe" assets\_raw\claude_book_build.py
+```
+
+构建日志应有 `mouth open rect={'left': 1004, 'top': 586, 'width': 48, 'height': 34}`；
+`claude.layout.moc3` **344576 B**、`claude-book.layout.moc3` **339008 B**。
+probe 四态：`?raw=1&scale=0.42&model=..%2Fassets%2Fbuild%2Fclaude-v3%2Fmodel%2Fclaude.layout.model3.json&p=ParamMouthOpenY:0|0.35|0.7|1`。
+
+**这条流水线的教训**：能一次出「同一张脸的多状态联图」就别一张一张问 —— 分开出图
+之后要做的对齐工作（比例、线宽、锚点）比切图本身贵得多；而联图切件唯一要手工量的是
+每格嘴的位置，量一次就固定了。

@@ -297,3 +297,12 @@
 - 出图常在唇线外留一圈 1 px 奶白发光，按肤色差抠图会保下来 → 在源分辨率上
   `grey_erosion(alpha,(2,2))` 削掉 1 px。
 
+### 3.11 第三个 `mouth_*` 件会被静默丢掉
+
+`parts/` 里同时放 `mouth_close.png`、`mouth_mid.png`、`mouth_open.png`，PSD2Live 不会报错，
+但 `psd2live.json` 里只有 `mouth close`（preset）与 `mouth open`（toggle，
+`ParamMouthOpenY`，`switchId 0`）两条 —— **`mouth_mid` 整层消失**，参数还是二值。
+判断方法：构建前后数 `psd2live.json` 里 `tag` 以 `mouth` 开头的条目数，或直接看
+`ParamMouthOpenY` 在 probe 里的 0/0.35/0.7/1 是否只有两种画面。
+要三态只能上 Cubism 手加开关；在 PSD2Live 里就把中间态交给两件的交叉淡化。见 §38.3。
+
