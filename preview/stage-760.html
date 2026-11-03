@@ -35,6 +35,19 @@ const H_MAX=440,H_MIN=280,TOP_PAD_RATIO=.66,TOP_PAD_MIN=122,PLATE_GAP=39,TABLE_R
 const HUES=["#4da3ff","#7d6bff","#ff9d4d","#3ddc97","#ff6b8a","#5ad2e6","#c084fc","#f5c542"];
 const PHONE_PARTS=["Part106","Part6","Part107"];
 const PHONE_PARAMS=["phone","phone2","phone3","phone4","phone5","phone6","phone7","phone8"];
+// Mirrors STAGE_CHARACTERS in lib/client.js so this harness composes exactly
+// what the plugin composes. A rig is optional: missing files fall back to the
+// whale-girl, same as the plugin's load path.
+const WHALE={key:"whale-girl",url:"../assets/models/whale-girl/c_0120.model3.json",scale:1,dx:0,dy:0,mouth:false};
+const RIGS={
+  claude:{url:"../assets/build/claude-v3/model/claude.layout.model3.json",scale:1.4,dx:0,dy:45,mouth:true},
+  gpt:{url:"../assets/build/gpt-p2l/p2l/gpt.model3.json",scale:.85,dx:111,dy:-25,mouth:true}
+};
+function characterFor(name){
+  const key=String(name||"").toLowerCase();
+  for(const id of Object.keys(RIGS))if(key.includes(id))return{key:id,...RIGS[id]};
+  return WHALE;
+}
 const NAMES={2:["DeepSeek-V3.2","Qwen3-Max"],3:["DeepSeek-V3.2","Qwen3-Max","Kimi-K2"],
   5:["DeepSeek-V3.2","Qwen3-Max","GLM-4.6","Kimi-K2","Doubao"],
   8:["DeepSeek-V3.2","Qwen3-Max","GLM-4.6","Kimi-K2","Claude","GPT","Gemini","Doubao"]};
@@ -58,15 +71,22 @@ function wobble(){return{bobPeriod:3000+Math.random()*2200,bobAmp:1.1+Math.rando
   swayAmp:.7+Math.random()*1.1,turnPeriod:5200+Math.random()*4800,turnAmp:2.2+Math.random()*4,phase:Math.random()*Math.PI*2};}
 function frame(models,wobbles,t,active,baseY){
   for(let i=0;i<models.length;i++){const m=models[i];if(!m)continue;const w=wobbles[i];const sp=i===active;
+    const c=m.__char||WHALE, seatY=baseY+(c.dy||0);
     let nod,lean,turn,breath;
-    if(sp){const s=t/1000;nod=7*Math.sin(s*3.1);lean=3.2*Math.sin(s*1.55);turn=1.5*Math.sin(s*1.1);
-      breath=.5+.5*Math.sin(s*1.7);m.y=baseY-3;m.rotation=0;}
+    if(sp){const s=t/1000;
+      // Same syllable envelope as the mouth, so the head nods on the beat the
+      // lips move instead of on an unrelated slow sine.
+      const sy=c.mouth?Math.abs(Math.sin(s*5.5)*.72+Math.sin(s*8.9)*.28):0;
+      nod=2.6*Math.sin(s*3.1)+5.2*(sy-.5);lean=3.2*Math.sin(s*1.55)+1.1*(sy-.5);
+      turn=1.5*Math.sin(s*1.1);breath=.5+.5*Math.sin(s*1.7);m.y=seatY-3;m.rotation=0;
+      try{m.internalModel.coreModel.setParameterValueById('ParamMouthOpenY',c.mouth?.1+.9*sy:0)}catch(e){}
+    }
     else{nod=1.4*Math.sin(t/w.bobPeriod+w.phase*.7);lean=w.swayAmp*Math.sin(t/w.swayPeriod+w.phase);
       turn=w.turnAmp*Math.sin(t/w.turnPeriod+w.phase*1.7);breath=.5+.5*Math.sin(t/w.bobPeriod+w.phase);
-      m.y=baseY+Math.sin(t/w.bobPeriod+w.phase)*w.bobAmp;m.rotation=Math.sin(t/(w.swayPeriod*.8)+w.phase)*.003;}
+      m.y=seatY+Math.sin(t/w.bobPeriod+w.phase)*w.bobAmp;m.rotation=Math.sin(t/(w.swayPeriod*.8)+w.phase)*.003;}
     try{const core=m.internalModel.coreModel;
       core.setParameterValueById('ParamAngleX',turn);core.setParameterValueById('ParamAngleY',nod);
-      core.setParameterValueById('ParamBodyAngleZ',lean);core.setParameterValueById('ParamMouthOpenY',0);
+      core.setParameterValueById('ParamBodyAngleZ',lean);
       for(const id of PHONE_PARAMS){try{core.setParameterValueById(id,0)}catch(e){}}
       try{core.setParameterValueById('ParamBreath',breath)}catch(e){}
       core.update();}catch(e){}
@@ -90,7 +110,9 @@ function dropPhone(m){
   const host=document.getElementById('host');
   host.style.height=H+'px';inner.style.height=H+'px';
   document.getElementById('canvasLayer').style.height=H+'px';
-  const names=NAMES[count]||NAMES[8];
+  const names=(()=>{const raw=q.get('names');
+    if(raw)return raw.split(',').map(s=>s.trim()).filter(Boolean).slice(0,count);
+    return NAMES[count]||NAMES[8];})();
 
   const chairLayer=document.createElement('div');
   chairLayer.style.cssText=`position:absolute;left:0;top:0;width:760px;height:${H}px;pointer-events:none`;
@@ -149,12 +171,25 @@ function dropPhone(m){
 
   const models=[],wobbles=xs.map(()=>wobble());
   await Promise.all(xs.map(async(x,i)=>{
-    const m=await PIXI.live2d.Live2DModel.from('../assets/models/whale-girl/c_0120.model3.json',{autoInteract:false,autoUpdate:true});
-    m.scale.set(charH/m.height);m.anchor.set(.5,1);m.position.set(x,baseY);m.zIndex=i;
+    const c=characterFor(names[i]);
+    let m=null;
+    try{m=await PIXI.live2d.Live2DModel.from(c.url,{autoInteract:false,autoUpdate:true});}
+    catch(e){
+      if(c.key!==WHALE.key){try{m=await PIXI.live2d.Live2DModel.from(WHALE.url,{autoInteract:false,autoUpdate:true});}catch(e2){m=null}}
+      if(!m)return;
+      m.__char=WHALE;
+    }
+    if(!m.__char)m.__char=c;
+    m.scale.set((charH*c.scale)/m.height);m.anchor.set(.5,1);
+    m.position.set(x+(c.dx||0),baseY+(c.dy||0));m.zIndex=i;
     app.stage.addChild(m);dropPhone(m);models[i]=m;
   }));
   const t0=performance.now();
-  const tick=()=>frame(models,wobbles,performance.now()-t0,active,baseY);
+  // ?tpin=<ms> freezes the frame clock so two renders differ only by pose;
+  // without it the only time source is performance.now(), which a headless
+  // screenshot cannot advance.
+  const tPin=q.has('tpin')?Number(q.get('tpin')):null;
+  const tick=()=>frame(models,wobbles,tPin!==null&&Number.isFinite(tPin)?tPin:performance.now()-t0,active,baseY);
   tick();app.ticker.add(tick);
 
   requestAnimationFrame(()=>requestAnimationFrame(()=>{

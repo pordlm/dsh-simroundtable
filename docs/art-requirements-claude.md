@@ -1700,3 +1700,38 @@ if (character.mouth) mouth = 0.1 + 0.9 * sy;
 再用 `preview/probe.html?model=../assets/build/_stagecheck/char/<name>/model3.json&scale=0.62&bg=%23101418&p=EyeLOpen:1,MouthOpenY:0.7`
 渲染 —— 这一步能证明「裁剪后的描述符 + 相对路径」在真正的 Cubism runtime 里可用，
 比只看单测更硬。两个角色都渲染正常（`preview/_route-render2.png`、`preview/_route-gpt.png`）。
+
+## 29. 产品舞台几何的独立校验页：`preview/stage-760.html`（round 33）
+
+插件里的舞台要用户去官方「插件」页 off→on 重载才能看到改动，这个往返太慢。
+`preview/stage-760.html` 用的是**和插件同一套几何常量**（`W=760`、`STAGE_CHAR_ASPECT=.85`、
+`STAGE_MARGIN=22`、`H_MAX=440`/`H_MIN=280`、`TOP_PAD_RATIO=.66`、`PLATE_GAP=39`、`TABLE_RATIO=.88`、
+`charH=Math.round(Math.max(96,Math.min(widthBudget/ASPECT,heightCap)))`、`baseY=topPad+charH`），
+所以把它改成「按角色选模型」就等于在本地预演插件那一侧的行为。
+
+### 29.1 改动
+- `RIGS` 表镜像 `lib/client.js` 的 `STAGE_CHARACTERS`：
+  `claude{ url: ../assets/build/claude-v3/model/claude.layout.model3.json, scale 1.4, dy 45, mouth:true }`、
+  `gpt{ url: ../assets/build/gpt-p2l/p2l/gpt.model3.json, scale .85, dx 111, dy -25, mouth:true }`，
+  默认 `WHALE{ ../assets/models/whale-girl/c_0120.model3.json, scale 1, dy 0, mouth:false }`。
+- `characterFor(name)` 用座位名子串匹配（`"claude"` / `"gpt"`），未命中或加载失败都回落鲸鱼娘，
+  回落时把 `m.__char` 钉成 `WHALE`，避免嘴部参数写到鲸鱼娘身上。
+- `frame()` 里 `seatY = baseY + (c.dy||0)`（三个 `m.y=` 赋值全部改用它），发言支用与口型同一个音节包络
+  `sy=|0.72·sin(5.5s)+0.28·sin(8.9s)|` 驱动 `nod/lean` 和 `ParamMouthOpenY = .1+.9·sy`；
+  原来参数块里那句 `setParameterValueById('ParamMouthOpenY',0)` 必须删掉，否则每帧把口型盖回去。
+
+### 29.2 两个只在页面上有的开关
+- `?names=Claude,GPT,Kimi-K2`：`NAMES[5]` 里没有 Claude/GPT，而 `?n=8` 会一次性加载
+  鲸鱼娘 ×6 + Claude（4.9 MB 纹理）+ GPT（6×4096），无头截图直接超时、文件都不落盘。用 `?names` 缩阵容。
+- `?tpin=<ms>`：把 `performance.now()-t0` 换成固定毫秒，两次渲染只差姿势。
+
+### 29.3 验收（`?n=3&names=Claude,GPT,Kimi-K2&active=0`）
+- `preview/_stage760-rigs.png`：三人同框，Claude 头顶 y≈105、GPT≈140、Kimi≈160；
+  头宽 Claude≈55 px、GPT≈60、Kimi≈45 —— 与 round 30「头宽相当」的结论一致。
+  `charH=182` 时 Claude 实高 `182×1.4≈255`，比鲸鱼娘高 40%，这是「全身像 vs 半身像」的必然取舍。
+- 口型/点头真的接到校验路径上：`?tpin=1400` vs `?tpin=1700`（`_s760-hi.png` / `_s760-lo.png`）
+  脸部框 `(90,95)-(225,255)` 内差 2009/21600 px、嘴部框 `(120,185)-(190,215)` 内 169/2100 px（max 97）、整帧 9934。
+
+### 29.4 维护提醒
+这一页有**自己的一份角色表**，改 `lib/client.js` 的 `scale/dx/dy/mouth` 时必须两边一起改，
+否则校验页和插件会给出不同构图（改之前先 `grep -n "claude:" lib/client.js preview/stage-760.html`）。
