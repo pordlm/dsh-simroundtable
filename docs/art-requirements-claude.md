@@ -2007,3 +2007,72 @@ if (book) {
 **`?book=1` 是给固定时钟用的**：`?tpin` 让 `elapsed` 恒定，`idleFor` 永远是 0，
 不加这个参数她永远不换姿势（第一次截图就是这样，看到的是空手版）。产品里时间是真实
 推进的，不需要这个开关。
+
+## 34. 四条目标的验收证据（round 38）
+
+给「让小克能动」这件事收个尾：每条目标一行结论、一份证据、一条复现命令。
+数字都是本仓库里跑出来的，不是估计。
+
+### 34.1 头发摆动
+
+- 结论：`front hair` 是一整块网格（刘海 + 两侧长发同一个 drawable），
+  `PhysicsHairFront` 阈值太软，摆起来会把刘海拖到眼睛上。现在这一组**关掉**，
+  前发的微摆改由舞台参数 `ParamHairFront` 用两个正弦叠加驱动；
+  后发改 `output_scale 0.60 / mobility 0.45 / delay 0.70 / acceleration 1.4`。
+- 证据：`assets/_raw/tune_physics.py` 的 `PHYSICS` 表（构建时重放）、
+  `preview/anim.html` 的物理胶片、以及座位截图里刘海始终停在眉上。
+- 复现：`& "C:\dev\python 3.12.0\python.exe" assets\_raw\claude_v3_build.py --import`
+  （它会重放 `PHYSICS` 再导出）。
+
+### 34.2 缺件与重画
+
+- 结论：眼睛与「抱书」两张母图都是经中转站 GPT 局部重画后接回来的。
+- 证据：`assets/incoming/claude-parts/eyes/Wide-Eyed-Amber-Lolita-Chibi-Girl__*.png`
+  （纯绿底 1024×1536，与母图差异仅 3.88%）→ `assets/_raw/merge_open_eyes.py`
+  只嫁接眼部 → `assets/incoming/claude-parts/P0-master-open.png`；
+  抱书母图 `assets/incoming/claude-parts/P0-master-book.png`（ink bbox 与母图 1px 内一致）。
+- 复现：`& "C:\dev\python 3.12.0\python.exe" assets\_raw\cut_claude.py`。
+
+### 34.3 Cubism 外部 API 与「能眨眼的 moc3」
+
+- 结论：Cubism 5.3 的外部应用程序集成需要 GUI 勾一次
+  「设置 → 环境设置 → 外部应用程序集成」，它才会生成
+  `%APPDATA%\Live2D\ExternalApp_user.xml` 并监听 22033；该文件本机从未生成，
+  UIA 也驱动不了 Java 菜单（§15.5 记了完整排查）。**这一条没有走通。**
+- 但目标的实质（能眨眼的 moc3）已经用 PSD2Live 达成，不需要 Cubism：
+  三个 rig 的 `model3.json` 都带
+
+  ```json
+  { "Name": "EyeBlink", "Ids": ["ParamEyeLOpen", "ParamEyeROpen"] },
+  { "Name": "LipSync", "Ids": ["ParamMouthOpenY"] }
+  ```
+
+  以及 `Idle/Blink/Nod/Shake` 四组动作、`Smile/Sad/Angry/Surprised` 四个表情
+  （表情只写 `ParamMouthForm`/`ParamEyeLOpen`/`ParamBrow*`，后三者在实测中
+  无像素效果，所以舞台没有用它们）。运行时按 Groups 自动眨眼，舞台不再自己写
+  `ParamEyeLOpen`。
+
+### 34.4 舞台多动作
+
+| 能力 | 实现 | 证据 |
+| --- | --- | --- |
+| 呼吸/浮动/摇摆 | 每座独立周期与振幅（`stageWobble()`） | 座位截图逐帧 |
+| 待机动作 5 种 | `STAGE_GESTURES`，`sin(πu)` 包络，7–16 s 冷却 | `gesture-sheet-760.png`，diff 841–3845 px |
+| 朝发言人转头 | `lookTarget = clamp(Δx / (STAGE_W·0.32))`，≤6°，0.93/0.07 平滑 | A/B 1027 px |
+| 倾听点头 | `listenAmt = sin^6`（半高宽≈1 s） | §27 |
+| 抱书聆听 | 待机 9 s 懒加载第二个 rig，300 ms 交叉淡化 | `_book-idle2.png` |
+| 发言口型 + 头部 | 音节包络 `\|0.72·sin(5.5t)+0.28·sin(8.9t)\|` 同时喂 `ParamMouthOpenY` 与 `ParamAngleY` | §17 |
+| 换气口眨眼 | 运行时 `EyeBlink` 组 + 舞台不覆盖该参数 | §18 |
+| 座位淡入 | `model.__fade` 每帧 +0.08，与抱书交叉淡化相乘 | `_fade-check.png` |
+
+### 34.5 三十秒验收
+
+```powershell
+# 1) 产品几何、三个角色同框（Claude 抱书、Kimi 发言）
+& .\assets\_raw\shot.ps1 -Url 'http://127.0.0.1:8848/preview/stage-760.html?names=Claude,Kimi-K2,GPT&active=1&tpin=12000&nogest=1&book=1' -Out preview\_fade-check.png -W 800 -H 520 -WaitMs 16000
+# 2) 八座全景（插件里的真实座位数）
+& .\assets\_raw\shot.ps1 -Url 'http://127.0.0.1:8848/preview/stage-760.html?names=DeepSeek-V3.2,Qwen3-Max,Claude,Kimi-K2,GPT,Gemini,Doubao,GLM-4.6&active=0&tpin=6000&nogest=1' -Out preview\_stage8-final.png -W 1400 -H 800 -WaitMs 18000
+# 3) 眼睛 1:1（唯一能判断眼件质量的方式）
+#    http://127.0.0.1:8848/preview/probe.html?model=../assets/build/claude-v3/model/claude.layout.model3.json&scale=1&raw=1
+npm test   # 46/46，其中 stage.test.mjs 会 stat 每个角色资产
+```

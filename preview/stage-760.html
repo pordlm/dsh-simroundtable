@@ -142,8 +142,11 @@ function frame(models,wobbles,t,active,baseY){
       for(const id of PHONE_PARAMS){try{core.setParameterValueById(id,0)}catch(e){}}
       try{core.setParameterValueById('ParamBreath',breath)}catch(e){}
       core.update();}catch(e){}};
+    if(m.__fade==null)m.__fade=0;
+    if(m.__fade<1)m.__fade=Math.min(1,m.__fade+.08);
     applyPose(m);
-    if(bk&&bk.model){m.alpha=1-bookReady;bk.model.position.set(m.x,m.y);
+    m.alpha=m.__fade*(1-bookReady);
+    if(bk&&bk.model){bk.model.position.set(m.x,m.y);
       bk.model.scale.copyFrom(m.scale);bk.model.rotation=m.rotation;
       bk.model.alpha=bookReady;bk.model.visible=bookReady>.002;applyPose(bk.model);}
   }
