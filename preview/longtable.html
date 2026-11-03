@@ -633,7 +633,9 @@ const app = new PIXI.Application({
       const sp = t / 1000 + w.phase;
       const sy = speechEnv(s, t);
       if (forcedMouth !== null) s.mouth = forcedMouth;
-      else if (s.speaking) s.mouth = 0.10 + 0.90 * sy;
+      // Snap instead of crossfading: the rig blends a thin smile line with a round
+      // hole, and any partial alpha reads as a grey smudge on the cheek.
+      else if (s.speaking) s.mouth = sy > 0.32 ? 1 : 0;
       else s.mouth *= 0.86;
 
       let nod, lean, turn, breath;

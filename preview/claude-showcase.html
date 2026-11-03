@@ -230,7 +230,9 @@ async function boot() {
     // lib/client.js 与 longtable.html 一直是对的，只有这页漏了 /dur。
     const off = fx ? fx.g.f(fx.frozen != null ? fx.frozen : (t - fx.start) / fx.g.dur) : {};
     const env = speakOn ? speechEnv(t) : 0;              // 语音包络：口型与点头共用
-    const sy = speakOn ? 0.10 + 0.90 * env : state.MouthOpenY;
+    // 口型是硬开关：rig 只有「笑线」与「圆口」两件，PSD2Live 用透明度交叉淡化，
+    // 中间值会把两件叠成一块灰斑，所以说话时只在 0 / 1 之间跳。
+    const sy = speakOn ? (env > 0.32 ? 1 : 0) : state.MouthOpenY;
     const talkNod = speakOn ? 5.2 * (env - 0.5) : 0;     // (env-0.5) 才有回位
     const talkLean = speakOn ? 1.1 * (env - 0.5) : 0;
     const breathe = 0.5 + 0.5 * Math.sin(t / 1000 * 1.1 + W.phase);
