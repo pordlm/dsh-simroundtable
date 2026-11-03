@@ -45,6 +45,20 @@ G:\Live2D Cubism\Live2D Cubism 5.3\
 > `pwsh` 工具在本机常因沙箱 ACL 失败（`SetNamedSecurityInfoW ... Win32 5`），
 > 一律改用 `mcp__windows__PowerShell`。
 
+### 1.1 工具链全景：谁干什么
+
+| 工具 | 状态 | 在这个项目里干什么 | 什么时候别用它 |
+| --- | --- | --- | --- |
+| **PSD2Live**（`tools/psd2live/app/PSD2Live.exe`） | 主力 | PSD/PNG 序列 → `moc3` + `model3.json` + 物理 + 参数绑定（`ParamEyeLOpen` / `ParamMouthOpenY` / `ParamAngle*`…）。CLI 与 GUI+MCP 两条入口，见 §5 | 需要「三态开关」「眼球变形器」这类它没有的概念时 |
+| **Live2D Cubism Editor 5.3.00**（`G:\Live2D Cubism\Live2D Cubism 5.3\`） | 可选，人工 | PSD2Live 做不到的地方：一个参数挂三段开关（例如嘴的 闭/微张/全张）、眼球独立变形器、物理手调、`exp3` 表情、参数范围与默认值精修 | 日常出模别走它——手工步骤不可复现，且外部 API 目前没打通（§15） |
+| **Photoshop + PS MCP**（`photoshop_*` 工具） | 可选，本会话未用 | 联图的一次性修补（去底、补线、抹掉出图瑕疵）、按图层批量导出、PSD 分层核对、`get_preview` 出对比图、`export_as` 出 PNG/WebP | 切件流水线本身——所有切件都是 Pillow 脚本，可重跑、可 diff；PS 里改完必须把结果 PNG 落回 `assets/incoming/`，不要只在 PS 里改 |
+| Pillow / numpy / scipy 脚本（`assets/_raw/*.py`） | 主力 | 切件、抠图、反预乘、贴画布、验证图 | 涉及「美的判断」的部件（嘴、手、衣褶）——见 §2.3 |
+
+PS MCP 常用入口（真要用时）：`photoshop_get_state` 看当前文档/图层，
+`photoshop_open_image`、`photoshop_recipe_remove_background`、`photoshop_create_layer_mask`、
+`photoshop_get_layers`、`photoshop_export_as`、`photoshop_get_preview`。
+它要求 Photoshop 已经开着；改成批量脚本之前先确认产物能落盘，而不是停在 PS 的历史里。
+
 ---
 
 ## 2. 素材从哪来
@@ -72,6 +86,33 @@ node tools\relay-grab-imagegen.mjs --chat <会话地址> --out assets\incoming\c
 
 要点：出图 5–9 分钟；`relay.config.json` 必须纯 ASCII；`REPLY (0 chars)` / `正在处理图片…`
 都是误报，按 `--list` 里是否出现新 `<img src="/backend-api/estuary/content?id=file_…">` 为准。
+
+### 2.3 铁律：难搞的部件一律出图，别手绘
+
+这条是拿七个版本的废稿换来的（`mouth_open` 从 v1 画到 v7，全部被否，
+最后靠出图一次过）。凡是**好坏全在审美判断上**的部件——嘴、手、衣褶、配饰、
+发型分束——都不要用 Pillow 参数化去画：能参数化的只有几何件（眼白、虹膜、睫毛块、
+腮红、平涂色块）。
+
+正确的出图顺序（顺序错了白干）：
+
+1. **先出「改好的母图」**，不要单出部位。发整张母图或脸部特写，要求
+   「只把 X 改成 Y，其余像素、线条粗细、上色风格、背景完全不动」。
+   单出一张嘴/一只手会脱离脸的比例与线色，回来根本贴不上（`docs/art-requirements-claude.md` §37.1）。
+2. **从改后的母图里截取**目标块，不要把它当新母图（整身重画 `diff>24` 常有 5 万像素，
+   线稿整体位移 1–2 px；只能取件，见 §37.2）。
+3. **截取后放大再降采样**：源图里那只嘴只有 30 px 宽、成品要 42 px，
+   先 8× 放大再 LANCZOS 下来，边缘才有 1 px 过渡而不是糊成一片。
+4. **贴回画布坐标**（`canvas_x = art_x*1.2645 + 377.2` 那套映射），锚点用「上唇线 / 视线上缘」
+   这类语义位置，不要用包围盒顶边。
+5. **量一下非目标区域**：`diff>24` 超过两万像素说明它把整张重画了，
+   这一张只能当取件源，不能当新母图。
+
+更好的问法：一次要**同一张脸的多状态联图**（1×3：闭嘴 / 微张 / 张口），
+三格位置天然对齐，只切不重新对齐（§38 与 `docs/art-requirements-claude.md` §38）。
+
+**别自己画**这件事不只是效率问题：手绘件的边缘、色带、描边粗细都跟出图件对不上，
+在 1:1 特写下会明显「不是一个画师画的」；而联图取件天然同源。
 
 ---
 
