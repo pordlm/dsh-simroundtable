@@ -95,8 +95,12 @@ const MODELS = {
     // 全身像（3 头身，墨迹 1836px 高）：按 charH/2048 缩放后头高 76.8px，与 GPT(0.85×756px→76.6px) 齐平。
     // 但全身像的“脚底”比半身像低 44px，直接摆下巴会悬在桌沿之上；以眼睛高度对齐邻居，
     // 实测 dy=0 时眼线比 GPT 高 36px，故下移 30
-    scale: 1.4,
-    dy: 45,
+    // 3 头身全身像：台上只露上半身，所以按头部尺寸对齐邻居（1.42 让她的头与 GPT 一样大），
+    // 再整体下移 56px 把头顶压到和 GPT 齐平；cut 把座位基线以下裁掉，
+    // 下半身交给桌子挡住（桌子只遮从桌沿往下，不裁的话小腿会从桌沿以下露出来）
+    scale: 1.42,
+    dy: 56,
+    cut: true,
     // v2（PSD2Live layout manifest 出模）把睁眼三件绑到 ParamEyeLOpen/ROpen，
     // 所以这一座位可以由舞台自己驱动眨眼；闭眼件是常显层，眼睛=1 时被睁眼件盖住
     blink: true,
@@ -449,6 +453,16 @@ const app = new PIXI.Application({
       model.position.set(s.x + faceDx, s.baseY);
       model.zIndex = s.i;
       app.stage.addChild(model);
+      // cut: 全身像的腿会从桌沿以下露出来（桌子只挡从基线往下），按座位基线裁掉，
+      // 台上就只剩上半身，与鲸鱼娘/GPT 的半身像一致
+      if (seatCfg.cut) {
+        const clip = new PIXI.Graphics();
+        clip.beginFill(0x000000);
+        clip.drawRect(-4000, -4000, 8000, 4000 + BASE_Y);
+        clip.endFill();
+        app.stage.addChild(clip);
+        model.mask = clip;
+      }
       dropAutoBlink(model);
       if (keepIdle) model.motion('idle');
       else if (freeze) {
@@ -482,6 +496,14 @@ const app = new PIXI.Application({
             alt.alpha = 0;
             alt.visible = false;
             app.stage.addChild(alt);
+            if (seatCfg.cut) {
+              const clip = new PIXI.Graphics();
+              clip.beginFill(0x000000);
+              clip.drawRect(-4000, -4000, 8000, 4000 + BASE_Y);
+              clip.endFill();
+              app.stage.addChild(clip);
+              alt.mask = clip;
+            }
             dropPhonePose(alt);
             dropAutoBlink(alt);
             s.altModel = alt;

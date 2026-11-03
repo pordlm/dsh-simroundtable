@@ -1879,3 +1879,73 @@ $u='http://127.0.0.1:8848/preview/stage-760.html?n=3&names=Claude,GPT,Kimi-K2&ac
 
 判据：>300 px 才算转头真的生效（实测 1027 px）；`node --check lib/client.js` 与
 `npm test`（46/46）证明插件侧没有回归。
+
+## 32. 座位上只露上半身：尺寸、裁切与 dx 的符号（round 36）
+
+她是 3 头身全身像，鲸鱼娘和 GPT 都是半身像。直接按 `charH` 缩放摆进座位时，
+她的头只有邻居的一半，小腿还会从桌沿以下露出来 —— 因为桌子只遮挡“从桌沿往下”的
+那一块，不会替你裁掉整条腿。这一节记下最终的数字、裁切做法，以及一个把模型
+甩到隔壁座位的参数符号错误。
+
+### 32.1 数字：1.42 + 56
+
+| 参数 | 值 | 理由 |
+| --- | --- | --- |
+| `scale` | **1.42** | 头部宽度与 GPT 相当（1.6 时她的头明显大一圈，1.55 时又小一号） |
+| `dy` | **56** | 头顶落到与 GPT 齐平的高度；再大就只剩一个头，再小头顶会冒出座位卡片 |
+| `cut` | `true` | 座位基线以下裁掉，下半身交给桌子 |
+
+试过的中间值都记一下，免得下次又从 1.72 开始试：
+
+- `1.72 / 138`：头比 GPT 大 15%，而且身体几乎全被桌沿挡掉，只剩一颗头浮在桌上。
+- `1.55 / 146`：头比 GPT 小一号，看起来又“娇小”了，正是用户抱怨的那一版。
+- `1.6 / 122`：头略大（约 16%），身体露得偏多。
+- `1.42 / 56`：头宽与 GPT 持平，头顶齐平，桌沿以下没有腿 —— 采用的这一版。
+
+### 32.2 裁切：`cut` 用 PIXI.Graphics 做基线遮罩
+
+```js
+if (character.cut) {
+  const clip = new PIXI.Graphics();
+  clip.beginFill(0x000000);
+  clip.drawRect(-4000, -4000, 8000, 4000 + baseY);   // 只保留 baseY 以上
+  clip.endFill();
+  app.stage.addChild(clip);
+  model.mask = clip;
+}
+```
+
+- 遮罩矩形要**比舞台大一圈**（±4000），否则模型摆动到边缘会被切掉一角。
+- 图形必须 `addChild` 进舞台才会生效；它自己不画任何像素，只提供形状。
+- 遮罩是画面级的，所以 `stageFrame()` 每帧上下浮动几像素不会被它“跟着动”，
+  切边始终贴着桌沿。
+- 抱书变体（`alt` 层）是另一个 `Live2DModel`，必须**各自给一块遮罩**，否则抱起书时
+  腿又冒出来。
+
+### 32.3 `dx` 的符号与单位（这个坑能让整座模型移位）
+
+`dx` 表示“脸相对画布中线的像素偏移”（GPT 的母图脸中心在 2048 画布的 x=1135，
+偏右 111px），所以它属于**画布像素**，用的时候要乘缩放并反号：
+
+```js
+const faceDx = character.dx ? -character.dx * model.scale.x : 0;
+model.position.set(x + faceDx, baseY + (character.dy || 0));
+```
+
+`preview/longtable.html` 一直是对的（`-seatCfg.faceDx * k`），但
+`preview/stage-760.html` 与 `lib/client.js` 早期写成了 `x + (character.dx || 0)`：
+既没乘缩放、符号也反了，结果 GPT 座位上的模型被甩到两个座位之间的空隙里，
+而座位卡片留在原处 —— 看起来像“空座位旁边多了一个没牌子的角色”。
+修好后 GPT 正好坐在自己的卡片上方。
+
+### 32.4 验收
+
+```powershell
+# 1400×920 舞台，只看鲸鱼娘(0)、Claude(4)、GPT(5)
+& .\assets\_raw\shot.ps1 -Url 'http://127.0.0.1:8848/preview/longtable.html?only=0,4,5&still=1&nogest=1&nolook=1' `
+  -Out preview\_lt-scale.png -W 1400 -H 920 -WaitMs 14000
+```
+
+判据（裁 `(690,430)-(900,680)` 与 GPT `(855,430)-(1065,680)` 并排 2× 看）：
+头宽相当、头顶齐平、桌沿以下没有腿；`preview/stage-760.html` 同参数要一致
+（它用 `scale:1.42, dx:0, dy:44`，因为 `charH` 与 `BASE_Y` 与长桌页不同）。

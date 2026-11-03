@@ -43,7 +43,7 @@ const WHALE={key:"whale-girl",url:"../assets/models/whale-girl/c_0120.model3.jso
 // boot() would throw there (ReferenceError mid-frame instead of a silent no-op).
 const LOOK_OFF=new URLSearchParams(location.search).get('nolook')==='1';
 const RIGS={
-  claude:{url:"../assets/build/claude-v3/model/claude.layout.model3.json",scale:1.4,dx:0,dy:45,mouth:true},
+  claude:{url:"../assets/build/claude-v3/model/claude.layout.model3.json",scale:1.42,dx:0,dy:44,mouth:true,cut:true},
   gpt:{url:"../assets/build/gpt-p2l/p2l/gpt.model3.json",scale:.85,dx:111,dy:-25,mouth:true}
 };
 function characterFor(name){
@@ -218,6 +218,16 @@ function dropPhone(m){
     if(forceGest)w.forced=forceGest;
     if(noGest)w.next=Number.POSITIVE_INFINITY;
     return w;});
+  // Start the clock before the rigs finish arriving (same reason as
+  // lib/client.js): a member rig is a few MB of texture and a headless render
+  // that waits for all of them just stays blank. frame() skips missing seats.
+  const t0=performance.now();
+  // ?tpin=<ms> freezes the frame clock so two renders differ only by pose;
+  // without it the only time source is performance.now(), which a headless
+  // screenshot cannot advance.
+  const tPin=q.has('tpin')?Number(q.get('tpin')):null;
+  const tick=()=>frame(models,wobbles,tPin!==null&&Number.isFinite(tPin)?tPin:performance.now()-t0,active,baseY);
+  tick();app.ticker.add(tick);
   await Promise.all(xs.map(async(x,i)=>{
     const c=characterFor(names[i]);
     let m=null;
@@ -229,16 +239,20 @@ function dropPhone(m){
     }
     if(!m.__char)m.__char=c;
     m.scale.set((charH*c.scale)/m.height);m.anchor.set(.5,1);
-    m.position.set(x+(c.dx||0),baseY+(c.dy||0));m.zIndex=i;
+    // dx 是画布像素量（脸相对画布中线的偏移），要乘缩放并反号才是舞台位移；
+    // 直接相加会把整座模型甩到隔壁座位上去（longtable 用的是 -faceDx*k）
+    const faceDx=c.dx?-c.dx*m.scale.x:0;
+    m.position.set(x+faceDx,baseY+(c.dy||0));m.zIndex=i;
     app.stage.addChild(m);dropPhone(m);models[i]=m;
+    // Full-body rigs stand behind a table that only occludes from the table edge
+    // down, and their legs would otherwise hang under the table top. Clip at the
+    // seat baseline so only the upper body shows, like the half-body rigs.
+    if(c.cut){
+      const clip=new PIXI.Graphics();clip.beginFill(0x000000);
+      clip.drawRect(-4000,-4000,8000,4000+baseY);clip.endFill();
+      app.stage.addChild(clip);m.mask=clip;
+    }
   }));
-  const t0=performance.now();
-  // ?tpin=<ms> freezes the frame clock so two renders differ only by pose;
-  // without it the only time source is performance.now(), which a headless
-  // screenshot cannot advance.
-  const tPin=q.has('tpin')?Number(q.get('tpin')):null;
-  const tick=()=>frame(models,wobbles,tPin!==null&&Number.isFinite(tPin)?tPin:performance.now()-t0,active,baseY);
-  tick();app.ticker.add(tick);
 
   requestAnimationFrame(()=>requestAnimationFrame(()=>{
     const plateRects=[...inner.querySelectorAll('.plate')].map(p=>{const r=p.getBoundingClientRect();
