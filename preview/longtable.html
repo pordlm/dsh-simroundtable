@@ -356,7 +356,10 @@ const app = new PIXI.Application({
   const GESTURES = [
     { id: 'nod',     dur: 1100, f: u => ({ nod: -11 * env(u) }) },
     { id: 'bow',     dur: 1500, f: u => ({ nod: -16 * env(u), lean: 2 * env(u) }) },
-    { id: 'shake',   dur: 900,  f: u => ({ turn: 8 * Math.sin(Math.PI * u * 4) * env(u) }) },
+    // Three swings over 1.15 s (~2.6 Hz) at ±6 degrees: the old ±8/4-swing version
+    // threw the side locks across the face fast enough to read as two layers coming
+    // apart. `hair` trails the swing by a quarter cycle so the mass follows through.
+    { id: 'shake',   dur: 1150, f: u => ({ turn: 6 * Math.sin(Math.PI * 3 * u) * env(u), hair: -0.16 * Math.cos(Math.PI * 3 * u) * env(u) }) },
     { id: 'tilt',    dur: 1400, f: u => ({ tilt: 9 * env(u) }) },
     { id: 'look',    dur: 1700, f: u => ({ turn: 13 * env(u), tilt: 3 * env(u) }) },
     { id: 'glance',  dur: 1300, f: u => ({ turn: -9 * env(u), tilt: -3 * env(u) }) },

@@ -71,7 +71,10 @@ const NO_IDLE = q.has('noidle');
 const GESTURES = [
   { id:'nod',      label:'点头',   dur:1100, f:u => { const e = Math.sin(Math.PI*u); return { nod:-11*e }; } },
   { id:'bow',      label:'鞠躬',   dur:1500, f:u => { const e = Math.sin(Math.PI*u); return { nod:-16*e, lean:2*e }; } },
-  { id:'shake',    label:'摇头',   dur:900,  f:u => { const e = Math.sin(Math.PI*u); return { turn:8*Math.sin(Math.PI*u*4)*e }; } },
+  // 摇头：三个来回 / 1.15 s（≈2.6 Hz）、±6°。原来的 ±8° 四个来回（4.4 Hz）在 6% 座位比例下
+  // 一帧就能让侧发横跨脸部 30+ px，看起来像两层错位；同时给 ParamHairFront 一个滞后四分之一
+  // 周期的量，头发像被甩出去再跟回来，而不是硬跟着头一起转。
+  { id:'shake',    label:'摇头',   dur:1150, f:u => { const e = Math.sin(Math.PI*u), s = Math.sin(Math.PI*3*u), c = Math.cos(Math.PI*3*u); return { turn:6*s*e, hair:-0.16*c*e }; } },
   { id:'tilt',     label:'歪头',   dur:1400, f:u => { const e = Math.sin(Math.PI*u); return { tilt:9*e }; } },
   { id:'look',     label:'远望',   dur:1700, f:u => { const e = Math.sin(Math.PI*u); return { turn:13*e, tilt:3*e }; } },
   { id:'glance',   label:'瞥一眼', dur:1300, f:u => { const e = Math.sin(Math.PI*u); return { turn:-9*e, tilt:-3*e }; } },
