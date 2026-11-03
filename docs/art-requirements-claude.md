@@ -2128,3 +2128,26 @@ $v='http://127.0.0.1:8848/preview/longtable.html?n=6&only=0,4,5&still=1'
 ```
 
 证据图：`preview/_waist2.png`（产品几何）、`preview/_lt-waist.png`（长桌页）。
+
+### 34.6 极端姿态复检判据（含一条会骗人的背景色）
+
+`assets/_raw/audit_poses.py` 把渲染图当参数传，没有参数时会很安静地打印
+`frames with a suspected defect: 0/0` —— 看到 0/0 不是「全绿」，是「没喂图」。
+
+```powershell
+$m='../assets/build/claude-v3/model/claude.layout.model3.json'
+foreach($p in @('AngleX:30','AngleX:-30','AngleY:25','AngleY:-25','BodyAngleZ:12','BodyAngleZ:-12','MouthOpenY:1','EyeLOpen:0')){
+  & .\assets\_raw\shot.ps1 -Url "http://127.0.0.1:8848/preview/probe.html?model=$m&scale=0.5&p=$p" ...
+}
+& "C:\dev\python 3.12.0\python.exe" assets\_raw\audit_poses.py preview\_p39_0.png ...  # 八张
+```
+
+**必须加 `&bg=%23ffffff`**。probe 的默认背景是纯绿 `(0,255,0)`，而脚本的 `green`
+判据是「轮廓内（9×9 腐蚀后）绿占优」——半透明件与绿底混合会在轮廓内造出
+并不存在的绿，八张全部被判缺陷（2660–7391 px）。换成白底后同样八张：
+`holes=[]`、`green=0`。
+
+白底下的 `white` 会有 1600–5900 px（脚本阈值 200），**这是她的裙子**：
+24 簇分布在 x 278..736 / y 135..660，正是胸衣、围裙与白色蕾丝，不是未上色破洞
+（`preview/_p39w_crop.png` 放大 2× 可直接看）。脚本注释里那句「她的裙子与缎带本来
+就是白的，white 只有超过很高门槛才有意义」就是这个意思。
