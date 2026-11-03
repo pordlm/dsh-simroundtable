@@ -1448,3 +1448,37 @@ b05 BodyAngleX:8,BodyAngleY:-6,BodyAngleZ:6,AngleX:18,AngleZ:12,HairFront:0.4
   剩下 8000 全是场景里飘的微尘。**任何 diff 都必须裁到角色框 `[430:730, 470:700]`**。
 - `?tpin` 只采样「某一瞬间的参数值」，验的是参数连续性与包络形状，不是真实的调度时序；
   随机调度的时序由 `assets/_raw/_blinktest.mjs` 那套数据 URI 合成时钟来验（§18.1）。
+
+## 25. 单角色展示台 `preview/claude-showcase.html`（round 28）
+
+舞台 `preview/longtable.html` 是「六人一桌」，要看清一个角色自己的动作得靠 `?only=4` 之类的裁剪，
+对用户不友好。于是加了一个**单角色展示台**：左半是 760px 宽的深色舞台，右半是动作面板。
+
+- 12 个动作按钮（`nod/bow/shake/tilt/look/glance/think/smile/happy/huh/leanin/hairtoss`）
+  直接复用 `longtable.html` 的 `GESTURES` 表与 `env = sin(πu)` 包络；另有「眨眼一次」「自动巡演」
+  （每个动作演完停 700 ms 再下一个）「抱书姿势」（懒加载第二个 moc3，交叉淡化到 `claude-book`）。
+- 9 个滑杆（`AngleX/Y/Z`、`BodyAngleZ/Y`、`EyeBallX/Y`、`MouthOpenY`、`Breath`）每个 ticker 整份写回，
+  所以松手不会残留；`MouthOpenY` 默认 0（静止闭嘴），拖动才张嘴。
+- 键盘：`1`–`9` 触发前九个动作、空格眨眼、`B` 切抱书。
+- 无头取证参数：`?p=AngleX:12,MouthOpenY:1`（同 `probe.html` 语法）、`?book=1` 直接进抱书、
+  `?gest=nod:0.5` 把某个动作定格在相位中点、`?noidle=1` 冻住待机正弦、`?noeye=1` 关自动眨眼、
+  `?seed=` 换待机相位、`?model=` / `?bookmodel=` 换 moc3。
+- 状态行显示「参数 N 个 · 贴图 WxH」，加载失败会把异常栈打在右下角，不再静默白屏。
+
+### 25.1 这一页踩到的三个坑
+
+1. **`PIXI.BaseTexture.defaultOptions` 可能是 `undefined`**。`gpt-model.html` 里有一句
+   `if (PIXI.BaseTexture && PIXI.BaseTexture.defaultOptions)` 的守卫，我照抄时漏了守卫，
+   直接给 `defaultOptions.mipmap` 赋值 → 抛 `Cannot set properties of undefined`，
+   整个 `boot()` 在模型加载前就挂了，画面全空、按钮区空白。**页面级 `try/catch` 只包了 `boot()`，
+   所以错误只显示在右下角一行红字**。
+2. **`model.width/height` 会随 `scale` 变化**。第一版 `fit()` 用 `model.width` 算 scale，
+   而 `resizeTo` 触发的一次 `resize` 事件会在 scale 已生效后再跑一次 `fit()`，
+   于是 `s = min(W*0.92/model.width)` 里的分母缩小了同样的倍数 → **自我放大，整个角色被裁到只剩裙摆**。
+   正确做法是加载完立刻存 `const BASE_W = model.width, BASE_H = model.height`（此时 scale=1），
+   之后只用这两个常量。
+3. **`?book=1` 与模型 URL 覆盖参数撞名**。最初 `MODEL_BOOK = q.get('book') || '<默认路径>'`，
+   于是 `?book=1` 被当成「抱书模型的 URL 是 `1`」→ 加载报 `Network error`。
+   现在布尔开关仍是 `?book=1`，模型覆盖参数改叫 `?bookmodel=`。**同一页里的语义参数和 URL 参数不要共用一个 key**。
+
+验收：`preview/_show-04.png`（默认姿势，1500×950）、`preview/_show-book2.png`（`?book=1` 抱书）。
