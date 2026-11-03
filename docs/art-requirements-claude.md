@@ -2081,3 +2081,50 @@ if (book) {
 #    http://127.0.0.1:8848/preview/probe.html?model=../assets/build/claude-v3/model/claude.layout.model3.json&scale=1&raw=1
 npm test   # 46/46，其中 stage.test.mjs 会 stat 每个角色资产
 ```
+
+## 35. 只露「腰以上」：桌沿在基线之上，不是之下
+
+§32 把裁切线当成「座位基线」，于是她虽然被裁了、裙子却仍在桌面上方，
+看着还是站着。真正的可见下界是**桌沿**，而桌沿在座位基线**之上** 39 px。
+
+### 35.1 两条线
+
+```js
+const tableTop = baseY - STAGE_PLATE_GAP; // STAGE_PLATE_GAP = 39
+```
+
+- 桌沿 `tableTop = baseY - 39`：桌子是一个 DOM 层（`#table` / `STAGE_ART.table`），
+  在 canvas **之后**绘制，所以从这条线往下的一切都被盖住。
+- `cut` 的遮罩线仍在 `baseY`：比桌沿低 39 px，遮住的那一条本来也被桌子盖着，
+  多余但无害 —— 不要为了对齐把它上移，遮罩一改就要重新量所有座位的边缘。
+
+### 35.2 定标公式
+
+全身像只在**画布坐标**里知道腰在哪里。实测 `assets/build/claude-v3/parts/claude/`
+的 `bottomwear` 从 y=992 开始（画布高 2048），所以裙腰距脚底 1056 px：
+
+```
+k  = scale * charH / 2048        // charH = 182（产品舞台）
+dy = 1056 * k - 39               // 腰线正好落在桌沿
+```
+
+`preview/stage-760.html` 与 `lib/client.js` 用的就是这组：`scale 1.70 / dy 120`。
+`preview/longtable.html` 的几何不同（`TABLE_TOP = 600`、`BASE_Y = 668`、`charH = 244`），
+同一套公式算得 `scale 1.80 / dy 160`。
+
+### 35.3 为什么不是「越小越贴桌」
+
+先试过 `1.42 / 94`（腰线同样落在桌沿）：位置对了，但她只剩「头 + 一点胸」，
+可见高度 118 px，而旁边 GPT 是 140 px —— 位置对不等于比例对。
+`1.70` 是「腰线贴桌沿」与「头胸和半身像一样大」两个条件的交点。
+
+### 35.4 验收
+
+```powershell
+# 产品几何：腰贴桌沿、裙腿全隐、头胸与 GPT 齐
+$u='http://127.0.0.1:8848/preview/stage-760.html?names=Claude,Kimi-K2,GPT&active=1&tpin=12000&nogest=1&book=1'
+# 长桌预览页（另一套几何）
+$v='http://127.0.0.1:8848/preview/longtable.html?n=6&only=0,4,5&still=1'
+```
+
+证据图：`preview/_waist2.png`（产品几何）、`preview/_lt-waist.png`（长桌页）。
