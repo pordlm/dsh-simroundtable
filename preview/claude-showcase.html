@@ -78,10 +78,12 @@ const GESTURES = [
   { id:'tilt',     label:'歪头',   dur:1400, f:u => { const e = Math.sin(Math.PI*u); return { tilt:14*e }; } },
   { id:'look',     label:'远望',   dur:1700, f:u => { const e = Math.sin(Math.PI*u); return { turn:20*e, tilt:5*e }; } },
   { id:'glance',   label:'瞥一眼', dur:1300, f:u => { const e = Math.sin(Math.PI*u); return { turn:-14*e, tilt:-5*e }; } },
-  { id:'think',    label:'思考',   dur:1900, f:u => { const e = Math.sin(Math.PI*u); return { tilt:10*e, nod:-6*e, hair:0.3*e }; } },
-  { id:'smile',    label:'微笑',   dur:2100, f:u => { const e = Math.sin(Math.PI*u); return { mform:0.6*e, eye:1-0.35*e }; } },
+  { id:'think',    label:'思考',   dur:1900, f:u => { const e = Math.sin(Math.PI*u); return { tilt:10*e, nod:-6*e, hair:0.3*e, mform:e }; } },
+  // 'smile' used to nudge ParamMouthForm, back when that parameter drove
+  // nothing; now it toggles the flat-mouth overlay, so a smile must NOT feed it.
+  { id:'smile',    label:'微笑',   dur:2100, f:u => { const e = Math.sin(Math.PI*u); return { eye:1-0.35*e }; } },
   { id:'happy',    label:'开心',   dur:1600, f:u => { const e = Math.sin(Math.PI*u); return { happy:e, nod:7*e, hair:0.25*e }; } },
-  { id:'huh',      label:'疑惑',   dur:1300, f:u => { const e = Math.sin(Math.PI*u); return { tilt:-11*e, brow:0.6*e }; } },
+  { id:'huh',      label:'疑惑',   dur:1300, f:u => { const e = Math.sin(Math.PI*u); return { tilt:-11*e, brow:0.6*e, mform:0.8*e }; } },
   { id:'leanin',   label:'凑近',   dur:1600, f:u => { const e = Math.sin(Math.PI*u); return { lean:10*e, nod:-7*e }; } },
   { id:'hairtoss', label:'甩发',   dur:1200, f:u => { const e = Math.sin(Math.PI*u); return { hair:0.8*e, turn:6*e }; } },
 ];

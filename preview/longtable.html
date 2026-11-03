@@ -363,10 +363,10 @@ const app = new PIXI.Application({
     { id: 'tilt',    dur: 1400, f: u => ({ tilt: 14 * env(u) }) },
     { id: 'look',    dur: 1700, f: u => ({ turn: 20 * env(u), tilt: 5 * env(u) }) },
     { id: 'glance',  dur: 1300, f: u => ({ turn: -14 * env(u), tilt: -5 * env(u) }) },
-    { id: 'think',   dur: 1900, f: u => ({ tilt: 10 * env(u), nod: -6 * env(u), hair: 0.3 * env(u) }) },
+    { id: 'think',   dur: 1900, f: u => ({ tilt: 10 * env(u), nod: -6 * env(u), hair: 0.3 * env(u), mform: env(u) }) },
     { id: 'smile',   dur: 2100, f: u => ({ happy: env(u) > 0.2 ? 1 : 0, tilt: 6 * env(u), nod: -3 * env(u) }) },
     { id: 'happy',   dur: 1600, f: u => ({ happy: env(u) > 0.2 ? 1 : 0, nod: -7 * env(u) }) },
-    { id: 'huh',     dur: 1300, f: u => ({ tilt: -9 * env(u), nod: 6 * env(u), happy: 0 }) },
+    { id: 'huh',     dur: 1300, f: u => ({ tilt: -9 * env(u), nod: 6 * env(u), happy: 0, mform: 0.8 * env(u) }) },
     { id: 'leanin',  dur: 1600, f: u => ({ lean: 10 * env(u), nod: -7 * env(u) }) },
     { id: 'hairtoss', dur: 1200, f: u => ({ hair: 1.0 * Math.sin(Math.PI * u * 2) * env(u), turn: 8 * env(u) }) },
     // 单眼眨眼：左右睁眼件分别绑在 ParamEyeLOpen/ROpen 上，所以能只关一只。
