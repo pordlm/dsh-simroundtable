@@ -1608,3 +1608,80 @@ s.poseNext = 3000 + Math.random() * 4000;
 比较的是 `t > s.poseNext`，而 `t` 是相对时间 —— 旧写法等于多算了一个 `t0`
 （页面初始化耗时），第一次自动抱书会比预期晚约一个 `t0`。数字不大，但这种「两个时钟混用」
 在验收时最难查：所有逻辑都对，就是时机对不上。
+
+## 28. 接进插件本体：从「只有鲸鱼娘」到按角色选模型（round 32）
+
+前面 27 节的舞台都是 `preview/longtable.html`（开发用）。**插件真正的舞台**是
+`lib/client.js` 里的 `StageCanvas` + `lib/stage.js` 的路由表，而它原本只有鲸鱼娘：
+所有座位都 `Live2DModel.from(STAGE_MODEL_URL)`，`STAGE_MODEL_URL` 指向
+`/api/roundtable/stage/model/model3.json`。也就是说 Claude 在开发页能演，在产品页根本不出现。
+
+### 28.1 路由侧（`lib/stage.js`）
+
+```js
+const CHARACTERS = {
+  claude: {
+    dir: "build/claude-v3/model",
+    prefix: "claude",
+    moc: { file: "claude.layout.moc3", type: OCTET },
+    physics: { file: "claude.layout.physics3.json", type: JSON_TYPE },
+    textures: [{ file: "claude.layout.4096/texture_00.png", type: PNG }],
+  },
+};
+```
+
+- `characterDescriptor(name)` 现场拼 `model3.json`：只留 `Moc / Textures / Physics` +
+  `EyeBlink` 组（舞台从不播 motion，直接写参数）。
+- **描述符里的路径必须是裸文件名**：`char/claude/model3.json` 是描述符自己的 URL，
+  `new URL("claude/claude.layout.moc3", 描述符URL)` 会解析成 `char/claude/claude/…` → 404。
+  早先写成 `${prefix}/${file}` 就是这么炸的，已在 `test/stage.test.mjs` 里加了回归测试：
+  用 `new URL(ref, descriptorUrl)` 反解每条引用，断言它能落到已注册路由上并取到字节。
+- `characterReady(name)` 必须是**同步**的（`existsSync`）：`registerRoundtableApi` 不是
+  async，`registerStageRoutes` 也就不能返回 promise，否则 `await` 落在非 async 函数里直接
+  `SyntaxError: Unexpected reserved word`。缺失就整组跳过 —— 模型是 `.gitignore` 的本地构建产物，
+  别的 checkout 里没有这些文件也必须能启动。
+
+### 28.2 加载侧（`lib/client.js`）
+
+```js
+const STAGE_CHARACTERS = {
+  claude: { url: `${STAGE_BASE}/char/claude/model3.json`, scale: 1.4, dy: 45, mouth: true },
+};
+const STAGE_DEFAULT_CHARACTER = { key: "whale-girl", url: STAGE_MODEL_URL, scale: 1, dy: 0, mouth: false };
+
+function stageCharacterFor(seat) {
+  const haystack = `${seat.key} ${seat.label}`.toLowerCase();
+  const key = Object.keys(STAGE_CHARACTERS).find((name) => haystack.includes(name));
+  return key ? { key, ...STAGE_CHARACTERS[key] } : STAGE_DEFAULT_CHARACTER;
+}
+```
+
+- 用**座位 key/label 子串**匹配而不是写死座位号：座位顺序由会议成员决定，写死序号会错位。
+- 加载失败要回落鲸鱼娘（`character.key !== STAGE_DEFAULT_CHARACTER.key` 时才重试），
+  这样模型文件被删/改名只丢一个角色，不会空一个座位。
+- 三个数值沿用开发舞台验收过的常量：`scale 1.4`（她是全身像，头只占 1/3）、`dy 45`、
+  `mouth: true` 表示这个模型有真正的口型参数。
+
+### 28.3 `stageFrame` 里按角色分支
+
+```js
+const character = model.__stageCharacter || STAGE_DEFAULT_CHARACTER;
+const seatY = baseY + (character.dy || 0);
+// 发言：音节包络同时驱动头与嘴（与第 17 节同一条曲线）
+const sy = character.mouth ? Math.abs(Math.sin(s * 5.5) * 0.72 + Math.sin(s * 8.9) * 0.28) : 0;
+nod = 2.6 * Math.sin(s * 3.1) + 5.2 * (sy - 0.5);
+if (character.mouth) mouth = 0.1 + 0.9 * sy;
+```
+
+鲸鱼娘的 `ParamMouthOpenY` 存在但没绑几何，所以 `mouth: false` 时保持 0（与改动前行为一致）。
+`model.y` 也必须走 `seatY`，否则 `dy` 会在每帧被抹掉 —— 这类「加载时设了、帧循环里又覆盖」的
+坑在舞台上出现过两次，改参数时先搜一遍 `model.y =`。
+
+### 28.4 验收
+
+- `npm run check`：7 个模块语法全过。
+- `npm test`：**46 项 / 46 通过**，其中 `test/stage.test.mjs` 覆盖角色路由集合、
+  描述符裁剪（无 `Motions`、`Groups` 只有 `EyeBlink`）、以及上面那条相对 URL 反解。
+- 真实页面验证需要把插件在官方「插件」页 off→on 重载一次（硬性约束：不自动重启 DSH），
+  重载后会议详情页里的 Claude 座位会换成她本人；看不到时先确认
+  `assets/build/claude-v3/model/claude.layout.moc3` 还在。

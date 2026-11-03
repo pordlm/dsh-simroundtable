@@ -339,27 +339,35 @@ test("the page API serves workspaces, catalog, meetings, detail and export", asy
       resolveLocale: () => "zh",
     });
 
-    assert.deepEqual([...routes.keys()].sort(), [
-      "/api/roundtable/capabilities",
-      "/api/roundtable/catalog",
-      "/api/roundtable/meeting",
-      "/api/roundtable/meeting/cancel",
-      "/api/roundtable/meeting/export",
-      "/api/roundtable/meetings",
-      "/api/roundtable/stage/art/chair.png",
-      "/api/roundtable/stage/art/table.png",
-      "/api/roundtable/stage/model/c_0120.moc3",
-      "/api/roundtable/stage/model/c_0120.physics3.json",
-      "/api/roundtable/stage/model/model3.json",
-      "/api/roundtable/stage/model/textures/texture_00.png",
-      "/api/roundtable/stage/model/textures/texture_01.png",
-      "/api/roundtable/stage/vendor/cubism4.min.js",
-      "/api/roundtable/stage/vendor/live2dcubismcore.min.js",
-      "/api/roundtable/stage/vendor/pixi.min.js",
-      "/api/roundtable/upload",
-      "/api/roundtable/upload/remove",
-      "/api/roundtable/workspaces",
-    ]);
+    assert.deepEqual(
+      [...routes.keys()]
+        .filter((path) => !path.startsWith("/api/roundtable/stage/char/"))
+        .sort(),
+      [
+        "/api/roundtable/capabilities",
+        "/api/roundtable/catalog",
+        "/api/roundtable/meeting",
+        "/api/roundtable/meeting/cancel",
+        "/api/roundtable/meeting/export",
+        "/api/roundtable/meetings",
+        "/api/roundtable/stage/art/chair.png",
+        "/api/roundtable/stage/art/table.png",
+        "/api/roundtable/stage/model/c_0120.moc3",
+        "/api/roundtable/stage/model/c_0120.physics3.json",
+        "/api/roundtable/stage/model/model3.json",
+        "/api/roundtable/stage/model/textures/texture_00.png",
+        "/api/roundtable/stage/model/textures/texture_01.png",
+        "/api/roundtable/stage/vendor/cubism4.min.js",
+        "/api/roundtable/stage/vendor/live2dcubismcore.min.js",
+        "/api/roundtable/stage/vendor/pixi.min.js",
+        "/api/roundtable/upload",
+        "/api/roundtable/upload/remove",
+        "/api/roundtable/workspaces",
+      ],
+      // Member rigs are local build output: their `stage/char/**` routes exist
+      // only when the artefacts are on disk, so they are asserted by
+      // test/stage.test.mjs instead of being pinned to this list.
+    );
     assert.deepEqual(routes.get("/api/roundtable/meetings").methods, ["GET", "POST"]);
 
     const workspaces = await routes.get("/api/roundtable/workspaces")
