@@ -41,16 +41,18 @@
   <div class="grid" id="gGrid"></div>
 
   <h2>循环</h2>
-  <div class="grid" style="grid-template-columns:repeat(3,1fr)">
+  <div class="grid" style="grid-template-columns:repeat(2,1fr)">
     <button id="btnBlink">眨眼一次</button>
+    <button id="btnSpeak">说话</button>
     <button id="btnTour">自动巡演</button>
     <button id="btnBook">抱书姿势</button>
+    <button id="btnZoom">特写</button>
   </div>
 
   <h2>参数</h2>
   <div id="sliders"></div>
 
-  <div class="hint">键盘：1–9 触发前九个动作，空格眨眼，B 切抱书。</div>
+  <div class="hint">键盘：1–9 触发前九个动作，空格眨眼，T 说话，B 切抱书，Z 特写。</div>
   <pre id="err"></pre>
 </div>
 
@@ -117,6 +119,9 @@ const env = u => Math.sin(Math.PI * clamp(u, 0, 1));
 let model = null, alt = null, altReady = false, showBook = false, tourOn = false;
 let fx = null, tourIdx = -1, tourNext = 0;
 let blinkStart = -1e9, blinkDur = 150;
+let speakOn = q.has('speak');          // ?speak=1 直接进说话态
+let syMean = 0.5;                      // sy 的慢均值，用来找「低于平时」的换气口
+const T_PIN = q.has('tpin') ? Number(q.get('tpin')) : null;   // ?tpin=<ms> 钉住时间，便于无头定格
 
 // 固定种子的待机相位，同一个 URL 每次打开动作一致，便于对比截图
 let seed = (q.has('seed') ? Number(q.get('seed')) | 0 : 20261103) >>> 0;
@@ -130,10 +135,24 @@ function rnd() {
 const W = { bobPeriod:3700, bobAmp:2.4, swayPeriod:6100, swayAmp:2.0,
             turnPeriod:8300, turnAmp:3.2, phase:rnd()*Math.PI*2 };
 
+function speechEnv(t) {
+  const sp = t / 1000 + W.phase;
+  return Math.abs(Math.sin(sp * 5.5) * 0.72 + Math.sin(sp * 8.9) * 0.28);
+}
 function blinkAt(t) { blinkStart = t; blinkDur = 150; }
-function blinkValue(t) {
+function blinkValue(t, sy) {
   const u = (t - blinkStart) / blinkDur;
   if (u >= 0 && u < 1) return u < 0.3 ? 1 - u / 0.3 : (u - 0.3) / 0.7;
+  if (speakOn) {
+    // 说话中不按随机时钟眨眼：只在「声音轻下来」的换气口眨，间隔至少 2.2 s。
+    // syMean 是 sy 的慢均值，用相对值而不是固定阈值——两条正弦几乎不同时过零，
+    // 固定阈值（sy<0.22）等一整段话都等不到。
+    syMean = syMean * 0.94 + sy * 0.06;
+    const breath = 0.5 + 0.5 * Math.sin(t / 1000 * 0.55 + W.phase);
+    if (breath > 0.55 && sy < 0.5 && sy < syMean * 0.8 && t - blinkStart > 2200) blinkAt(t);
+    return 1;
+  }
+  if (t - blinkStart > 2400 + rnd() * 5600) blinkAt(t);
   return 1;
 }
 
@@ -161,13 +180,20 @@ async function boot() {
   // model.width/height 会随 scale 变化，必须先把 scale=1 时的尺寸存下来，
   // 否则 resize 回调里再用 model.width 算 scale 会自我放大（第一版就这么炸成 3 倍）。
   const BASE_W = model.width, BASE_H = model.height;
+  // ?zoom=1 / 「特写」按钮：座位尺度下面部只有 ~20px，嘴的形变深度只有 3~4px，
+  // 想看清眼白/瞳孔/口型就必须放大。放大时把 anchor 挪到脸的高度（包围盒约 28% 处），
+  // 让脸停在舞台中央，而不是像整体缩放那样把脑袋顶出画面。
+  let zoomOn = q.has('zoom');
   const fit = () => {
     const W0 = app.renderer.width, H0 = app.renderer.height;
-    const s = Math.min(W0 * 0.92 / BASE_W, H0 * 0.94 / BASE_H);
+    const base = Math.min(W0 * 0.92 / BASE_W, H0 * 0.94 / BASE_H);
+    const s = base * (zoomOn ? 2.6 : 1);
+    const ay = zoomOn ? 0.26 : 1;
+    const py = zoomOn ? H0 * 0.5 : H0 * 0.985;
     model.scale.set(s);
-    model.anchor.set(0.5, 1);
-    model.position.set(W0 / 2, H0 * 0.985);
-    if (alt) { alt.scale.set(s); alt.anchor.set(0.5, 1); alt.position.copyFrom(model.position); }
+    model.anchor.set(0.5, ay);
+    model.position.set(W0 / 2, py);
+    if (alt) { alt.scale.set(s); alt.anchor.set(0.5, ay); alt.position.copyFrom(model.position); }
   };
   fit();
   window.addEventListener('resize', fit);
@@ -188,22 +214,32 @@ async function boot() {
   const setp = m => (id, v) => { try { m.internalModel.coreModel.setParameterValueById(id, v); } catch (e) {} };
 
   app.ticker.add(() => {
-    const t = NO_IDLE ? 0 : performance.now();
+    // tpin 优先：?noidle=1 只是「不跟着真实时钟跑」，不能让 tpin 失效
+    // （第一版写成 NO_IDLE ? 0 : (tpin...)，于是 ?noidle=1&tpin=1400 实际还是 t=0，
+    //  两帧截图只差 348px，差点被当成「说话态没驱动」）。
+    const t = (T_PIN !== null && Number.isFinite(T_PIN)) ? T_PIN : (NO_IDLE ? 0 : performance.now());
     if (fx && t - fx.start >= fx.g.dur) { fx = null; for (const b of document.querySelectorAll('#gGrid button')) b.classList.remove('on'); }
 
     const off = fx ? fx.g.f(t - fx.start) : {};
-    const sy = state.MouthOpenY;
+    const env = speakOn ? speechEnv(t) : 0;              // 语音包络：口型与点头共用
+    const sy = speakOn ? 0.10 + 0.90 * env : state.MouthOpenY;
+    const talkNod = speakOn ? 5.2 * (env - 0.5) : 0;     // (env-0.5) 才有回位
+    const talkLean = speakOn ? 1.1 * (env - 0.5) : 0;
     const breathe = 0.5 + 0.5 * Math.sin(t / 1000 * 1.1 + W.phase);
-    const eye = blinkValue(t);
+    const eye = blinkValue(t, env);
+    // 状态行每帧刷新，无头 dump-dom 就能读到当前 sy / 眨眼值，不必截图像素猜
+    errBox.dataset.sy = env.toFixed(3);
+    errBox.dataset.eye = eye.toFixed(3);
+    errBox.dataset.mouth = sy.toFixed(3);
 
     const pose = {
       AngleX: state.AngleX + (W.turnAmp * Math.sin(t / W.turnPeriod + W.phase)) + (off.turn || 0),
-      AngleY: state.AngleY + 1.2 * Math.sin(t / (W.bobPeriod * 1.3) + W.phase),
+      AngleY: state.AngleY + 1.2 * Math.sin(t / (W.bobPeriod * 1.3) + W.phase) + (off.nod || 0) + talkNod,
       AngleZ: state.AngleZ + (off.tilt || 0) + 0.8 * Math.sin(t / (W.swayPeriod * 0.7) + W.phase),
       BodyAngleX: 0,
-      BodyAngleY: (off.lean || 0) + state.BodyAngleY,
+      BodyAngleY: (off.lean || 0) + talkLean + state.BodyAngleY,
       BodyAngleZ: state.BodyAngleZ + 0.6 * Math.sin(t / W.swayPeriod + W.phase),
-      BodyLean: off.lean || 0,
+      BodyLean: (off.lean || 0) + talkLean,
       HairFront: clamp(0.085 * Math.sin(t / 1500 + 1.7) + 0.035 * Math.sin(t / 620 + 2.3) + (off.hair || 0), -1, 1),
       Breath: state.Breath === 0.5 ? breathe : state.Breath,
       EyeLOpen: NO_EYE ? 1 : Math.min(eye, off.eye === undefined ? 1 : off.eye),
@@ -237,6 +273,16 @@ async function boot() {
     gGrid.appendChild(b);
   }
   document.getElementById('btnBlink').onclick = () => blinkAt(performance.now());
+  const btnZoom = document.getElementById('btnZoom');
+  if (btnZoom) {
+    btnZoom.classList.toggle('on', zoomOn);
+    btnZoom.onclick = () => { zoomOn = !zoomOn; btnZoom.classList.toggle('on', zoomOn); fit(); };
+  }
+  const btnSpeak = document.getElementById('btnSpeak');
+  if (btnSpeak) {
+    btnSpeak.classList.toggle('on', speakOn);
+    btnSpeak.onclick = () => { speakOn = !speakOn; btnSpeak.classList.toggle('on', speakOn); };
+  }
   document.getElementById('btnTour').onclick = e => {
     tourOn = !tourOn; e.target.classList.toggle('on', tourOn);
     if (tourOn) { tourIdx = -1; tourNext = 0; } else { fx = null; }
@@ -256,6 +302,8 @@ async function boot() {
   addEventListener('keydown', ev => {
     if (ev.key === ' ') { ev.preventDefault(); blinkAt(performance.now()); }
     if (ev.key === 'b' || ev.key === 'B') document.getElementById('btnBook').click();
+    if (ev.key === 't' || ev.key === 'T') document.getElementById('btnSpeak')?.click();
+    if (ev.key === 'z' || ev.key === 'Z') document.getElementById('btnZoom')?.click();
     const n = Number(ev.key);
     if (n >= 1 && n <= 9) trigger(GESTURES[n - 1].id);
   });
