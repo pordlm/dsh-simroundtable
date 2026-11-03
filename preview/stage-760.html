@@ -135,11 +135,15 @@ function frame(models,wobbles,t,active,baseY){
       w.look=(w.look||0)*0.93+lookTarget*0.07;
       turn+=w.look*6;
       m.y=seatY+Math.sin(t/w.bobPeriod+w.phase)*w.bobAmp;m.rotation=Math.sin(t/(w.swayPeriod*.8)+w.phase)*.003;}
+    // 前发靠手摆：rig 的 PhysicsHairFront 被关掉了（整块网格同时含刘海与侧发，
+    // 软阈值会把刘海拖到眼上），所以这里补两个不同周期的正弦。
+    const hairSway=.085*Math.sin(t/1500+i*1.7)+.035*Math.sin(t/620+i*2.3);
     const applyPose=(tgt)=>{try{const core=tgt.internalModel.coreModel;
       core.setParameterValueById('ParamAngleX',turn);core.setParameterValueById('ParamAngleY',nod);
       core.setParameterValueById('ParamBodyAngleZ',lean);
       try{core.setParameterValueById('ParamMouthOpenY',mouthVal)}catch(e){}
       for(const id of PHONE_PARAMS){try{core.setParameterValueById(id,0)}catch(e){}}
+      try{core.setParameterValueById('ParamHairFront',hairSway)}catch(e){}
       try{core.setParameterValueById('ParamBreath',breath)}catch(e){}
       core.update();}catch(e){}};
     if(m.__fade==null)m.__fade=0;
