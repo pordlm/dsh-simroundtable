@@ -45,20 +45,46 @@ const expected = [
  * for a member's own model appear only when those files are on disk. Tests run
  * from a checkout that may or may not have them; this mirrors `characterReady`.
  */
-const CHARACTER_FILES = [
-  "model3.json",
-  "claude.layout.moc3",
-  "claude.layout.physics3.json",
-  "texture_00.png",
-];
+const CHARACTERS = {
+  claude: {
+    probe: "../assets/build/claude-v3/model/claude.layout.moc3",
+    files: ["model3.json", "claude.layout.moc3", "claude.layout.physics3.json", "texture_00.png"],
+  },
+  gpt: {
+    probe: "../assets/build/gpt-p2l/p2l/gpt.moc3",
+    files: [
+      "model3.json",
+      "gpt.moc3",
+      "gpt.physics3.json",
+      "texture_00.png",
+      "texture_01.png",
+      "texture_02.png",
+      "texture_03.png",
+      "texture_04.png",
+      "texture_05.png",
+    ],
+  },
+};
+
+async function builtCharacters() {
+  const built = [];
+  for (const [name, definition] of Object.entries(CHARACTERS)) {
+    try {
+      await stat(new URL(definition.probe, import.meta.url));
+      built.push(name);
+    } catch {
+      // Not built in this checkout.
+    }
+  }
+  return built;
+}
 
 async function characterRoutes() {
-  try {
-    await stat(new URL("../assets/build/claude-v3/model/claude.layout.moc3", import.meta.url));
-  } catch {
-    return [];
+  const routes = [];
+  for (const name of await builtCharacters()) {
+    for (const file of CHARACTERS[name].files) routes.push(`${STAGE_BASE}/char/${name}/${file}`);
   }
-  return CHARACTER_FILES.map((name) => `${STAGE_BASE}/char/claude/${name}`);
+  return routes;
 }
 
 test("stage routes cover every asset the page fetches", async () => {

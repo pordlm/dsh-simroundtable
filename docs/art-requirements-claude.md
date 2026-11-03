@@ -1685,3 +1685,18 @@ if (character.mouth) mouth = 0.1 + 0.9 * sy;
 - 真实页面验证需要把插件在官方「插件」页 off→on 重载一次（硬性约束：不自动重启 DSH），
   重载后会议详情页里的 Claude 座位会换成她本人；看不到时先确认
   `assets/build/claude-v3/model/claude.layout.moc3` 还在。
+
+### 28.5 GPT 也接进来了
+
+`CHARACTERS` 里再写一条即可（`prefix: "gpt"`、`dir: "build/gpt-p2l/p2l"`、6 张 `gpt.4096/texture_0N.png`），
+描述符照同样规则裁剪；客户端加一条
+`gpt: { scale: 0.85, dx: 111, dy: -25, mouth: true }` ——
+`dx` 是 GPT 立绘特有的：她是半身像，脸在身体中线左边 111px，缺了它整座会偏。
+`model.position.set(current.xs[index] + (character.dx || 0), current.baseY + (character.dy || 0))`
+是唯一设置水平位置的语句（`stageFrame` 只改 y 和 rotation，所以 `dx` 不会被每帧抹掉）。
+
+验证方式：把路由生成的描述符落到一个**镜像路由布局**的目录
+（`assets/build/_stagecheck/char/<name>/{model3.json,moc3,physics3,texture_NN.png}`），
+再用 `preview/probe.html?model=../assets/build/_stagecheck/char/<name>/model3.json&scale=0.62&bg=%23101418&p=EyeLOpen:1,MouthOpenY:0.7`
+渲染 —— 这一步能证明「裁剪后的描述符 + 相对路径」在真正的 Cubism runtime 里可用，
+比只看单测更硬。两个角色都渲染正常（`preview/_route-render2.png`、`preview/_route-gpt.png`）。
