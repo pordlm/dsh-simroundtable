@@ -223,7 +223,10 @@ async function boot() {
     const t = (T_PIN !== null && Number.isFinite(T_PIN)) ? T_PIN : (NO_IDLE ? 0 : performance.now());
     if (fx && t - fx.start >= fx.g.dur) { fx = null; for (const b of document.querySelectorAll('#gGrid button')) b.classList.remove('on'); }
 
-    const off = fx ? fx.g.f(t - fx.start) : {};
+    // u 必须是 0..1 的归一化相位：这里原来传的是「已经过去的毫秒数」，于是每条曲线
+    // 都在毫秒尺度上振荡（sin(π*ms) 的周期只有 2 ms）—— 点一下按钮就鬼畜抖动。
+    // lib/client.js 与 longtable.html 一直是对的，只有这页漏了 /dur。
+    const off = fx ? fx.g.f((t - fx.start) / fx.g.dur) : {};
     const env = speakOn ? speechEnv(t) : 0;              // 语音包络：口型与点头共用
     const sy = speakOn ? 0.10 + 0.90 * env : state.MouthOpenY;
     const talkNod = speakOn ? 5.2 * (env - 0.5) : 0;     // (env-0.5) 才有回位

@@ -189,6 +189,22 @@
 - **修法**：`hasAlt = !!(seatCfg.alt && seatCfg.alt.url)` 三态判断，`alt` 一律懒加载，
   `altModel.autoUpdate = visible && !freeze`。
 
+### 4.9 点一下动作按钮就"鬼畜抖动"
+
+- **现象**：点头/摇头/鞠躬像触电一样高频抖动，一帧一个姿势。
+- **原因**：动作曲线都按 `u ∈ 0..1` 写（`Math.sin(Math.PI*u)`），但 `preview/claude-showcase.html`
+  的 ticker 传进去的是**已过去的毫秒数**：`const off = fx.g.f(t - fx.start)`。
+  在毫秒尺度上 `sin(π·u)` 的周期只有 2 ms，于是每帧都是随机相位。
+  更坏的是 `?gest=id:0.5` 这种定格也跟着失真 —— 冻结在哪个相位全凭运气，
+  所以"截图看起来没问题"完全不能证明时序是对的。
+- **修法**：`fx.g.f((t - fx.start) / fx.g.dur)`。`lib/client.js:2197` 与
+  `preview/longtable.html:390` 一直是对的，只有 showcase 这一页漏了 `/dur`。
+- **验证**：按 60 fps 采样，逐帧最大增量 `nod 0.52° / bow 0.56° / shake 0.74° / tilt 0.34°`
+  （脚本 `assets/_raw/_smooth.py`）；定格相位也变得可预测 ——
+  `?gest=shake:0.5` 必然是 `turn = 6·sin(1.5π)·sin(0.5π) = -6°`，`?gest=bow:0.5` 必然是 `nod = -16°`。
+- **教训**：凡是"时间 → 相位"的映射，函数签名里就该写清 `u` 是归一化相位；
+  一个页面传毫秒、另一个传比例，是这类 bug 的标准形态。
+
 ---
 
 ## 5. 验收与测量（最容易被数字骗的地方）
