@@ -496,7 +496,9 @@ const app = new PIXI.Application({
       s.poseMs = 700;
       // 自动换姿势：空手待机一会儿就把书抱起来，抱一会儿再放下，让"会做动作"看得出来
       s.autoPose = hasAlt && seatCfg.autoPose !== false;
-      s.poseNext = performance.now() + 3000 + Math.random() * 4000;
+      // 注意：这里必须用与 ticker 同一个时钟。ticker 里的 t = performance.now() - t0，
+      // 写 performance.now() + 3000 会被多算一个 t0（页面初始化时间），第一次抱书会晨到 1s 左右。
+      s.poseNext = 3000 + Math.random() * 4000;
       s.model = model;
       s.cfg = seatCfg;
       loaded++;
@@ -510,7 +512,7 @@ const app = new PIXI.Application({
       if (!s.model) return `${s.i} x=${Math.round(s.x)} (no model)`;
       const b = s.model.getBounds();
       const p = s.poseDbg;
-      const pv = p ? ` turn=${p.turn.toFixed(1)} nod=${p.nod.toFixed(1)} lean=${p.lean.toFixed(1)} tilt=${(p.tilt||0).toFixed(1)} look=${p.look.toFixed(2)} eyeX=${(p.eyeX||0).toFixed(2)} eyeY=${(p.eyeY||0).toFixed(2)} hair=${(p.hair||0).toFixed(3)} sy=${(p.sy||0).toFixed(2)} mo=${(p.mouth||0).toFixed(2)} eye=${(p.eye===undefined?1:p.eye).toFixed(2)} bl=${p.bl||0} blsy=${(p.blsy||0).toFixed(2)} g=${p.g}` : '';
+      const pv = p ? ` turn=${p.turn.toFixed(1)} nod=${p.nod.toFixed(1)} lean=${p.lean.toFixed(1)} tilt=${(p.tilt||0).toFixed(1)} look=${p.look.toFixed(2)} eyeX=${(p.eyeX||0).toFixed(2)} eyeY=${(p.eyeY||0).toFixed(2)} hair=${(p.hair||0).toFixed(3)} sy=${(p.sy||0).toFixed(2)} mo=${(p.mouth||0).toFixed(2)} eye=${(p.eye===undefined?1:p.eye).toFixed(2)} bl=${p.bl||0} blsy=${(p.blsy||0).toFixed(2)} ln=${(p.ln||0).toFixed(3)} g=${p.g}` : '';
       return `${s.i} x=${Math.round(s.x)} mx=${Math.round(s.model.x)} baseY=${Math.round(s.baseY)} b=[${Math.round(b.left)}..${Math.round(b.right)}] w=${Math.round(b.width)}${pv}`;
     }).join('\n');
     const base = `charH=${charH}\n` + seatLines();
@@ -542,6 +544,8 @@ const app = new PIXI.Application({
     }, 500);
   }
 
+  // 听人说话的轻点头可以单独关掉：A/B 验收时除这一项，页面其余状态必须完全一致
+  const LISTEN_NOD = q.get('listen') !== '0';
   const t0 = performance.now();
   let frames = 0, lastFps = t0;
   app.ticker.add(() => {
@@ -608,6 +612,8 @@ const app = new PIXI.Application({
       else s.mouth *= 0.86;
 
       let nod, lean, turn, breath;
+      // 听人说话时的点头量（0..1）：只用来在 HUD 上验收，本身不参与渲染
+      let listenAmt = 0;
       // 「看发言人」：朝发言座位的方向偏头 + 眼珠轻微跟过去，并做时间平滑，
       // 否则换人发言时所有人会瞬间抽搐一下。
       let look = 0;
@@ -628,6 +634,12 @@ const app = new PIXI.Application({
       } else {
         // 待机：随机呼吸/摇摆/转头，每人节奏不同，避免整齐划一
         nod = 1.4 * Math.sin(t / w.bobPeriod + w.phase * 0.7);
+        // 「听人说话」的轻点头：对方发言时每 ~6s 轻轻点一下（sin^6 包络让它只有很短的峰）。
+        // 幅度只有 2.6°：大了就像在打盹，不像在听。也不会与自己发言时的音节点头叠加（那一支在 if 里面）。
+        if (LISTEN_NOD && speakerI >= 0 && speakerI !== s.i) {
+          listenAmt = Math.pow(Math.max(0, Math.sin((t / 1000 + w.phase * 3.7) * 0.92)), 6);
+          nod += 2.6 * listenAmt;
+        }
         lean = w.swayAmp * Math.sin(t / w.swayPeriod + w.phase);
         turn = w.turnAmp * Math.sin(t / w.turnPeriod + w.phase * 1.7);
         // 朝向发言人：头转 ±7°、身体随 ±2.2°，眼珠再带一点，读得出来但不过火
@@ -703,7 +715,7 @@ const app = new PIXI.Application({
                      eyeL, eyeR };
       // ?debug=1 的 overlay 会把这一帧写进模型的数值贴出来。像素 diff 在无头截图里
       // 有 ~600px 的噪声地板（场景微尘 + AA），微妙动作只有看数字才判得准。
-      s.poseDbg = { turn, nod, lean, tilt, look: s.lookSmooth || 0, hair, eyeX, eyeY,
+      s.poseDbg = { turn, nod, lean, tilt, look: s.lookSmooth || 0, hair, eyeX, eyeY, ln: listenAmt,
                     sy: s.speaking ? sy : 0, mouth: s.mouth, eye,
                     bl: s.blinkN || 0, blsy: s.blinkSy || 0,
                     g: (forceGest ? forceGest.id : (s.g && s.g.g.id)) || '-' };
