@@ -1090,6 +1090,11 @@ missing = body & ~cov          # 8461 px
 
 - 实测：`unclaimed pixels: 8461, patched 6539`（剩下的都是 <40px 的碎点，肉眼不可见）。
 - 重建：`claude_to_canvas.py` → `make_mouth_open.py` → `claude_v3_build.py --import`（`322112B`）→
+- 产品侧（round 38 补齐）：`lib/client.js` 的 `stageFrame()` 之前**完全没有写**
+  `ParamHairFront`，等于插件舞台里前发是死的。现在两个不同周期的正弦
+  （`0.085·sin(t/1500 + i·1.7) + 0.035·sin(t/620 + i·2.3)`）在 `applyPose()` 里写进去，
+  主 rig 与抱书 rig 共用；`preview/stage-760.html` 同步。
+
   `claude_book_build.py`（`316224B`）→ `claude_v3_gif.py --target gif --size 560 --fps 16`。
 - 验收：`probe.html?...&scale=0.78&p=EyeLOpen:1` 的 1700² 整身，`(930,330)-(1080,570)` crop 3× ——
   缎带连续、无绿楔；座位尺度 `?only=0,4,5&still=1&eye=1&nogest=1` 与抱书 `?only=4&pose=4:alt&eye=1` 都正常。
