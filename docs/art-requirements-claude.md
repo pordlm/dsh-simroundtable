@@ -1512,3 +1512,53 @@ b05 BodyAngleX:8,BodyAngleY:-6,BodyAngleZ:6,AngleX:18,AngleZ:12,HairFront:0.4
 实际取的是 `t=0`，两帧截图只差 **348 px**，看上去像「说话态完全没驱动」。
 改成 `tpin` 优先（`(T_PIN !== null) ? T_PIN : (NO_IDLE ? 0 : now())`）后差 22 438 px。
 **调试开关不能有隐含优先级**：冻结时钟和钉住时刻必须能同时用，或者干脆互斥报错。
+
+## 26. 验收清单：四条目标的证据与复现方式（round 30）
+
+目标是「①头发别诡异摆 ②缺件用中转站补 ③做出能眨眼的 moc3 ④舞台上能演多种动作」。
+逐条给出**可复现的证据**，免得下次只剩一张好看截图、说不清哪一条真的做完了。
+
+### 26.1 ① 头发摆动
+
+- 根因：`front hair` 是一整块网格同时含刘海与两侧长发，`PhysicsHairFront` 的
+  `1.522 / 0.77 / delay 1.45` 太软，摆动时把刘海拖到眼睛上。
+- 处置：`assets/_raw/tune_physics.py` 里 `PhysicsHairFront` 与 `PhysicsEyeJelly` 关掉，
+  `PhysicsHairBack` 改 `output_scale 0.60 / mobility 0.45 / delay 0.70 / acceleration 1.4`，
+  构建脚本每次重放；前发的微摆改由 `ParamHairFront` 在舞台侧补（`0.085·sin(t/1500) + 0.035·sin(t/620)`）。
+- 复现：`?only=4&eye=1&seed=20261103&tpin=<ms>` 相邻帧角色框 diff（§24 的表），
+  收尾两步只剩 8px ≈ 静止，没有硬切回零。
+
+### 26.2 ② 缺件
+
+- 睁眼图来自中转站（`relay-kit/tools/relay-grab-imagegen.mjs --chat <url> --out <dir>`，
+  真通道是 `<img src="/backend-api/estuary/content?id=file_…">`），落 `P0-master-open.png`，
+  与原母图 `diff>24` 只有 3.88%，`merge_open_eyes.py` 只嫁接眼部（保留原图其余像素）。
+- 眼、嘴、笑眼三组缺件全部由脚本生成而不是手画：`master_eye()`（§16.10/16.11）、
+  `make_mouth_open.py`（§16.9）、`make_happy_eyes.py`（§16.12）。
+- 巡检：`assets/_raw/audit_coverage.py <partsdir>`（件间缝 / 无人认领像素）、
+  `assets/_raw/audit_poses.py`（姿态压力测试）。
+
+### 26.3 ③ 能眨眼的 moc3
+
+- **能眨**：`ParamEyeLOpen/ROpen` 绑真眼件（睁眼件 toggle，闭眼件作为 face 之上普通层），
+  `probe.html?model=…claude-v3…&scale=1&raw=1&p=EyeLOpen:0` 与 `:1` 有明确像素差。
+- **不是 Cubism API 做的**：Cubism 外部集成需要 GUI 里点一次「设置 → 环境设置 →
+  外部应用程序集成」才会生成 `%APPDATA%\Live2D\ExternalApp_user.xml`；JAB/UIA 两条路都试过
+  （§15.5、round 28），Java 控件树不暴露，无法脚本点击。**这一步仍等人工**。
+- 因此「外部 API 直接改 moc3」这条支线**未完成**，其余全部由 `claude_v3_build.py` 走
+  PSD2Live 的 Streamable-HTTP MCP（`:23871`）完成。
+
+### 26.4 ④ 舞台多动作
+
+- 12 个动作全部有可见效果（§20 的 diff 表，最弱的 `hairtoss` 也有 289px，
+  `look` 在有视线冲突时会被主动抑制 —— 那是设计，不是失效）。
+- 说话：音节包络同时驱动口型与头部（§17），眨眼改挂换气口（§18，11 次/分）。
+- 抱书：`MODELS.Claude.alt` + `?pose=4:alt` 交叉淡化，抱书 5 帧形变压力测试全绿（§23）。
+- 展示台 `preview/claude-showcase.html`：12 动作 + 说话 + 特写 + 抱书 + 9 个滑杆（§25）。
+
+### 26.5 座位尺度复核（本轮新做的）
+
+`?only=0,4,5&still=1&eye=1&nogest=1` 截图后，把 Claude 的脸按 `(750,470)-(840,545)` 裁出来放大 8×：
+琥珀虹膜、上睑厚度、高光、嘴角、雏菊发饰、黑蝴蝶结全部在位；她的头宽与旁边 GPT（半身像）
+基本相当，**不需要再调 scale**。此前「她在座位上显得小」的观感来自全身像 + 桌沿遮住腿，
+不是缩放没调对。产物 `preview/_face8_seat45b.png`、`preview/_seat45b.png`。
