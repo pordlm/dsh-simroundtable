@@ -39,6 +39,9 @@ const PHONE_PARAMS=["phone","phone2","phone3","phone4","phone5","phone6","phone7
 // what the plugin composes. A rig is optional: missing files fall back to the
 // whale-girl, same as the plugin's load path.
 const WHALE={key:"whale-girl",url:"../assets/models/whale-girl/c_0120.model3.json",scale:1,dx:0,dy:0,mouth:false};
+// Read at module scope: frame() is module level too, and a flag declared inside
+// boot() would throw there (ReferenceError mid-frame instead of a silent no-op).
+const LOOK_OFF=new URLSearchParams(location.search).get('nolook')==='1';
 const RIGS={
   claude:{url:"../assets/build/claude-v3/model/claude.layout.model3.json",scale:1.4,dx:0,dy:45,mouth:true},
   gpt:{url:"../assets/build/gpt-p2l/p2l/gpt.model3.json",scale:.85,dx:111,dy:-25,mouth:true}
@@ -110,6 +113,15 @@ function frame(models,wobbles,t,active,baseY){
       turn=w.turnAmp*Math.sin(t/w.turnPeriod+w.phase*1.7);breath=.5+.5*Math.sin(t/w.bobPeriod+w.phase);
       const off=gestureOffset(w,t);
       turn+=off.turn||0;nod+=off.nod||0;lean+=off.lean||0;
+      // Turn toward whoever is speaking. The target is a direction, not an angle:
+      // /240 is 0.32 of the 760px stage, so the seat furthest away gets the full
+      // 6 degrees. Smoothing is per-frame instead of time-based so a pinned clock
+      // (?tpin) still settles on the same pose.
+      let lookTarget=0;
+      if(!LOOK_OFF&&active>=0&&active!==i&&models[active])
+        lookTarget=Math.max(-1,Math.min(1,(models[active].x-m.x)/240));
+      w.look=(w.look||0)*0.93+lookTarget*0.07;
+      turn+=w.look*6;
       m.y=seatY+Math.sin(t/w.bobPeriod+w.phase)*w.bobAmp;m.rotation=Math.sin(t/(w.swayPeriod*.8)+w.phase)*.003;}
     try{const core=m.internalModel.coreModel;
       core.setParameterValueById('ParamAngleX',turn);core.setParameterValueById('ParamAngleY',nod);

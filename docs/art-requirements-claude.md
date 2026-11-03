@@ -1820,3 +1820,62 @@ Python 之外的第二实现：GESTURES + gestureOffset() + 种子化 RND。改�
 一起改，否则「预览里动了、插件里不动」；反过来也一样。校验页多出的 ?gest=id:u、
 ?nogest=1、?seed= 是给无头截图用的，插件本体不需要。
 
+## 31. 待机时朝发言人转头（round 34）
+
+座位上一群人坐着听一个人说话，如果所有人都在朝正前方呼吸，桌面看着像一排摆件。
+这一节记「朝发言人转头」怎么算、踩到的作用域坑，以及两个环境各自的落点。
+
+### 31.1 算的是方向，不是角度
+
+```js
+let lookTarget = 0;
+if (!LOOK_OFF && active >= 0 && active !== i && models[active]) {
+  lookTarget = Math.max(-1, Math.min(1, (models[active].x - m.x) / 240));
+}
+w.look = (w.look || 0) * 0.93 + lookTarget * 0.07;
+turn += w.look * 6;
+```
+
+- `/240` 是 760 px 舞台的 `0.32`：座位 0 与座位 2 之间的距离刚好把 `lookTarget`
+  顶到 ±1，最远的座位给满 **6°**；再大就会与「发言者头部动作」抢语义。
+- 平滑系数 `0.93 / 0.07` 是逐帧的，不是按时间的。`?tpin` 定格时帧还在跑，
+  所以定格截图也能看到它收敛；如果按 `elapsed` 做缓动，定格就永远停在起始值。
+- 只加在**待机分支**：发言者的头属于音节包络（§17），叠一个视线偏移会与嘴打架。
+
+### 31.2 作用域坑：`frame()` 是模块级，开关却写在 `boot()` 里
+
+第一版把 `const noLook = q.get('nolook') === '1'` 写在 `boot()` 里（`q` 也在那里），
+而 `frame()` 定义在模块级 —— 它每帧都抛 `ReferenceError: noLook is not defined`，
+**整段待机逻辑被中断**，但页面照常渲染（模型停在上一帧的姿态），所以肉眼看不出异样。
+A/B 数字把它抓了出来：Claude 框内只差 **13 px**，而同一条件下去掉转头代码、
+只跑动作层时是 1137 px。
+
+修法是把开关提到模块级（`preview/stage-760.html:44`）：
+
+```js
+// Read at module scope: frame() is module level too, and a flag declared inside
+// boot() would throw there (ReferenceError mid-frame instead of a silent no-op).
+const LOOK_OFF = new URLSearchParams(location.search).get('nolook') === '1';
+```
+
+改完 Claude 框内 `diff>24` = **1027 px**、bbox `(80,107)-(200,254)`、整帧 1446。
+
+### 31.3 两个环境各写一遍
+
+| 文件 | 位置 | 归一化 |
+| --- | --- | --- |
+| `preview/stage-760.html` | `frame()` 待机支，动作层之后 | `/240`（= `760 * 0.32`） |
+| `lib/client.js` | `stageFrame()` 待机支，`stageGesture()` 之后 | `/(STAGE_W * 0.32)` |
+
+两边都存增量（`w.look` / `wobble.look`），都只乘 6°，改一边别忘了另一边（同 §30.5）。
+
+### 31.4 验收
+
+```powershell
+# Claude 在座位 0 待机、Kimi 在座位 2 发言
+$u='http://127.0.0.1:8848/preview/stage-760.html?n=3&names=Claude,GPT,Kimi-K2&active=2&tpin=5000&nogest=1'
+# 再跑一遍加 &nolook=1，比较 Claude 框 (80,90,240,420) 内 diff>24 的像素数
+```
+
+判据：>300 px 才算转头真的生效（实测 1027 px）；`node --check lib/client.js` 与
+`npm test`（46/46）证明插件侧没有回归。
