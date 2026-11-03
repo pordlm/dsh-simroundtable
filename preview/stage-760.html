@@ -43,7 +43,8 @@ const WHALE={key:"whale-girl",url:"../assets/models/whale-girl/c_0120.model3.jso
 // boot() would throw there (ReferenceError mid-frame instead of a silent no-op).
 const LOOK_OFF=new URLSearchParams(location.search).get('nolook')==='1';
 const RIGS={
-  claude:{url:"../assets/build/claude-v3/model/claude.layout.model3.json",scale:1.42,dx:0,dy:44,mouth:true,cut:true},
+  claude:{url:"../assets/build/claude-v3/model/claude.layout.model3.json",scale:1.42,dx:0,dy:44,mouth:true,cut:true,
+    book:"../assets/build/claude-book-model/claude-book.layout.model3.json"},
   gpt:{url:"../assets/build/gpt-half-atlas2048/gpt.model3.json",scale:.85,dx:111,dy:-25,mouth:true}
 };
 function characterFor(name){
@@ -100,14 +101,25 @@ function gestureOffset(w,t){
 function frame(models,wobbles,t,active,baseY){
   for(let i=0;i<models.length;i++){const m=models[i];if(!m)continue;const w=wobbles[i];const sp=i===active;
     const c=m.__char||WHALE, seatY=baseY+(c.dy||0);
-    let nod,lean,turn,breath;
+    let nod,lean,turn,breath,mouthVal=0,bookReady=0;
+    // Book variant: a seat that keeps listening quietly long enough swaps to the
+    // rig holding a codex, and swaps back the moment it speaks. Same canvas and
+    // same scale, so only the transform and the pose parameters need copying.
+    const bk=m.__book;
+    if(bk){if(sp)bk.idleSince=null;else if(bk.idleSince==null)bk.idleSince=t;
+      // A pinned clock never advances, so ?book=1 pins the variant instead of
+      // waiting out the idle timer.
+      const idle=bk.force?1e6:(bk.idleSince==null?0:t-bk.idleSince);
+      if(idle>9000&&!bk.started){bk.started=true;if(m.__loadBook)m.__loadBook();}
+      bk.blend+=((idle>9000&&bk.model?1:0)-bk.blend)*.06;
+      bookReady=Math.max(0,Math.min(1,(bk.blend-.35)/.3));}
     if(sp){const s=t/1000;
       // Same syllable envelope as the mouth, so the head nods on the beat the
       // lips move instead of on an unrelated slow sine.
       const sy=c.mouth?Math.abs(Math.sin(s*5.5)*.72+Math.sin(s*8.9)*.28):0;
       nod=2.6*Math.sin(s*3.1)+5.2*(sy-.5);lean=3.2*Math.sin(s*1.55)+1.1*(sy-.5);
       turn=1.5*Math.sin(s*1.1);breath=.5+.5*Math.sin(s*1.7);m.y=seatY-3;m.rotation=0;
-      try{m.internalModel.coreModel.setParameterValueById('ParamMouthOpenY',c.mouth?.1+.9*sy:0)}catch(e){}
+      mouthVal=c.mouth?.1+.9*sy:0;
     }
     else{nod=1.4*Math.sin(t/w.bobPeriod+w.phase*.7);lean=w.swayAmp*Math.sin(t/w.swayPeriod+w.phase);
       turn=w.turnAmp*Math.sin(t/w.turnPeriod+w.phase*1.7);breath=.5+.5*Math.sin(t/w.bobPeriod+w.phase);
@@ -123,12 +135,17 @@ function frame(models,wobbles,t,active,baseY){
       w.look=(w.look||0)*0.93+lookTarget*0.07;
       turn+=w.look*6;
       m.y=seatY+Math.sin(t/w.bobPeriod+w.phase)*w.bobAmp;m.rotation=Math.sin(t/(w.swayPeriod*.8)+w.phase)*.003;}
-    try{const core=m.internalModel.coreModel;
+    const applyPose=(tgt)=>{try{const core=tgt.internalModel.coreModel;
       core.setParameterValueById('ParamAngleX',turn);core.setParameterValueById('ParamAngleY',nod);
       core.setParameterValueById('ParamBodyAngleZ',lean);
+      try{core.setParameterValueById('ParamMouthOpenY',mouthVal)}catch(e){}
       for(const id of PHONE_PARAMS){try{core.setParameterValueById(id,0)}catch(e){}}
       try{core.setParameterValueById('ParamBreath',breath)}catch(e){}
-      core.update();}catch(e){}
+      core.update();}catch(e){}};
+    applyPose(m);
+    if(bk&&bk.model){m.alpha=1-bookReady;bk.model.position.set(m.x,m.y);
+      bk.model.scale.copyFrom(m.scale);bk.model.rotation=m.rotation;
+      bk.model.alpha=bookReady;bk.model.visible=bookReady>.002;applyPose(bk.model);}
   }
 }
 function dropPhone(m){
@@ -251,6 +268,18 @@ function dropPhone(m){
       const clip=new PIXI.Graphics();clip.beginFill(0x000000);
       clip.drawRect(-4000,-4000,8000,4000+baseY);clip.endFill();
       app.stage.addChild(clip);m.mask=clip;
+    }
+    if(c.book){
+      const bk={url:c.book,model:null,blend:0,started:false,idleSince:null};
+      m.__book=bk;
+      if(q.get('book')==='1')bk.force=true;
+      m.__loadBook=async()=>{try{
+        const alt=await PIXI.live2d.Live2DModel.from(bk.url,{autoInteract:false,autoUpdate:true});
+        alt.anchor.set(.5,1);alt.zIndex=i;alt.alpha=0;alt.visible=false;
+        if(c.cut){const clip2=new PIXI.Graphics();clip2.beginFill(0x000000);
+          clip2.drawRect(-4000,-4000,8000,4000+baseY);clip2.endFill();
+          app.stage.addChild(clip2);alt.mask=clip2;}
+        dropPhone(alt);app.stage.addChild(alt);bk.model=alt;}catch(e){}};
     }
   }));
 

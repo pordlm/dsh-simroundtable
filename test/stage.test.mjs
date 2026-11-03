@@ -51,7 +51,7 @@ const CHARACTERS = {
     files: ["model3.json", "claude.layout.moc3", "claude.layout.physics3.json", "texture_00.png"],
   },
   gpt: {
-    probe: "../assets/build/gpt-p2l/p2l/gpt.moc3",
+    probe: "../assets/build/gpt-half-atlas2048/gpt.moc3",
     files: [
       "model3.json",
       "gpt.moc3",
@@ -63,6 +63,10 @@ const CHARACTERS = {
       "texture_04.png",
       "texture_05.png",
     ],
+  },
+  claudeBook: {
+    probe: "../assets/build/claude-book-model/claude-book.layout.moc3",
+    files: ["model3.json", "claude-book.layout.moc3", "claude-book.layout.physics3.json", "texture_00.png"],
   },
 };
 

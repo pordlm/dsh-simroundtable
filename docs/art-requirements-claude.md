@@ -1949,3 +1949,61 @@ model.position.set(x + faceDx, baseY + (character.dy || 0));
 判据（裁 `(690,430)-(900,680)` 与 GPT `(855,430)-(1065,680)` 并排 2× 看）：
 头宽相当、头顶齐平、桌沿以下没有腿；`preview/stage-760.html` 同参数要一致
 （它用 `scale:1.42, dx:0, dy:44`，因为 `charH` 与 `BASE_Y` 与长桌页不同）。
+
+## 33. 抱书变体进产品舞台（round 37）
+
+开发页 `preview/longtable.html` 早就做了「抱书」交叉淡化，但插件舞台里只有一个
+rig。这一节把变体接到产品里，并记下唯一一个必须靠**第二个 moc3** 的原因。
+
+### 33.1 为什么是两个 rig
+
+PSD2Live 的 CLI/HTTP 接口没有「姿势切换」的作者入口：导出后每层的 `switchId` 都是
+`0`、`parameter` 都是空串（`psd2live.json` 里每层只有
+`source/type/tag/side/parameter/switchId/drawable`，没有 name，也没有 drawOrder）。
+想在一个 moc3 里切「空手/抱书」只能进 Cubism 手绑，而外部 API 那条线还卡在
+GUI 勾选上（§15.5）。所以产品侧沿用开发页的结论：**两个 moc3 + 舞台层淡入淡出**。
+
+### 33.2 什么时候换
+
+```js
+// lib/client.js stageFrame()
+const book = model.__stageBook;
+if (book) {
+  if (speaking) book.idleSince = null;                    // 开口就把书放下
+  else if (book.idleSince == null) book.idleSince = elapsed;
+  const idleFor = book.idleSince == null ? 0 : elapsed - book.idleSince;
+  if (idleFor > 9000 && !book.started) { book.started = true; model.__stageLoadBook(); }
+  book.blend += ((idleFor > 9000 && book.model ? 1 : 0) - book.blend) * 0.06;
+  bookReady = Math.max(0, Math.min(1, (book.blend - 0.35) / 0.3));
+}
+```
+
+- **9 秒**才开始加载：抱书 rig 是另一张 4096 贴图（约 5.3 MB），首屏不需要它；
+  大多数座位在 9 秒内都说过话，所以很多座位永远不会去拉这张图。
+- `0.06` 的逐帧插值约 300 ms 收敛；两个 rig 的 alpha 互为镜像
+  （`main = 1 - bookReady`、`book = bookReady`），中间那 100 ms 会有轻微重影，
+  但在座位尺度看不出来，比硬切自然。
+- 说话立即把 `idleSince` 清空 → `blend` 自然落回 0，她放下书再开口。
+
+### 33.3 代码要点
+
+- 姿态只写一份：把原来的参数块抽成 `applyPose(target)`，主 rig 和书 rig 各调一次。
+  两个 rig 的骨架、画布、缩放完全一致，所以书 rig 的 `position/scale/rotation`
+  每帧直接从主 rig 抄。
+- **遮罩不能共用**：`cut` 用的那块 `PIXI.Graphics` 是 stencil，两个 display object
+  共用一个 mask 对象在 PIXI 里会互相踩。书 rig 在加载时自己再建一块同样大小的矩形。
+- 路由：`lib/stage.js` 的 `CHARACTERS.claudeBook` 指向
+  `build/claude-book-model`，descriptor 里的贴图名仍然是 `texture_00.png`
+  （路由层做改名，见 §28）。`test/stage.test.mjs` 的 `CHARACTERS` 表同步加了这一项，
+  否则「routes cover every asset」会因为多出四条路由而失败。
+
+### 33.4 验证
+
+```powershell
+# 产品几何下看她抱书（座位 0 待机、座位 1 发言）
+& .\assets\_raw\shot.ps1 -Url 'http://127.0.0.1:8848/preview/stage-760.html?names=Claude,Kimi-K2,GPT&active=1&tpin=12000&nogest=1&book=1' -Out preview\_book-idle2.png -W 800 -H 520 -WaitMs 16000
+```
+
+**`?book=1` 是给固定时钟用的**：`?tpin` 让 `elapsed` 恒定，`idleFor` 永远是 0，
+不加这个参数她永远不换姿势（第一次截图就是这样，看到的是空手版）。产品里时间是真实
+推进的，不需要这个开关。
