@@ -1735,3 +1735,88 @@ if (character.mouth) mouth = 0.1 + 0.9 * sy;
 ### 29.4 维护提醒
 这一页有**自己的一份角色表**，改 `lib/client.js` 的 `scale/dx/dy/mouth` 时必须两边一起改，
 否则校验页和插件会给出不同构图（改之前先 `grep -n "claude:" lib/client.js preview/stage-760.html`）。
+
+## 30. 待机动作层：760px 校验页与插件本体（round 34）
+
+舞台上的「她在动」不能只靠呼吸和摇摆 —— 呼吸是连续的，动作是离散的。这两者必须分开做，
+否则调一个会把另一个带偏。
+
+### 30.1 五个动作，只动三个参数
+
+STAGE_GESTURES（lib/client.js）与 GESTURES（preview/stage-760.html）是同一张表：
+
+| id | dur | 曲线 | 说明 |
+| --- | --- | --- | --- |
+| 
+od | 1100 | 
+od = -11·sin(πu) | 点头，逐字读文件时的节奏 |
+| 	ilt | 1400 | 	urn = 7·sin(πu), 
+od = 2·sin(πu) | 歪头 |
+| 	hink | 1900 | 	urn = 5·sin(πu), 
+od = -3·sin(πu) | 思考，慢抬 |
+| lean | 1600 | lean = 6·sin(πu) | 前倾 |
+| shake | 900 | 	urn = 8·sin(πu·4)·sin(πu) | 摇头，四次往返 |
+
+只写 ParamAngleX（turn）、ParamAngleY（nod）、ParamBodyAngleZ（lean），因为这三条参数
+鲸鱼娘与成员 rig 都有绑定；ParamEyeBallX/Y、ParamBrow* 在 Claude 的 moc3 上是零效果（§13）。
+
+每条曲线都乘同一个 sin(πu) 包络：u=0 和 u=1 处位移为 0，动作之间不会跳变 —— 这是
+「离散动作叠在连续呼吸上」唯一的正确接口。
+
+### 30.2 调度：抽签 + 冷却
+
+`
+wobble.gesture = null; wobble.nextGesture = 2500 + Math.random() * 5500;   // stageWobble()
+...
+if (!wobble.gesture || elapsed - wobble.gesture.start > wobble.gesture.dur) {
+  wobble.gesture = null;
+  if (elapsed >= wobble.nextGesture) {
+    const pick = STAGE_GESTURES[Math.floor(Math.random() * STAGE_GESTURES.length)];
+    wobble.gesture = { gesture: pick, start: elapsed, dur: pick.dur };
+    wobble.nextGesture = elapsed + pick.dur + 7000 + Math.random() * 9000;
+  }
+}
+`
+
+冷却 7–16 s 是照着「一轮发言 9–18 s」量的：太密会变成机械舞，太疏则座位看起来是张照片。
+每个座位独立抽签，所以八个人不会同时点头。
+
+### 30.3 只在待机支执行
+
+`js
+} else {
+  ...四条正弦...
+  const gesture = stageGesture(wobble, elapsed);
+  if (gesture) { turn += gesture.turn || 0; nod += gesture.nod || 0; lean += gesture.lean || 0; }
+`
+
+发言时的头部属于音节包络（§17），叠加一个 −11° 的点头会和嘴型打架。**验证动作时必须让
+目标座位不是 ctiveIndex**：我第一次用 ?active=0（Claude 自己发言）做 A/B，她的框内只差
+188 px，差点判定动作层没接上；换成 ?active=2（Kimi 发言、Claude 待机）后同一个 
+od:0.5
+是 1137 px。
+
+### 30.4 验收数字（760px 校验页，?n=3&names=Claude,GPT,Kimi-K2&active=2&tpin=5000）
+
+| 动作 | Claude 框内 diff>24 |
+| --- | --- |
+| 基线 ?nogest=1 | 0 |
+| gest=nod:0.5 | 1137 |
+| gest=tilt:0.5 | 1972 |
+| gest=think:0.5 | 1431 |
+| gest=lean:0.5 | 3845 |
+| gest=shake:0.15 | 841 |
+| gest=shake:0.5 | 114（采样坑，见下） |
+
+**shake:0.5 只有 114 px 不是没接上**：sin(πu·4) 在 u=0.5 处正好过零（sin(2π)=0），
+那一帧动作位移为零。凡是有内部振荡的动作，定点采样必须避开过零点。
+
+对照条：ssets/build/claude-v3/media/gesture-sheet-760.png（5 格，crop (60,80,260,460)）。
+
+### 30.5 两个环境各有一份表
+
+preview/stage-760.html 是插件舞台的几何镜像（同一套 charH/baseY/ASPECT），它有一份
+Python 之外的第二实现：GESTURES + gestureOffset() + 种子化 RND。改动作参数必须两边
+一起改，否则「预览里动了、插件里不动」；反过来也一样。校验页多出的 ?gest=id:u、
+?nogest=1、?seed= 是给无头截图用的，插件本体不需要。
+

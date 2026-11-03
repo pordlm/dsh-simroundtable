@@ -67,8 +67,33 @@ function layout(count){
   return {count,step,xs,charH,chairW,chairH:Math.round(chairW*1.5),topPad,baseY,tableTop,tableH,stageH,
     wideBubble:count>=6,bubbleLines:count>=6?4:5};
 }
-function wobble(){return{bobPeriod:3000+Math.random()*2200,bobAmp:1.1+Math.random()*1.3,swayPeriod:4200+Math.random()*3200,
-  swayAmp:.7+Math.random()*1.1,turnPeriod:5200+Math.random()*4800,turnAmp:2.2+Math.random()*4,phase:Math.random()*Math.PI*2};}
+function makeRnd(seed){let s=seed>>>0;return()=>{s=(s+0x6D2B79F5)>>>0;let t=s;
+  t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);
+  return((t^t>>>14)>>>0)/4294967296;};}
+let RND=Math.random;
+function wobble(){return{bobPeriod:3000+RND()*2200,bobAmp:1.1+RND()*1.3,swayPeriod:4200+RND()*3200,
+  swayAmp:.7+RND()*1.1,turnPeriod:5200+RND()*4800,turnAmp:2.2+RND()*4,phase:RND()*Math.PI*2,
+  gest:null,next:2500+RND()*5500};}
+// Idle acting: short one-shot offsets layered on the wobble, same shape as the
+// preview stage's GESTURES (envelope sin(pi*u) so they start and end at zero).
+// Only turn/nod/lean, because those are the three parameters a whale-girl rig
+// and a member rig both expose.
+const GESTURES=[
+  {id:"nod",dur:1100,f:u=>({nod:-11*Math.sin(Math.PI*u)})},
+  {id:"tilt",dur:1400,f:u=>({turn:7*Math.sin(Math.PI*u),nod:2*Math.sin(Math.PI*u)})},
+  {id:"think",dur:1900,f:u=>({turn:5*Math.sin(Math.PI*u),nod:-3*Math.sin(Math.PI*u)})},
+  {id:"lean",dur:1600,f:u=>({lean:6*Math.sin(Math.PI*u)})},
+  {id:"shake",dur:900,f:u=>({turn:8*Math.sin(Math.PI*u*4)*Math.sin(Math.PI*u)})}
+];
+function gestureOffset(w,t){
+  const force=w.forced;
+  if(force){const g=GESTURES.find(x=>x.id===force.id);return g?g.f(force.u):{};}
+  if(!w.gest||t-w.gest.start>w.gest.dur){w.gest=null;if(t>=w.next){
+    const g=GESTURES[Math.floor(RND()*GESTURES.length)];
+    w.gest={g,start:t,dur:g.dur};w.next=t+g.dur+7000+RND()*9000;}}
+  if(!w.gest)return{};
+  return w.gest.g.f((t-w.gest.start)/w.gest.dur);
+}
 function frame(models,wobbles,t,active,baseY){
   for(let i=0;i<models.length;i++){const m=models[i];if(!m)continue;const w=wobbles[i];const sp=i===active;
     const c=m.__char||WHALE, seatY=baseY+(c.dy||0);
@@ -83,6 +108,8 @@ function frame(models,wobbles,t,active,baseY){
     }
     else{nod=1.4*Math.sin(t/w.bobPeriod+w.phase*.7);lean=w.swayAmp*Math.sin(t/w.swayPeriod+w.phase);
       turn=w.turnAmp*Math.sin(t/w.turnPeriod+w.phase*1.7);breath=.5+.5*Math.sin(t/w.bobPeriod+w.phase);
+      const off=gestureOffset(w,t);
+      turn+=off.turn||0;nod+=off.nod||0;lean+=off.lean||0;
       m.y=seatY+Math.sin(t/w.bobPeriod+w.phase)*w.bobAmp;m.rotation=Math.sin(t/(w.swayPeriod*.8)+w.phase)*.003;}
     try{const core=m.internalModel.coreModel;
       core.setParameterValueById('ParamAngleX',turn);core.setParameterValueById('ParamAngleY',nod);
@@ -105,6 +132,12 @@ function dropPhone(m){
   const active=Number(q.has('active')?q.get('active'):0);
   const topic=q.get('topic')||'如果模型可以投票，谁最适合做这个项目的技术负责人？';
   const text=q.get('text')||'我倾向先定义清楚「技术负责人」的产出，再谈人选：接口层稳定、评审意见能落地、出事敢背锅，这三条比模型名气重要得多。';
+  // Seeded randomness so two renders with the same ?tpin can be compared: without
+  // this the wobble phases alone swamp any pose difference.
+  RND=makeRnd(Number(q.get('seed')||20261103)|0);
+  const noGest=q.get('nogest')==='1';
+  const forceGest=(()=>{const raw=q.get('gest');if(!raw)return null;
+    const [id,u]=raw.split(':');return{id,u:Math.max(0,Math.min(1,Number(u)||0.5))};})();
   const L=layout(count), xs=L.xs, charH=L.charH, H=L.stageH, baseY=L.baseY;
   const inner=document.getElementById('inner');
   const host=document.getElementById('host');
@@ -169,7 +202,10 @@ function dropPhone(m){
     }
   });
 
-  const models=[],wobbles=xs.map(()=>wobble());
+  const models=[],wobbles=xs.map(()=>{const w=wobble();
+    if(forceGest)w.forced=forceGest;
+    if(noGest)w.next=Number.POSITIVE_INFINITY;
+    return w;});
   await Promise.all(xs.map(async(x,i)=>{
     const c=characterFor(names[i]);
     let m=null;
