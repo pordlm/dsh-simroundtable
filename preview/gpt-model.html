@@ -95,7 +95,7 @@ const app = new PIXI.Application({ view: document.getElementById('cv'),
       backgroundAlpha: 0, antialias: true });
     // ?model=../assets/build/gpt-p2l-soft/p2l/gpt.model3.json —— 换一版模型对比用
     const MODEL = new URLSearchParams(location.search).get('model')
-      || '../assets/build/gpt-p2l/p2l/gpt.model3.json';
+      || '../assets/build/gpt-half-atlas2048/gpt.model3.json';
     const model = await PIXI.live2d.Live2DModel.from(MODEL,
       { autoInteract: false, autoUpdate: true });
     app.stage.addChild(model);
@@ -105,9 +105,10 @@ const app = new PIXI.Application({ view: document.getElementById('cv'),
       const b = model.getLocalBounds();          // 把 bounds 左上角顶到 (0,0)，让
       model.position.set(-b.x, -b.y);            // 截图像素 == 模型坐标，可直接逐像素比
     } else {
-      // 注意：model.width/height 是**贴图内容的紧包围盒**（≈1877×2001），不是 moc3
-      // 画布 2048×2048；拿它算缩放会把模型放大 ~9% 并左右裁掉，所以固定用画布尺寸。
-      const CW = 2048, CH = 2048;
+      // 注意：model.width/height 是**贴图内容的紧包围盒**（2048 画布 ≈1877×2001），
+      // 不是 moc3 画布；拿它算缩放会把模型放大 ~9% 并左右裁掉，所以固定用画布尺寸。
+      // 半画布构建（gpt-half*）的 moc 画布是 1024，按路径自适应。
+      const CW = /half/.test(MODEL) ? 1024 : 2048, CH = CW;
       const s = Math.min(700 / CW, 860 / CH) * Z;
       model.scale.set(s);
       model.anchor.set(0.5, 1);
