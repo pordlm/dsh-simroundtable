@@ -86,9 +86,11 @@ const MODELS = {
     // 母图的脸中心在 x=1135（画布中线 1024 偏右 111px），anchor(0.5,1) 会让脸看着歪
     faceDx: 111,
     // 半身像：头占画布 57%（鲸鱼娘全身像只有 ~31%），0.85 才和邻居齐平；
-    // 缩小后下巴会掉到桌沿以下，所以再整体上提 25px 补回来
+    // 缩小后下巴会掉到桌沿以下，所以再整体上提 25px 补回来。
+    // dy 在 charH=182（8 席）下调好，同 Claude 一样按 charH 等比缩放
     scale: 0.85,
-    dy: -25
+    dy: -25,
+    dyCharH: 182
   },
   Claude: {
     url: '../assets/build/claude-v3/model/claude.layout.model3.json',
@@ -100,6 +102,11 @@ const MODELS = {
     // 于是 dy = 600 + 1056k - BASE_Y；1.80 让露出来的头胸与 GPT 一样大。
     scale: 1.8,
     dy: 160,
+    // dy 是在 charH=244（设计稿尺度）下调好的**舞台像素**偏移。座位数一变 charH
+    // 跟着变，模型可见高度线性缩放而固定 dy 不缩：8 席（charH≈194）时全身像会
+    // 沉到腰线以下 34px，只剩头露在桌沿上，待机动作全打在头上读作鬼畜抖动
+    // （2026-11-05 实测）。落位时按 charH/dyCharH 等比缩放，3 帧行为不变。
+    dyCharH: 244,
     cut: true,
     // v2（PSD2Live layout manifest 出模）把睁眼三件绑到 ParamEyeLOpen/ROpen，
     // 所以这一座位可以由舞台自己驱动眨眼；闭眼件是常显层，眼睛=1 时被睁眼件盖住
@@ -452,7 +459,9 @@ const app = new PIXI.Application({
       // 脸不在画布中线时按 1:1 像素补偿，让脸回到座位正中
       const faceDx = seatCfg.faceDx ? -seatCfg.faceDx * k : 0;
       s.faceDx = faceDx;
-      s.baseY = BASE_Y + (seatCfg.dy || 0);
+      // dy 按 charH/dyCharH 等比缩放：dy 是在 dyCharH 那档座位数下调好的舞台像素，
+      // 模型可见高度随 charH 线性变，偏移量必须同步缩，否则换席位数全身像会沉进桌子
+      s.baseY = BASE_Y + (seatCfg.dy || 0) * (charH / (seatCfg.dyCharH || charH));
       model.position.set(s.x + faceDx, s.baseY);
       model.zIndex = s.i;
       app.stage.addChild(model);
