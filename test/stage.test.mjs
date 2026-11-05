@@ -72,6 +72,10 @@ const CHARACTERS = {
     probe: "../assets/build/gemini-v1/gemini.layout.moc3",
     files: ["model3.json", "gemini.layout.moc3", "gemini.layout.physics3.json", "texture_00.png"],
   },
+  grok: {
+    probe: "../assets/build/grok-v1/grok.layout.moc3",
+    files: ["model3.json", "grok.layout.moc3", "grok.layout.physics3.json", "texture_00.png"],
+  },
 };
 
 async function builtCharacters() {

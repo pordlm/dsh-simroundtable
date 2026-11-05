@@ -46,14 +46,15 @@ const RIGS={
   claude:{url:"../assets/build/claude-v3/model/claude.layout.model3.json",scale:1.70,dx:0,dy:120,mouth:true,cut:true,
     book:"../assets/build/claude-book-model/claude-book.layout.model3.json"},
   gpt:{url:"../assets/build/gpt-half-atlas2048/gpt.model3.json",scale:.85,dx:111,dy:-25,mouth:true},
-  gemini:{url:"../assets/build/gemini-v1/gemini.layout.model3.json",scale:1.70,dx:0,dy:120,mouth:true,cut:true}
+  gemini:{url:"../assets/build/gemini-v1/gemini.layout.model3.json",scale:1.70,dx:0,dy:120,mouth:true,cut:true},
+  grok:{url:"../assets/build/grok-v1/grok.layout.model3.json",scale:1.70,dx:0,dy:120,mouth:true,cut:true}
 };
 function characterFor(name){
   const key=String(name||"").toLowerCase();
   for(const id of Object.keys(RIGS))if(key.includes(id))return{key:id,...RIGS[id]};
   return WHALE;
 }
-const NAMES={2:["DeepSeek-V3.2","Qwen3-Max"],3:["DeepSeek-V3.2","Qwen3-Max","Kimi-K2"],
+const NAMES={2:["Grok","Claude"],3:["DeepSeek-V3.2","Qwen3-Max","Kimi-K2"],
   5:["DeepSeek-V3.2","Qwen3-Max","GLM-4.6","Kimi-K2","Doubao"],
   8:["DeepSeek-V3.2","Qwen3-Max","GLM-4.6","Kimi-K2","Claude","GPT","Gemini","Doubao"]};
 
@@ -263,7 +264,7 @@ function dropPhone(m){
       m.__char=WHALE;
     }
     if(!m.__char)m.__char=c;
-    m.scale.set((charH*c.scale)/m.height);m.anchor.set(.5,1);
+    m.scale.set((charH*c.scale)/m.height);m.anchor.set(.5,1)
     // dx 是画布像素量（脸相对画布中线的偏移），要乘缩放并反号才是舞台位移；
     // 直接相加会把整座模型甩到隔壁座位上去（longtable 用的是 -faceDx*k）
     const faceDx=c.dx?-c.dx*m.scale.x:0;
