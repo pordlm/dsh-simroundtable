@@ -45,7 +45,8 @@ const LOOK_OFF=new URLSearchParams(location.search).get('nolook')==='1';
 const RIGS={
   claude:{url:"../assets/build/claude-v3/model/claude.layout.model3.json",scale:1.70,dx:0,dy:120,mouth:true,cut:true,
     book:"../assets/build/claude-book-model/claude-book.layout.model3.json"},
-  gpt:{url:"../assets/build/gpt-half-atlas2048/gpt.model3.json",scale:.85,dx:111,dy:-25,mouth:true}
+  gpt:{url:"../assets/build/gpt-half-atlas2048/gpt.model3.json",scale:.85,dx:111,dy:-25,mouth:true},
+  gemini:{url:"../assets/build/gemini-v1/gemini.layout.model3.json",scale:1.70,dx:0,dy:80,mouth:true,cut:true}
 };
 function characterFor(name){
   const key=String(name||"").toLowerCase();

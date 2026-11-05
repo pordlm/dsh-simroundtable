@@ -68,6 +68,10 @@ const CHARACTERS = {
     probe: "../assets/build/claude-book-model/claude-book.layout.moc3",
     files: ["model3.json", "claude-book.layout.moc3", "claude-book.layout.physics3.json", "texture_00.png"],
   },
+  gemini: {
+    probe: "../assets/build/gemini-v1/gemini.layout.moc3",
+    files: ["model3.json", "gemini.layout.moc3", "gemini.layout.physics3.json", "texture_00.png"],
+  },
 };
 
 async function builtCharacters() {

@@ -120,6 +120,18 @@ const MODELS = {
     // 抱书版：同一个座位叠的第二层，用 __setPose(4,'alt') / ?pose=4:alt 交叉淡化。
     // 这套 moc3 没有 handwear，tome 和双手是同一条 objects 画件（见 copilot 笔记）
     alt: { url: '../assets/build/claude-book-model/claude-book.layout.model3.json' }
+  },
+  Gemini: {
+    url: '../assets/build/gemini-v1/gemini.layout.model3.json',
+    // 全身 Q 版（3 头身，墨迹 1836px 高，同 Claude 管线）：同款「腰线落桌沿」坐姿。
+    // scale 1.8 / dy 160 先按 Claude 的数值起步，座位截图后再微调。
+    scale: 1.8,
+    dy: 160,
+    dyCharH: 244,
+    cut: true,
+    blink: true,
+    gestures: true,
+    sway: true
   }
 };
 const LINES = [
