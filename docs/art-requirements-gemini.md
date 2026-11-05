@@ -49,12 +49,12 @@ mouth_close / mouth_open / neckwear / ears / front_hair / headwear。
 
 - 画布映射:`scale=1.2601, dx=379.4, dy=68.2`(INK=(91,30,932,1487), TARGET_H=1836,
   同 Claude 按高度映射)。
-- **座位 dy 与 Claude 不同**:Gemini 三头身的裙腰在画布上比 Claude 低 ~266px
-  (Claude 腰上距 1056,Gemini 只有 790)。`dy = 790k − 39`:
-  - 产品 `lib/client.js`:`scale 1.7, dx 0, dy 80, dyCharH 182, cut true`;
-  - `preview/longtable.html`:`scale 1.8, dy 160, dyCharH 244`(Claude 数值起步,
-    8 席截图已验证;charH 变化时按 dyCharH 等比缩放);
-  - `preview/stage-760.html`:`scale 1.70, dy 80`(该页 dy 不随席位缩放,n=3 是产品几何)。
+- **座位 dy 与 Claude 完全一致**(用户 2026-11-06 拍板):三头身的裙腰在画布上虽然比
+  Claude 低 ~266px,但按「腰线落桌沿」推的 dy=80 会让胸口露出量少于 Claude、读作坐得太低,
+  **以 Claude 的观感为基准**,dy 直接用 Claude 的数值:
+  - 产品 `lib/client.js`:`scale 1.7, dx 0, dy 120, dyCharH 182, cut true`;
+  - `preview/longtable.html`:`scale 1.8, dy 160, dyCharH 244`(与 Claude 相同);
+  - `preview/stage-760.html`:`scale 1.70, dy 120`(该页 dy 不随席位缩放,n=3 是产品几何)。
 
 ## 4. 出模
 
