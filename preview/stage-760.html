@@ -165,7 +165,9 @@ function frame(models,wobbles,t,active,baseY){
       core.setParameterValueById('ParamBodyAngleZ',lean);
       try{core.setParameterValueById('ParamMouthOpenY',mouthVal)}catch(e){}
       for(const id of PHONE_PARAMS){try{core.setParameterValueById(id,0)}catch(e){}}
-      try{core.setParameterValueById('ParamHairFront',hairSway)}catch(e){}
+      // 前发是刚性跟头（物理关掉），参数只给 ±0.22：再大侧发就会甩离头皮，
+      // 露出发际线后面的洞（深色舞台上读作黑斑；见 longtable 的 applyPoseParams）。
+      try{core.setParameterValueById('ParamHairFront',Math.max(-.22,Math.min(.22,hairSway)))}catch(e){}
       try{core.setParameterValueById('ParamBreath',breath)}catch(e){}
       // Part opacity is an input to the core update, so it has to be written
       // before core.update() below; the renderer then reads it for this frame.

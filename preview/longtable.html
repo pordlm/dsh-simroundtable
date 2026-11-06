@@ -361,8 +361,12 @@ const app = new PIXI.Application({
       sv(core, 'ParamEyeBallY', p.eyeY);
       // v3 的 ^^ 笑眼：一条叠在睁眼之上的画件，toggle 绑在 ParamEyeBallForm 上
       sv(core, 'ParamEyeBallForm', p.happy);
-      // v3 的前发是刚性跟头（物理已关），这个参数仍然驱动它的额外摆动
-      sv(core, 'ParamHairFront', p.hair);
+      // v3 的前发是刚性跟头（物理已关），这个参数仍然驱动它的额外摆动。
+      // 夹在 ±0.22：前发网格在根部只和相邻件叠 2–3px，超过 0.25 侧发就会甩开，
+      // 露出「额头/侧颈的接缝」。2026-11-06 用 probe 逐值量过（品红底、数封闭洞）：
+      // Gemini 在 hf=0 时最大的洞 912px²，hf=+1 时涨到 6092px² —— 深色舞台上就是
+      // 一块会动的黑斑。Claude 同一套管线，注释里也写着 0.25 是上限。
+      sv(core, 'ParamHairFront', Math.max(-0.22, Math.min(0.22, p.hair)));
       // 只有把眼睛绑成 toggle 变体的模型（Claude v2）才能靠参数眨眼：
       // 1 显示睁眼三件、0 露出常显的闭眼件。没绑的模型不能写这个参数。
       if (p.eye !== undefined) {
@@ -415,7 +419,9 @@ const app = new PIXI.Application({
     { id: 'happy',   dur: 1600, f: u => ({ happy: env(u) > 0.2 ? 1 : 0, nod: -7 * env(u) }) },
     { id: 'huh',     dur: 1300, f: u => ({ tilt: -9 * env(u), nod: 6 * env(u), happy: 0, mform: 0.8 * env(u) }) },
     { id: 'leanin',  dur: 1600, f: u => ({ lean: 10 * env(u), nod: -7 * env(u) }) },
-    { id: 'hairtoss', dur: 1200, f: u => ({ hair: 1.0 * Math.sin(Math.PI * u * 2) * env(u), turn: 8 * env(u) }) },
+    // 甩发：振幅 0.20 而不是 1.0。「扔头发」听起来要甩到底，但前发只有根部
+    // 2–3px 的重叠，1.0 会把侧发甩离头皮（见 applyPoseParams 里的封顶注释）。
+    { id: 'hairtoss', dur: 1200, f: u => ({ hair: 0.20 * Math.sin(Math.PI * u * 2) * env(u), turn: 8 * env(u) }) },
     // 单眼眨眼：左右睁眼件分别绑在 ParamEyeLOpen/ROpen 上，所以能只关一只。
     // 收得快、放得慢一点点，比整体眨眼更像「抛个眼神」而不是抽搐。
     { id: 'wink', dur: 950, f: u => {
