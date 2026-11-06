@@ -48,8 +48,22 @@ const model = await PIXI.live2d.Live2DModel.from(MODEL, { autoInteract: false, a
 app.stage.addChild(model);
 model.anchor.set(0, 0);
 model.scale.set(SCALE);
+// A model drawn much smaller than its atlas (a 4096 page squeezed into ~170 CSS
+// px on the stage) is minified ~12x. Without mipmaps the GPU point-samples that
+// downscale, so every sub-pixel move re-picks different texels and the whole
+// figure shimmers. `?mip=1` turns mipmapping on so the two renders can be
+// compared edge-pixel by edge-pixel.
+if (q.get('mip') === '1') {
+  for (const tex of model.internalModel.textures || []) {
+    try {
+      tex.baseTexture.mipmap = PIXI.MIPMAP_MODES.ON;
+      tex.baseTexture.scaleMode = PIXI.SCALE_MODES.LINEAR;
+      tex.baseTexture.update();
+    } catch (e) { /* readonly on some builds */ }
+  }
+}
 const b = model.getLocalBounds();
-model.position.set(-b.x * SCALE, -b.y * SCALE);
+model.position.set(-b.x * SCALE + Number(q.get('dx') || 0), -b.y * SCALE + Number(q.get('dy') || 0));
 
 const pins = (q.get('p') || '').split(',').map(s => s.trim()).filter(Boolean);
 const cm = model.internalModel.coreModel;

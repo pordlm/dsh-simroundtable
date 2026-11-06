@@ -345,7 +345,10 @@ const app = new PIXI.Application({
   // 主/备两层必须写同一套参数，否则交叉淡化时表情会跳
   // 逐参数 try：鲸鱼娘/GPT 的 moc3 没有这里的某些参数（眼球、眉毛），缺一个不能连累后面
   function sv(core, id, v) {
-    if (v === undefined) return;
+    // 只挡 undefined 不够：`Math.max(-0.22, Math.min(0.22, NaN))` 是 NaN 而不是
+    // undefined，写进 core 会让该参数驱动的变形网整块失效（画件消失/露底）。
+    // 任何非有限值一律当「这帧不写」，宁可停在上一帧的姿势。
+    if (!Number.isFinite(v)) return;
     try { core.setParameterValueById(id, v); } catch (e) { /* 该模型没有这个参数 */ }
   }
   function applyPoseParams(model, p) {
@@ -507,7 +510,10 @@ const app = new PIXI.Application({
       const seatCfg = MODELS[NAMES[s.i % NAMES.length]] || {};
       const modelUrl = seatCfg.url || '../assets/models/whale-girl/c_0120.model3.json';
       const seatH = charH * (seatCfg.scale || 1);
-      const model = await PIXI.live2d.Live2DModel.from(modelUrl, { autoInteract: false, autoUpdate: !freeze });
+      const model = await PIXI.live2d.Live2DModel.from(modelUrl, { autoInteract: false, autoUpdate: false });
+      // autoUpdate:false 是必需的，不是省电：框架自带 update 挂在 PIXI.Ticker.shared，
+      // 我们挂在 app.ticker，两边各写一遍呼吸/眨眼/姿势，模型就在两套姿势间跳。
+      // 实测 (?tpin 冻结时钟后连拍)：true 时相邻帧差 1800–9200 px，false 时逐字节相同。
       const modelH = model.height;                 // 2048: 必须在 scale 之前读，之后读到的是缩放后的值
       const k = seatH / modelH;
       model.scale.set(k);
@@ -558,7 +564,7 @@ const app = new PIXI.Application({
         if (s.altPromise) return s.altPromise;
         s.altPromise = (async () => {
           try {
-            const alt = await PIXI.live2d.Live2DModel.from(seatCfg.alt.url, { autoInteract: false, autoUpdate: !freeze });
+            const alt = await PIXI.live2d.Live2DModel.from(seatCfg.alt.url, { autoInteract: false, autoUpdate: false });
             const altScale = k * (seatCfg.alt.scale || 1);
             alt.scale.set(altScale);
             alt.anchor.set(0.5, 1);
@@ -683,7 +689,10 @@ const app = new PIXI.Application({
         s.altModel.alpha = s.poseT <= 0.5 ? Math.min(1, s.poseT / 0.5) : 1;
         s.altModel.visible = s.altModel.alpha > 0.001;
         // 藏起来的时候连物理一起停：第二层看不见却还在逐帧算，8 个座位就是白烧 CPU
-        s.altModel.autoUpdate = s.altModel.visible && !freeze;
+        // autoUpdate 永远关着：框架的 update 挂在 Ticker.shared 上，会和 applyPoseParams
+        // 抢同一批参数 —— 两套写入各跑一遍，模型就在两个姿势之间跳（整座小幅抖动）。
+        // 参数与 core.update() 都由 applyPoseParams 负责，这里只留可见性。
+        s.altModel.autoUpdate = false;
         // 自动抱起 / 放下：只在两端夹住时排下一次，避免切换中被反复重置
         if (s.autoPose && pinnedPose === null && t > (s.poseNext || 0)
             && Math.abs(s.poseT - s.poseTarget) < 0.01) {
@@ -774,13 +783,19 @@ const app = new PIXI.Application({
             nod += off.nod || 0;
             turn += (off.turn || 0) * (1 - 0.75 * lookAmt);
             lean += off.lean || 0;
-            tilt = off.tilt;
-            eyeX = off.eyeX;
-            eyeY = off.eyeY;
-            brow = off.brow;
-            happy = off.happy;
-            hair = off.hair;
-            mform = off.mform;
+            // 动作只返回它自己关心的通道（`tilt` 只给 tilt、`axe` 只给 axe），
+            // 这里必须补 0 而不是直接赋值：赋成 undefined 以后，下面 `hair += …`
+            // 和 `eyeX += …` 会把 NaN 传下去，夹值又是 `Math.max(-0.22,
+            // Math.min(0.22, NaN))` → NaN，最后 sv() 把 NaN 写进 ParamHairFront /
+            // ParamEyeBallX，整个前发变形网塌掉（表现为侧发消失、露出深色底）。
+            // 实测：抽到 axe 动作时 Grok 的 ParamHairFront / ParamEyeBallX 恒为 NaN。
+            tilt = off.tilt || 0;
+            eyeX = off.eyeX || 0;
+            eyeY = off.eyeY || 0;
+            brow = off.brow || 0;
+            happy = off.happy || 0;
+            hair = off.hair || 0;
+            mform = off.mform || 0;
             winkL = off.winkL;
             winkR = off.winkR;
             axe = off.axe || 0;
@@ -896,7 +911,7 @@ const app = new PIXI.Application({
         s.model.alpha = on ? 0 : 1;
         s.altModel.alpha = on ? 1 : 0;
         s.altModel.visible = on;
-        s.altModel.autoUpdate = on && !freeze;
+        s.altModel.autoUpdate = false;
       };
       if (s.altModel) apply(); else if (s.loadAlt) s.loadAlt().then(apply);
     }
@@ -909,6 +924,11 @@ const app = new PIXI.Application({
       return { i: s.i, ok: true, left: Math.round(b.left), right: Math.round(b.right), top: Math.round(b.top), bottom: Math.round(b.bottom) };
     });
     document.body.dataset.debug = JSON.stringify({ loaded, count, charH, step: Math.round(step), fps: document.getElementById('fps').textContent, xs: xs.map(Math.round), info });
+    // 调试用：把渲染器和座位表暴露出去。无头验收里 page.screenshot() 会命中
+    // 合成器的未重绘区域（表现为整块纯黑矩形），而 renderer.extract 是直接从
+    // WebGL 后备缓冲读像素，同一 tpin 下逐帧应当完全一致——用它做像素级判定。
+    window.__app = APP;
+    window.__seats = seats;
     window.__stageReady = true;
   }));
 })().catch(e => {

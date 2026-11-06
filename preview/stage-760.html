@@ -281,10 +281,16 @@ function dropPhone(m){
   tick();app.ticker.add(tick);
   await Promise.all(xs.map(async(x,i)=>{
     const c=characterFor(names[i]);
+    // autoUpdate:false —— 框架自带的 update 挂在 PIXI.Ticker.shared 上，和我们的
+    // frame()（挂在 app.ticker 上）各跑一遍：它每帧写呼吸/眨眼/姿势，把 frame() 刚
+    // 写好的参数又盖回去，两次写入的相位又不一定落在同一帧，于是整座模型在两套
+    // 姿势之间来回跳（观感就是「整个人小幅抖动 / 有重影」）。
+    // 实测：?tpin=6000 冻结时钟后连拍 4 张，autoUpdate:true 时相邻两帧差 1800–9200
+    // 个像素；把它关掉后 4 张逐字节相同（0 px）。
     let m=null;
-    try{m=await PIXI.live2d.Live2DModel.from(c.url,{autoInteract:false,autoUpdate:true});}
+    try{m=await PIXI.live2d.Live2DModel.from(c.url,{autoInteract:false,autoUpdate:false});}
     catch(e){
-      if(c.key!==WHALE.key){try{m=await PIXI.live2d.Live2DModel.from(WHALE.url,{autoInteract:false,autoUpdate:true});}catch(e2){m=null}}
+      if(c.key!==WHALE.key){try{m=await PIXI.live2d.Live2DModel.from(WHALE.url,{autoInteract:false,autoUpdate:false});}catch(e2){m=null}}
       if(!m)return;
       m.__char=WHALE;
     }
@@ -312,7 +318,7 @@ function dropPhone(m){
       m.__book=bk;
       if(q.get('book')==='1')bk.force=true;
       m.__loadBook=async()=>{try{
-        const alt=await PIXI.live2d.Live2DModel.from(bk.url,{autoInteract:false,autoUpdate:true});
+        const alt=await PIXI.live2d.Live2DModel.from(bk.url,{autoInteract:false,autoUpdate:false});
         alt.anchor.set(.5,1);alt.zIndex=i;alt.alpha=0;alt.visible=false;
         if(c.cut){const clip2=new PIXI.Graphics();clip2.beginFill(0x000000);
           clip2.drawRect(-4000,-4000,8000,4000+baseY);clip2.endFill();
@@ -332,6 +338,10 @@ function dropPhone(m){
       plates:plateRects,xs:xs.map(Math.round)});
     window.__ready=true;
   }));
+  // Debug handles: a page.screenshot can catch the compositor mid-swap and hand
+  // back a black or torn rectangle, while renderer.extract reads the WebGL back
+  // buffer directly. Same escape hatch as preview/longtable.html.
+  window.__app=app;window.__models=models;window.__wobbles=wobbles;
 })().catch(e=>{document.body.dataset.error=e.message;console.error(e)});
 </script>
 </body>
