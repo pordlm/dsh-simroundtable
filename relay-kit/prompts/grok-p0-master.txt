@@ -1,0 +1,23 @@
+I'm attaching TWO reference images of the same character ("Grok"):
+1. A chibi character design sheet — use it for the chibi proportions, hairstyle, outfit details and accessories.
+2. A full-grown version of the same character holding a huge battle axe — use it for the ART STYLE (line weight, colouring, shading, eye shape) AND for the axe design.
+
+Output ONE image, portrait 1024x1536, flat pure green #00FF00 background. No frame, border, text, watermark or cast shadow. Exactly one character, single front view, no second view, no colour swatches, no decoration.
+
+Anime chibi girl, about 3 heads tall, full body from the top of her hair to the soles of her boots, standing facing the viewer with a confident, seductive attitude: weight on one hip, a knowing smirk, chest slightly pushed forward — a bold, flirtatious little demon lady who is very direct and self-assured.
+
+Character design (must match the design sheet):
+- Very long wavy blonde hair in two high twin-tails with black bat-wing hair ornaments, straight-cut bangs, and a small gold crown with a dark gem on top of her head.
+- Pointed elf ears.
+- Big blue eyes, OPEN (not half-closed), looking straight at the viewer with heavy upper lashes and a teasing glint; a wide confident smirk. NO visible eyebrows — only soft eyelid shading.
+- She wears a black gothic lolita dress: off-shoulder black bodice with white lace trim and a red inner collar, long black bell sleeves with white lace cuffs, gold pentagram charm at the chest, layered black skirt with a deep-red underskirt, gold chain belts with ring charms, black thigh-high stockings, and black high-heeled boots with gold buckles.
+- Small black bat wings on her lower back, poking out at her sides — clearly separated from the arms and the skirt.
+
+Pose and weapon (from the adult reference):
+- Her huge black-and-gold battle axe (same design as the adult image) RESTS against her right shoulder: the axe head is up beside her head on the viewer's left, the long shaft runs down in front of her and its butt end rests on the ground beside her right boot.
+- Her RIGHT hand grips the shaft in front of her chest; her LEFT hand is empty and rests at her side, fingers relaxed.
+- The axe must not cover her face, hair ornaments or torso details; keep a clear green gap between the axe and her hair/twin-tails wherever they come close.
+
+Framing: 40px of clear green above the top of her hair (and the axe head), 40px under her boot soles and the axe butt, 40px of clear green on each side; the head occupies the top ~30% of her total height, eyes about 22% down from the top.
+
+使用赛璐璐着色绘制 (flat cel shading), clean thin line art matching the adult reference's style, no shading on the green background.

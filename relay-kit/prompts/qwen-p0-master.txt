@@ -1,0 +1,19 @@
+I'm attaching TWO reference images of the same character ("Qwen"):
+1. A chibi character design sheet — use it for the chibi proportions, hairstyle, outfit details and accessories.
+2. A full-grown version of the same character — use it for the ART STYLE: line weight, colouring, shading style, eye shape and overall rendering quality must match THIS image.
+
+Output ONE image, portrait 1024x1536, flat pure green #00FF00 background. No frame, border, text, watermark or cast shadow. Exactly one character, single front view, no second view, no colour swatches, no decoration.
+
+Anime chibi girl, about 3 heads tall, full body from the top of her hair to the soles of her shoes, standing straight and facing the viewer, shoulders level, legs together.
+
+Character design (must match the design sheet):
+- Very long wavy periwinkle-blue hair with a thin braid running across the top of her head like a hairband and one long braid falling over her shoulder; a white beret with fluffy white fur trim and a round blue-and-white emblem pin on the front; a white ribbon bow with blue tassels at the side of her hair; gold drop earrings.
+- Large purple-blue eyes, gentle warm smile with a small closed mouth, soft blush. NO visible eyebrows — only soft eyelid shading.
+- She wears a white-and-blue Chinese-style dress: a white high-collared top with gold frog buttons and a gold-and-blue gem clasp at the collar, a blue sash belt with a large blue bow and a round emblem buckle, an elegant layered skirt — white overskirt with pale blue cloud embroidery, blue middle layer with gold floral patterns, white ruffled underskirt — with gold geometric trim and hanging blue tassels, and a long dark-navy shawl with gold trim draped over both arms, plus blue tassel ornaments hanging from the belt.
+- White gloves on both hands; blue shoes with a small round emblem on the toes.
+
+Hands: both hands empty and folded lightly in front of her waist — no fan, no handbag, no object. The shawl must not cover her hands.
+
+Framing: 40px of clear green above the top of her hair and beret, 40px under her shoe soles, 40px of clear green on each side; the head occupies the top ~30% of her total height, eyes about 22% down from the top.
+
+使用赛璐璐着色绘制 (flat cel shading), clean thin line art matching the adult reference's style, soft white-blue palette matching the reference, no shading on the green background.

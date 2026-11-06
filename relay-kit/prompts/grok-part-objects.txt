@@ -1,0 +1,4 @@
+Using the attached P0 master image (anime chibi demon lady with a battle axe, flat pure green background), keep ONLY the ENTIRE battle axe, complete and uninterrupted: the ornate black-and-gold X-shaped axe head at the top, and the full shaft down to its pointed butt end resting on the ground by her boot. Draw the full shaft even where her hand wraps it and even where it passes in front of the dress or hair (she will be layered BEHIND the axe). Everything else becomes flat pure green #00FF00.
+Keep the kept part at EXACTLY the same position, size and scale as in the master — do not re-draw, re-pose or re-compose. Everything not named above becomes flat pure green #00FF00.
+
+Output ONE image, portrait 1024x1536, flat pure green #00FF00 background, no frame, border, text, watermark or shadow. 使用赛璐璐着色绘制 (flat cel shading), same line art and colours as the master, no green fringe or glow on the kept part's edges.

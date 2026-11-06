@@ -1,0 +1,34 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>breath probe</title>
+<style>html,body{margin:0;background:#101014}canvas{display:block}</style></head>
+<body>
+<script src="../assets/vendor/live2dcubismcore.min.js"></script>
+<script src="../assets/vendor/pixi.min.js"></script>
+<script src="../assets/vendor/cubism4.min.js"></script>
+<script>
+(async () => {
+  const q = new URLSearchParams(location.search);
+  const MODEL = q.get('model') || '../assets/build/claude-book-model/claude-book.layout.model3.json';
+  const app = new PIXI.Application({ width: 600, height: 800, backgroundAlpha: 0, antialias: true, autoStart: true });
+  document.body.appendChild(app.view);
+  const model = await PIXI.live2d.Live2DModel.from(MODEL, { autoInteract: false, autoUpdate: true });
+  app.stage.addChild(model);
+  model.anchor.set(0.5, 1);
+  model.scale.set(0.28);
+  model.position.set(300, 780);
+  // Sample what the library's own update() drives, so the manual idle motion can
+  // copy the real amplitudes instead of guessing them.
+  window.__log = [];
+  window.__models = [model];
+  const cm = model.internalModel.coreModel;
+  const ids = ['ParamAngleX','ParamAngleY','ParamAngleZ','ParamBodyAngleX','ParamBodyAngleY','ParamBodyAngleZ','ParamBreath','ParamEyeBallX','ParamEyeBallY','ParamEyeLOpen'];
+  const t0 = performance.now();
+  window.__ready = true;
+  setInterval(() => {
+    const row = { t: Math.round(performance.now() - t0) };
+    for (const id of ids) { try { row[id.replace('Param','')] = +cm.getParameterValueById(id).toFixed(3); } catch (e) {} }
+    window.__log.push(row);
+  }, 50);
+})();
+</script>
+</body></html>

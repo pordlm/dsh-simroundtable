@@ -1,0 +1,20 @@
+I'm attaching TWO reference images of the same character ("GLM"):
+1. A chibi character design sheet — use it for the chibi proportions, hairstyle, outfit details and accessories.
+2. A full-grown version of the same character — use it for the ART STYLE: line weight, colouring, shading style, eye shape and overall rendering quality must match THIS image.
+
+Output ONE image, portrait 1024x1536, flat pure green #00FF00 background. No frame, border, text, watermark or cast shadow. Exactly one character, single front view, no second view, no colour swatches, no decoration.
+
+Anime chibi girl, about 3 heads tall, full body from the top of her hair to the soles of her shoes, standing straight and facing the viewer, shoulders level, legs together.
+
+Character design (must match the design sheet):
+- Very long wavy black hair with a blue gradient at the ends, hime-cut straight bangs; two big fluffy black wolf ears with white inner fur on top of her head.
+- A black sleep mask with closed-eye embroidery and white lace trim, pushed up and resting on top of her head between the ears; a black cube charm with a white letter "Z" on it attached to the side of the mask, with blue-and-white ribbons, silver bells and tassels hanging from it.
+- Large purple-blue eyes, calm gentle expression, small closed mouth, soft blush on the cheeks. NO visible eyebrows — only soft eyelid shading.
+- She wears a white-and-black gothic lolita dress: white blouse with puffy long sleeves and lace cuffs, a black chest bow with a blue gem at the collar, a black corset-style bodice panel with white lace trim and small blue diamond ornaments, a layered white skirt with black lace trim, black ribbon crosses and blue diamond gems, a thin chain belt with charms, and white lace-up ankle boots with white socks.
+- A big fluffy black wolf tail with a white tip, hanging down BEHIND her to her right side (viewer's right), clearly separated from her legs, NOT crossing in front of them, tip resting on the ground.
+
+Hands: both hands empty and folded lightly in front of her waist — no book, no object.
+
+Framing: 40px of clear green above the top of her hair and ears, 40px under her shoe soles, 40px of clear green on each side; the head occupies the top ~30% of her total height, eyes about 22% down from the top.
+
+使用赛璐璐着色绘制 (flat cel shading), clean thin line art matching the adult reference's style, soft black-white-blue palette matching the reference, no shading on the green background.

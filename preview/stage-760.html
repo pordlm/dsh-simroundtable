@@ -205,11 +205,25 @@ function frame(models,wobbles,t,active,baseY){
       for(const id of PHONE_PARAMS){try{core.setParameterValueById(id,0)}catch(e){}}
       // 前发是刚性跟头（物理关掉），参数只给 ±0.22：再大侧发就会甩离头皮，
       // 露出发际线后面的洞（深色舞台上读作黑斑；见 longtable 的 applyPoseParams）。
-      try{core.setParameterValueById('ParamHairFront',Math.max(-.22,Math.min(.22,hairSway)))}catch(e){}
+      // Grok 的 FrontHair 在 Face 底版之下（cdi3 绘制序 1 vs 11），转头时两层
+      // 相对滑动：实测「前发可见像素」在 ang ±6°、hf 0 时 12.3k/13.7k，ang 0° 时
+      // 只有 6.8k —— 侧发就是这样一会儿从底版下面钻出来、一会儿又被压回去
+      // （用户说的「两撮头发有时候突然被遮住」）。补一个与转头反向的偏移把两层
+      // 钉在一起：hf = sway - 0.0185*turn，同样条件下可见量收成 8.5k–10.5k，
+      // 摆动幅度从 2.5x 降到 1.24x。
+      if(tgt.__hairComp==null)tgt.__hairComp=/grok/i.test((tgt.internalModel&&tgt.internalModel.settings&&tgt.internalModel.settings.name)||'')?1:0;
+      const hairVal=hairSway-tgt.__hairComp*0.0185*turn;
+      try{core.setParameterValueById('ParamHairFront',Math.max(-.22,Math.min(.22,hairVal)))}catch(e){}
       try{core.setParameterValueById('ParamBreath',breath)}catch(e){}
       // Part opacity is an input to the core update, so it has to be written
       // before core.update() below; the renderer then reads it for this frame.
       if(tgt.__axePart){try{core.setPartOpacityById(tgt.__axePart,axeVal)}catch(e){}}
+      // Hair/swing physics is another thing the library ran for us inside
+      // internalModel.update(): with autoUpdate:false it never steps, so
+      // ParamHairBack was pinned at 0 and the ponytails stopped reacting to the
+      // head turn. Step it ourselves once per frame, after the angle inputs above
+      // (it reads ParamAngleX/Z + ParamBodyAngleX/Z) and before core.update().
+      try{const im=tgt.internalModel;if(im.physics)im.physics.evaluate(core,frameDt/1000);}catch(e){}
       core.update();}catch(e){}};
     if(m.__fade==null)m.__fade=0;
     if(m.__fade<1)m.__fade=Math.min(1,m.__fade+.08);

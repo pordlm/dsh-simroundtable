@@ -1,0 +1,9 @@
+I'm attaching the master reference image: an anime chibi demon-lady with blonde twin-tails and a battle axe on her shoulder, on a flat pure green #00FF00 background.
+
+Output ONE image, portrait 1024x1536, flat pure green #00FF00 background, no frame, border, text, watermark or shadow. Keep the EXACT same position, size, scale, pose, composition, line art, colours and shading as the master — every pixel outside the two changed regions must be identical to the master, including the axe, hands and outfit. Do not re-draw, re-pose or re-compose the character.
+
+Change ONLY these two things:
+1. BOTH EYES closed: each open eye becomes a single gentle downward-curved closed-lid line with the upper eyelash line pressing on top of it, exactly where the open eyes are now, keeping the heavy upper lashes. Soft eyelid shading above each line, same style as the master. Everything else in the face (fangs gone with the mouth change only, blush, hair) unchanged.
+2. The MOUTH closed: replace the open fanged smirk with a small closed smug smile — a thin curved line with one corner curled up, same position, same style. Remove the open mouth interior and the fang.
+
+使用赛璐璐着色绘制 (flat cel shading), clean thin line art, same palette as the master.

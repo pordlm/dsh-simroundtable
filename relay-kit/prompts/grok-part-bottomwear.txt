@@ -1,0 +1,4 @@
+Using the attached P0 master image (anime chibi demon lady with a battle axe, flat pure green background), keep ONLY the layered skirt only: the black outer skirt layers with gold trim and the deep-red underskirt, from the waist down to the hem. NOT the waist chain belts, NOT the legs or stockings, NOT the axe shaft where it passes in front of the skirt.
+Keep the kept part at EXACTLY the same position, size and scale as in the master — do not re-draw, re-pose or re-compose. Everything not named above becomes flat pure green #00FF00.
+
+Output ONE image, portrait 1024x1536, flat pure green #00FF00 background, no frame, border, text, watermark or shadow. 使用赛璐璐着色绘制 (flat cel shading), same line art and colours as the master, no green fringe or glow on the kept part's edges.

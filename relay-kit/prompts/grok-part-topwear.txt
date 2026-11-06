@@ -1,0 +1,4 @@
+Using the attached P0 master image (anime chibi demon lady with a battle axe, flat pure green background), keep ONLY the gothic dress upper part: the off-shoulder black bodice with white lace trim and red inner collar, BOTH long black bell sleeves with white lace cuffs, the gold chain belts with ring charms hanging at the waist. NOT the axe, NOT the hands, NOT the skirt below the waist chains, NOT the collar bow.
+Keep the kept part at EXACTLY the same position, size and scale as in the master — do not re-draw, re-pose or re-compose. Everything not named above becomes flat pure green #00FF00.
+
+Output ONE image, portrait 1024x1536, flat pure green #00FF00 background, no frame, border, text, watermark or shadow. 使用赛璐璐着色绘制 (flat cel shading), same line art and colours as the master, no green fringe or glow on the kept part's edges.

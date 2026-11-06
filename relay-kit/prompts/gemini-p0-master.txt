@@ -1,0 +1,20 @@
+I'm attaching TWO reference images of the same character ("Gemini"):
+1. A chibi character design sheet — use it for the chibi proportions, hairstyle, outfit details and accessories.
+2. A full-grown version of the same character — use it for the ART STYLE: line weight, colouring, shading style, eye shape and overall rendering quality must match THIS image.
+
+Output ONE image, portrait 1024x1536, flat pure green #00FF00 background. No frame, border, text, watermark or cast shadow. Exactly one character, single front view, no second view, no colour swatches, no decoration.
+
+Anime chibi girl, about 3 heads tall, full body from the top of her hair to the soles of her shoes, standing straight and facing the viewer, shoulders level, legs together.
+
+Character design (must match the design sheet):
+- Long wavy hair, gradient from periwinkle blue at the top to lavender and soft pink at the ends; one curly ahoge on top; two round hair buns at the sides with small white fluffy scrunchies; a large iridescent 4-point star hair ornament with a gold frame on the left side of her head.
+- Fluffy blue cat ears with pink inner fur, on top of her head.
+- Heterochromia eyes: her right eye (viewer's left) is soft pink-magenta, her left eye (viewer's right) is golden yellow. Calm neutral expression, small closed mouth. NO visible eyebrows — only soft eyelid shading.
+- She wears a navy-blue and white idol-style dress: white ruffle trim, a white-and-navy bodice with small star ornaments, a gold chain belt with star charms, large detached navy sleeves with white cuffs, a short white ruffle skirt with navy overlays, a black thigh strap on her right thigh, white slouchy leg warmers, and navy platform shoes with iridescent star buckles.
+- A big fluffy cat tail, blue fading to lavender-pink at the tip, hanging down BEHIND her to her right side (viewer's right), clearly separated from her legs, NOT crossing in front of them, tip resting on the ground.
+
+Hands: both hands empty and folded lightly in front of her waist — no pillow, no object.
+
+Framing: 40px of clear green above the top of her hair and 40px under her shoe soles, 40px of clear green on each side; the head occupies the top ~30% of her total height, eyes about 22% down from the top.
+
+使用赛璐璐着色绘制 (flat cel shading), clean thin line art matching the adult reference's style, soft pastel palette matching the reference, no shading on the green background.

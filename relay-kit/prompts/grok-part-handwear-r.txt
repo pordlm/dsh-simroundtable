@@ -1,0 +1,4 @@
+Using the attached P0 master image (anime chibi demon lady with a battle axe, flat pure green background), keep ONLY her RIGHT forearm and hand (the arm on the LEFT side of the picture) gripping the axe shaft: from the white lace cuff down to the fingers that wrap in front of the shaft. Do NOT include the axe shaft itself (the pixels of the shaft between the fingers stay green), do NOT include the bell sleeve.
+Keep the kept part at EXACTLY the same position, size and scale as in the master — do not re-draw, re-pose or re-compose. Everything not named above becomes flat pure green #00FF00.
+
+Output ONE image, portrait 1024x1536, flat pure green #00FF00 background, no frame, border, text, watermark or shadow. 使用赛璐璐着色绘制 (flat cel shading), same line art and colours as the master, no green fringe or glow on the kept part's edges.

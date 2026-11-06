@@ -389,7 +389,17 @@ const app = new PIXI.Application({
       // 露出「额头/侧颈的接缝」。2026-11-06 用 probe 逐值量过（品红底、数封闭洞）：
       // Gemini 在 hf=0 时最大的洞 912px²，hf=+1 时涨到 6092px² —— 深色舞台上就是
       // 一块会动的黑斑。Claude 同一套管线，注释里也写着 0.25 是上限。
-      sv(core, 'ParamHairFront', Math.max(-0.22, Math.min(0.22, p.hair)));
+      // Grok 还要再补一点：他的 FrontHair 画在 Face 底版之下（cdi3 序 1 vs 11），
+      // 转头时两层相对滑动（实测 ang ±6°、hf 0 时可见前发 12.3k/13.7k px，
+      // 而 ang 0° 只有 6.8k）→ 侧发一会儿钻出来一会儿被压回去。用反向偏移钉住：
+      // hf = hair - 0.0185*turn，同一区间收成 8.5k–10.5k，摆动 2.5x → 1.24x。
+      if (model.__hairComp == null) {
+        model.__hairComp = /grok/i.test(
+          (model.internalModel && model.internalModel.settings &&
+            model.internalModel.settings.name) || '') ? 1 : 0;
+      }
+      const hairVal = (p.hair || 0) - model.__hairComp * 0.0185 * (p.turn || 0);
+      sv(core, 'ParamHairFront', Math.max(-0.22, Math.min(0.22, hairVal)));
       // 只有把眼睛绑成 toggle 变体的模型（Claude v2）才能靠参数眨眼：
       // 1 显示睁眼三件、0 露出常显的闭眼件。没绑的模型不能写这个参数。
       if (p.eye !== undefined) {
@@ -413,6 +423,14 @@ const app = new PIXI.Application({
       if (model.__axePart) {
         try { core.setPartOpacityById(model.__axePart, p.axe || 0); } catch (e) { /* 该模型没有这个部件 */ }
       }
+      // 头发摆动物理（PhysicsHairBack：靠 ParamAngleX/Z + BodyAngle 驱动的单摆）
+      // 也是库在 internalModel.update() 里跑的。autoUpdate 关掉后 ParamHairBack
+      // 恒为 0，转头时马尾不再跟摆。这里自己每帧走一步：放在角度参数写完之后
+      // （物理要读它们）、core.update() 之前，dt 为 0 时（still/tpin）不推进。
+      try {
+        const im = model.internalModel;
+        if (im.physics) im.physics.evaluate(core, frameDt / 1000);
+      } catch (e) { /* 没有物理就用静态姿态 */ }
       core.update();
     } catch (e) { /* ignore */ }
   }
