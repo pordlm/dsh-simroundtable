@@ -354,10 +354,30 @@ const app = new PIXI.Application({
   function applyPoseParams(model, p) {
     try {
       const core = model.internalModel.coreModel;
-      sv(core, 'ParamAngleX', p.turn);
-      sv(core, 'ParamAngleY', p.nod);
-      sv(core, 'ParamAngleZ', p.tilt);
-      sv(core, 'ParamBodyAngleZ', p.lean);
+      // 库的呼吸模块（CubismBreath）本来负责「整个人自然微摆」：实测它把
+      // AngleX 摆到 ±5.0°、AngleY ±2.6°、BodyAngleX ±2.3°、BodyAngleZ ±1.6°。
+      // autoUpdate 关掉之后没人再调它，座位就变成「正襟危坐」的立绘；所以这里
+      // 自己调一次，再把我们的表演偏移加在它上面。时钟被钉住（still / tpin）时
+      // dt=0，呼吸不推进，同一 tpin 仍然逐字节可比。
+      let ba = { ax: 0, ay: 0, az: 0, bax: 0, bay: 0, baz: 0 };
+      const frameDt = (p.t == null || still) ? 0
+        : Math.min(64, Math.max(0, p.t - (model.__ltT == null ? p.t : model.__ltT)));
+      if (p.t != null) model.__ltT = p.t;
+      try {
+        const im = model.internalModel;
+        if (im.breath) {
+          im.breath.update(core, frameDt / 1000);
+          const rb = id => { try { return core.getParameterValueById(id) || 0; } catch (e) { return 0; } };
+          ba = { ax: rb('ParamAngleX'), ay: rb('ParamAngleY'), az: rb('ParamAngleZ'),
+                 bax: rb('ParamBodyAngleX'), bay: rb('ParamBodyAngleY'), baz: rb('ParamBodyAngleZ') };
+        }
+      } catch (e) { /* 没有呼吸模块就用纯表演偏移 */ }
+      sv(core, 'ParamAngleX', (p.turn || 0) + ba.ax);
+      sv(core, 'ParamAngleY', (p.nod || 0) + ba.ay);
+      sv(core, 'ParamAngleZ', (p.tilt || 0) + ba.az);
+      sv(core, 'ParamBodyAngleX', ba.bax);
+      sv(core, 'ParamBodyAngleY', ba.bay);
+      sv(core, 'ParamBodyAngleZ', (p.lean || 0) + ba.baz);
       sv(core, 'ParamMouthOpenY', p.mouth);
       sv(core, 'ParamMouthForm', p.mform);
       sv(core, 'ParamEyeBallX', p.eyeX);
@@ -826,7 +846,7 @@ const app = new PIXI.Application({
         hair += 0.085 * Math.sin(t / 1500 + s.i * 1.7) + 0.035 * Math.sin(t / 620 + s.i * 2.3);
       }
       const pose = { turn, nod, lean, tilt, eyeX, eyeY, brow, mform, happy, hair, mouth: s.mouth, breath, eye,
-                     eyeL, eyeR, axe };
+                     eyeL, eyeR, axe, t };
       // ?debug=1 的 overlay 会把这一帧写进模型的数值贴出来。像素 diff 在无头截图里
       // 有 ~600px 的噪声地板（场景微尘 + AA），微妙动作只有看数字才判得准。
       s.poseDbg = { turn, nod, lean, tilt, look: s.lookSmooth || 0, hair, eyeX, eyeY, ln: listenAmt,

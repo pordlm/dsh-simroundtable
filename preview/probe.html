@@ -100,6 +100,11 @@ for (const pin of (q.get('part') || '').split(',').map(s => s.trim()).filter(Boo
 }
 model.update(16.6);
 app.renderer.render(app.stage);
+// Debug handle: page.screenshot() composites the page background, so any
+// alpha-aware measurement (edge halos, holes) has to come from the renderer's
+// own buffer instead. Extract keeps the model's alpha intact.
+window.__app = app;
+window.__model = model;
 
 const meta = document.createElement('div');
 meta.id = 'meta';
