@@ -44,6 +44,31 @@ const app = new PIXI.Application({
 document.getElementById('cv').style.width = W + 'px';
 document.getElementById('cv').style.height = H + 'px';
 
+// ?mip=1: pre-register the atlas pages as mipmapped base textures BEFORE the
+// model is created, so the loader reuses them from the PIXI cache.  Setting the
+// flag afterwards does nothing (the page is already uploaded, and this build
+// keeps its textures behind renderer._textures where we cannot reach them).
+// A 4096 atlas squeezed into ~170 px needs 24x minification; without mipmaps
+// the GPU point-samples it, and where the sample lands on an alpha=0 texel the
+// hair simply vanishes for that pixel - on a dark stage that reads as black
+// speckles inside the hair.
+if (q.get('mip') === '1') {
+  try {
+    const res = await fetch(MODEL);
+    const desc = await res.json();
+    const base = new URL(MODEL, location.href);
+    for (const t of (desc.FileReferences && desc.FileReferences.Textures) || []) {
+      const url = new URL(t, base).href;
+      PIXI.BaseTexture.from(url, {
+        mipmap: PIXI.MIPMAP_MODES.ON,
+        scaleMode: PIXI.SCALE_MODES.LINEAR,
+        anisotropy: 4,
+      });
+    }
+  } catch (e) {
+    console.warn('mip setup failed', e);
+  }
+}
 const model = await PIXI.live2d.Live2DModel.from(MODEL, { autoInteract: false, autoUpdate: false });
 app.stage.addChild(model);
 model.anchor.set(0, 0);
