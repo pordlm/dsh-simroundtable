@@ -47,7 +47,14 @@ const RIGS={
     book:"../assets/build/claude-book-model/claude-book.layout.model3.json"},
   gpt:{url:"../assets/build/gpt-half-atlas2048/gpt.model3.json",scale:.85,dx:111,dy:-25,mouth:true},
   gemini:{url:"../assets/build/gemini-v1/gemini.layout.model3.json",scale:1.70,dx:0,dy:120,mouth:true,cut:true},
-  grok:{url:"../assets/build/grok-v1/grok.layout.model3.json",scale:1.70,dx:0,dy:120,mouth:true,cut:true}
+  // Grok sits like Claude/Gemini but her art carries a shorter, lower head: at
+  // 1.70 her eye line landed 24 px below Claude's and her face read a size down.
+  // 1.80 evens the head up (eye span matches Claude's after the scale) and the
+  // 107 dy lifts the eye line back onto the neighbours' (see `axe` note in
+  // lib/client.js: same numbers, expressed at this file's raw-dy convention).
+  // `axe` is the part that holds the battle axe: hidden unless the axe gesture
+  // says otherwise, so a meeting does not start with a halberd on the table.
+  grok:{url:"../assets/build/grok-v1/grok.layout.model3.json",scale:1.80,dx:0,dy:107,mouth:true,cut:true,axe:"PartExtra"}
 };
 function characterFor(name){
   const key=String(name||"").toLowerCase();
@@ -91,11 +98,21 @@ const GESTURES=[
   {id:"lean",dur:1600,f:u=>({lean:6*Math.sin(Math.PI*u)})},
   {id:"shake",dur:900,f:u=>({turn:8*Math.sin(Math.PI*u*4)*Math.sin(Math.PI*u)})}
 ];
+// A rig can carry a prop in its own part (Grok's battle axe is PartExtra). The
+// prop is part of the *acting*, not of the costume: it fades in for the beat of
+// this gesture and is gone again, so a seated meeting never shows it by default.
+// `axe` is a 0..1 part-opacity channel the frame loop applies to the rig.
+const AXE_GESTURE={id:"axe",dur:3000,f:u=>{
+  const env=Math.sin(Math.PI*u);
+  const rise=Math.min(1,u/.12),fall=Math.min(1,(1-u)/.22);
+  return{nod:2.4*env,lean:3*env,axe:Math.max(0,Math.min(rise,fall))};
+}};
 function gestureOffset(w,t){
   const force=w.forced;
-  if(force){const g=GESTURES.find(x=>x.id===force.id);return g?g.f(force.u):{};}
+  if(force){const g=GESTURES.concat(AXE_GESTURE).find(x=>x.id===force.id);return g?g.f(force.u):{};}
+  const pool=w.axe?GESTURES.concat(AXE_GESTURE):GESTURES;
   if(!w.gest||t-w.gest.start>w.gest.dur){w.gest=null;if(t>=w.next){
-    const g=GESTURES[Math.floor(RND()*GESTURES.length)];
+    const g=pool[Math.floor(RND()*pool.length)];
     w.gest={g,start:t,dur:g.dur};w.next=t+g.dur+7000+RND()*9000;}}
   if(!w.gest)return{};
   return w.gest.g.f((t-w.gest.start)/w.gest.dur);
@@ -103,7 +120,7 @@ function gestureOffset(w,t){
 function frame(models,wobbles,t,active,baseY){
   for(let i=0;i<models.length;i++){const m=models[i];if(!m)continue;const w=wobbles[i];const sp=i===active;
     const c=m.__char||WHALE, seatY=baseY+(c.dy||0);
-    let nod,lean,turn,breath,mouthVal=0,bookReady=0;
+    let nod,lean,turn,breath,mouthVal=0,bookReady=0,axeVal=0;
     // Book variant: a seat that keeps listening quietly long enough swaps to the
     // rig holding a codex, and swaps back the moment it speaks. Same canvas and
     // same scale, so only the transform and the pose parameters need copying.
@@ -127,6 +144,9 @@ function frame(models,wobbles,t,active,baseY){
       turn=w.turnAmp*Math.sin(t/w.turnPeriod+w.phase*1.7);breath=.5+.5*Math.sin(t/w.bobPeriod+w.phase);
       const off=gestureOffset(w,t);
       turn+=off.turn||0;nod+=off.nod||0;lean+=off.lean||0;
+      // Prop channel: 0 by default, so a rig whose part holds a prop (the axe)
+      // keeps it out of the scene until its own gesture brings it in.
+      axeVal=off.axe||0;
       // Turn toward whoever is speaking. The target is a direction, not an angle:
       // /240 is 0.32 of the 760px stage, so the seat furthest away gets the full
       // 6 degrees. Smoothing is per-frame instead of time-based so a pinned clock
@@ -147,6 +167,9 @@ function frame(models,wobbles,t,active,baseY){
       for(const id of PHONE_PARAMS){try{core.setParameterValueById(id,0)}catch(e){}}
       try{core.setParameterValueById('ParamHairFront',hairSway)}catch(e){}
       try{core.setParameterValueById('ParamBreath',breath)}catch(e){}
+      // Part opacity is an input to the core update, so it has to be written
+      // before core.update() below; the renderer then reads it for this frame.
+      if(tgt.__axePart){try{core.setPartOpacityById(tgt.__axePart,axeVal)}catch(e){}}
       core.update();}catch(e){}};
     if(m.__fade==null)m.__fade=0;
     if(m.__fade<1)m.__fade=Math.min(1,m.__fade+.08);
@@ -264,6 +287,10 @@ function dropPhone(m){
       m.__char=WHALE;
     }
     if(!m.__char)m.__char=c;
+    // Props live in their own part on some rigs (Grok's axe is PartExtra); the
+    // frame loop writes 0 into it every frame unless the axe gesture is running.
+    m.__axePart=c.axe||null;
+    if(c.axe)wobbles[i].axe=true;
     m.scale.set((charH*c.scale)/m.height);m.anchor.set(.5,1)
     // dx 是画布像素量（脸相对画布中线的偏移），要乘缩放并反号才是舞台位移；
     // 直接相加会把整座模型甩到隔壁座位上去（longtable 用的是 -faceDx*k）

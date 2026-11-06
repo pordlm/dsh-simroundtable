@@ -72,6 +72,18 @@ for (const pin of pins) {
   cm.setParameterValueById(id.startsWith('Param') ? id : 'Param' + id, v);
   applied.push(id + '=' + v);
 }
+// ?part=PartExtra:0 pins a *part* opacity (hides a whole layer group). Part opacity
+// is an input the core multiplies into every drawable of that part, so it survives
+// the single update below.
+for (const pin of (q.get('part') || '').split(',').map(s => s.trim()).filter(Boolean)) {
+  const i = pin.indexOf(':');
+  if (i < 0) continue;
+  const id = pin.slice(0, i).trim();
+  const v = Number(pin.slice(i + 1));
+  if (!id || Number.isNaN(v)) continue;
+  try { cm.setPartOpacityById(id, v); applied.push('part ' + id + '=' + v); }
+  catch (e) { applied.push('part!' + id); }
+}
 model.update(16.6);
 app.renderer.render(app.stage);
 
