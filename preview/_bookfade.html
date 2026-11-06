@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>bookfade</title>
+<style>
+  html,body{margin:0;padding:0;overflow:hidden}
+  canvas{display:block}
+</style>
+<script src="../assets/vendor/live2dcubismcore.min.js"></script>
+<script src="../assets/vendor/pixi.min.js"></script>
+<script src="../assets/vendor/cubism4.min.js"></script>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<script type="module">
+// One rig at a time: the two Claude canvases (2048 + a separate texture page
+// each) do not fit in one headless software-rendered tab, so the cross-fade is
+// measured by rendering each layer over black and white and compositing in the
+// caller.  alpha = 1 - (over_white - over_black) / 255, colour = over_black.
+//
+//   ?which=primary|variant   claude-v3 (empty arms) / claude-book (codex)
+//   ?bg=%23000000 | %23ffffff
+//   ?scale=0.4
+// Renders exactly one frame and stops.
+const q = new URLSearchParams(location.search);
+const WHICH = q.get('which') || 'primary';
+const BG = q.get('bg') || '#ffffff';
+document.documentElement.style.background = BG;
+document.body.style.background = BG;
+const SCALE = Number(q.get('scale') || 0.4);
+const W = Math.round(2048 * SCALE), H = W;
+
+const app = new PIXI.Application({
+  view: document.getElementById('cv'),
+  width: W, height: H,
+  backgroundAlpha: 0,
+  antialias: true,
+  autoStart: false,
+});
+document.getElementById('cv').style.width = W + 'px';
+document.getElementById('cv').style.height = H + 'px';
+
+const base = '../assets/build/';
+const url = WHICH === 'variant'
+  ? base + 'claude-book-model/claude-book.layout.model3.json'
+  : base + 'claude-v3/model/claude.layout.model3.json';
+const model = await PIXI.live2d.Live2DModel.from(url, { autoInteract: false, autoUpdate: false });
+model.anchor.set(0.5, 1);
+model.scale.set(SCALE);
+model.position.set(W / 2, H * 0.99);
+app.stage.addChild(model);
+model.update(16.6);
+app.renderer.render(app.stage);
+document.title = 'READY ' + WHICH + ' ' + BG;
+</script>
+</body>
+</html>
