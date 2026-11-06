@@ -160,10 +160,21 @@ function frame(models,wobbles,t,active,baseY){
     // 前发靠手摆：rig 的 PhysicsHairFront 被关掉了（整块网格同时含刘海与侧发，
     // 软阈值会把刘海拖到眼上），所以这里补两个不同周期的正弦。
     const hairSway=.085*Math.sin(t/1500+i*1.7)+.035*Math.sin(t/620+i*2.3);
+    // Blink has to be driven by hand now: the pages run with autoUpdate:false
+    // (the library's own update on PIXI.Ticker.shared fought our pose writes and
+    // read as a jitter), and with it went the only thing that used to blink the
+    // eyes. Without this the idle seats look like statues. Deterministic in `t`
+    // and staggered per seat, so ?tpin freezes on the same frame every time.
+    const blinkOpen=()=>{const per=2500+i*430,k=(t+(i*977)%per)%per;
+      return k>170?1:(k<45?1-k/45:(k-45)/125);};
+    const eyeOpen=blinkOpen();
+    const ballX=.18*Math.sin(t/2600+i*1.3),ballY=.08*Math.sin(t/1700+i*2.1);
     const applyPose=(tgt)=>{try{const core=tgt.internalModel.coreModel;
       core.setParameterValueById('ParamAngleX',turn);core.setParameterValueById('ParamAngleY',nod);
       core.setParameterValueById('ParamBodyAngleZ',lean);
       try{core.setParameterValueById('ParamMouthOpenY',mouthVal)}catch(e){}
+      try{core.setParameterValueById('ParamEyeLOpen',eyeOpen);core.setParameterValueById('ParamEyeROpen',eyeOpen);}catch(e){}
+      try{core.setParameterValueById('ParamEyeBallX',ballX);core.setParameterValueById('ParamEyeBallY',ballY);}catch(e){}
       for(const id of PHONE_PARAMS){try{core.setParameterValueById(id,0)}catch(e){}}
       // 前发是刚性跟头（物理关掉），参数只给 ±0.22：再大侧发就会甩离头皮，
       // 露出发际线后面的洞（深色舞台上读作黑斑；见 longtable 的 applyPoseParams）。
