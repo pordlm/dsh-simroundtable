@@ -322,3 +322,56 @@
 - **教训**：所有「按眼距/腰线对齐调出来的像素偏移」都是 k 的线性函数——k 变，
   偏移必须等比变。产品页 `lib/client.js` 的 `dy = 1056k − 39` 是运行时算的，没这个坑；
   只有 longtable.html 把结果写死了。
+
+### 3.12 relay 逐件出图：消息会被「横幅 reload」吞掉，且 `--new` 会复用旧会话
+
+症状：`ask --new` 返回了 CHAT 地址，但该会话里根本没有这条 user 消息
+（Grok 14 件里被吞 3 条；face 补发一次又被吞、还复用了 objects 的会话）。
+
+修法：**每发一条立刻 `relay-conv-json.mjs` 核对**（消息字数/关键词 + imagegen 是否
+已开跑）；补发后再核对一次，不在新会话就再补。核对要读它落盘的
+`.tmp/conv-*.json` 全文——摘要输出只有 `str(字数)`，grep 不到正文关键词。
+批量发送按 ~8 分钟/条估时（站点卡时），图在服务端并行生成，发送完统一收割。
+（详见 `docs/art-requirements-grok.md` §2）
+
+### 3.13 relay 重绘的 face/front_hair 与邻件漂 2–3px：接缝露黑底
+
+症状：管线 B 合成后发际线、下颌出现黑色楔形（透明洞），眨眼时眼睛周围也露底。
+
+原因：每件都是整图重画，位置/比例各漂一点点；逐件 PNG 之间没有互相重叠兜底。
+
+修法：**face 件不用 relay 的**——用母图头部区域（绿键 ∩ 头部椭圆）做底版
+（`cut_eyes_grok.py` 的 head_base），与母图切的眼件同源对齐；洞用
+「almond ∪ |expr-master| diff ∪ 嘴件」外扩 5px，最近邻填肤 + σ3/σ9 双高斯混合。
+重绘的刘海若压住眼睛（座位尺度脸读不出来），把母图眼位外扩 8px 从
+front_hair 的 alpha 里减掉。
+
+### 3.14 闭眼弧用 |expr−master| diff 切，不要按颜色切
+
+症状：按「深色像素」切表达式图的闭眼弧，biggest blob 选中了蝙蝠翼发饰/领口描线。
+
+原因：表达式图整张重绘（diff 全图几万像素），但**未改动的区域 diff≈0**——
+发饰、衣领在两张图里逐像素一致，diff 法天然排除它们；颜色法则分不开
+（发饰、睫毛、领线都是深色）。
+
+修法：`dif = |master−expr| > 40` ∩ 眼部宽 band → biggest 即闭眼弧。
+**band 必须完整罩住虹膜+弧线**：Grok 的 band x0 曾把虹膜左半切在外面，
+眨眼时残留一条蓝色竖条；band 下沿碰到领口线则会选中领线（闭嘴线同理）。
+
+### 6.4 这台机器的 CUDA OOM 是假的（WDDM 显存承诺）
+
+症状：`nvidia-smi`/torch 报 7–9 GB free，BiRefNet 分配 144–878 MB 仍
+`OutOfMemoryError`；`CUDA_VISIBLE_DEVICES=''` 在这台 torch 上不生效
+（照走 CUDA）；CPU 跑 res 2048 段错误。
+
+修法：`make_matte.py` 加了 `--cpu` 开关，**`--cpu --res 1024` 是可靠组合**
+（19s，质量足够）；改过源图后重跑记得 `--force`（缓存按 mtime）。
+
+### 4.13 「按腰线落桌沿」公式算出的 dy 不如直接对齐已验收角色
+
+症状：Gemini 初版按 `dy = waistAboveBoot·k − 39` 算出 80，台上胸口露出量比
+Claude 少，读作坐姿不对（用户："坐太高了，下移一点和 claude 一样"——实际是
+露出量少了显得不对劲）。
+
+教训：同一画布规格（2048、ink 高 1836）的全身 Q 版，**座位数值直接抄已验收
+角色的**（Claude/Gemini/Grok 统一 `1.7/120/dyCharH 182`）；公式只用于首版粗估。
