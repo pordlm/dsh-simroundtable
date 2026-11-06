@@ -168,10 +168,14 @@ function frame(models,wobbles,t,active,baseY){
     // Blink has to be driven by hand now: the pages run with autoUpdate:false
     // (the library's own update on PIXI.Ticker.shared fought our pose writes and
     // read as a jitter), and with it went the only thing that used to blink the
-    // eyes. Without this the idle seats look like statues. Deterministic in `t`
-    // and staggered per seat, so ?tpin freezes on the same frame every time.
-    const blinkOpen=()=>{const per=2500+i*430,k=(t+(i*977)%per)%per;
-      return k>170?1:(k<45?1-k/45:(k-45)/125);};
+    // eyes. A fixed cadence read as mechanical ("每隔几秒眨一次很怪"), so each
+    // cycle is shifted by a hash of its index: still deterministic in `t` (so
+    // ?tpin freezes the same frame) but irregular to the eye.
+    const hash01=(n)=>{const x=Math.sin(n*127.1+311.7)*43758.5453;return x-Math.floor(x);};
+    const blinkOpen=()=>{const per=2600+i*430,k=Math.floor(t/per);
+      for(let j=k;j>=k-1;j--){const at=j*per+hash01(j*31+i*7)*Math.min(950,per*.35),d=t-at;
+        if(d>=0&&d<=170)return d<45?1-d/45:(d-45)/125;}
+      return 1;};
     const eyeOpen=blinkOpen();
     const ballX=.18*Math.sin(t/2600+i*1.3),ballY=.08*Math.sin(t/1700+i*2.1);
     // Frame delta for the rig's own breath module (see applyPose). With a pinned
