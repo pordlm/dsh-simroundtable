@@ -1,0 +1,295 @@
+{
+ "old": {
+  "layout": "D:\\dsh_simroundtable\\assets\\build\\gemini-v1.bak",
+  "plate_png_bytes": 1020883,
+  "plate_md5": "B4D82C6A6365FB5BEFF85FC063086DA5",
+  "face_rect": {
+   "left": 839,
+   "top": 510,
+   "width": 372,
+   "height": 300
+  },
+  "frac_opaque_in_face": 0.7897,
+  "frac_transparent_in_face": 0.16,
+  "frac_opaque_in_12px_ring": 0.8233,
+  "opaque_lum_min": 0,
+  "opaque_lum_p1": 18.0,
+  "opaque_lum_median": 181.0,
+  "opaque_dark_lt60_px": 23921,
+  "dark_in_face_opaque_px": 4690
+ },
+ "new": {
+  "layout": "D:\\dsh_simroundtable\\assets\\build\\gemini-v1",
+  "plate_png_bytes": 1012730,
+  "plate_md5": "5737AFCCFAE2A5EBE2CDB7804D0A4628",
+  "face_rect": {
+   "left": 839,
+   "top": 510,
+   "width": 372,
+   "height": 300
+  },
+  "frac_opaque_in_face": 0.9997,
+  "frac_transparent_in_face": 0.0003,
+  "frac_opaque_in_12px_ring": 0.9993,
+  "opaque_lum_min": 0,
+  "opaque_lum_p1": 60.3,
+  "opaque_lum_median": 182.3,
+  "opaque_dark_lt60_px": 6327,
+  "dark_in_face_opaque_px": 234
+ },
+ "deployed": {
+  "layout": "D:\\dsh_simroundtable\\deployed\\dsh-roundtable\\assets\\build\\gemini-v1",
+  "plate_png_bytes": 1012730,
+  "plate_md5": "5737AFCCFAE2A5EBE2CDB7804D0A4628",
+  "face_rect": {
+   "left": 839,
+   "top": 510,
+   "width": 372,
+   "height": 300
+  },
+  "frac_opaque_in_face": 0.9997,
+  "frac_transparent_in_face": 0.0003,
+  "frac_opaque_in_12px_ring": 0.9993,
+  "opaque_lum_min": 0,
+  "opaque_lum_p1": 60.3,
+  "opaque_lum_median": 182.3,
+  "opaque_dark_lt60_px": 6327,
+  "dark_in_face_opaque_px": 234
+ },
+ "descriptor_new": {
+  "descriptor": "D:\\dsh_simroundtable\\assets\\build\\gemini-v1\\gemini.layout.model3.json",
+  "files": {
+   "gemini.layout.moc3": {
+    "exists": true,
+    "bytes": 439808
+   },
+   "gemini.layout.physics3.json": {
+    "exists": true,
+    "bytes": 3264
+   },
+   "gemini.layout.4096/texture_00.png": {
+    "exists": true,
+    "bytes": 6225518
+   }
+  },
+  "groups": [
+   {
+    "Target": "Parameter",
+    "Name": "EyeBlink",
+    "Ids": [
+     "ParamEyeLOpen",
+     "ParamEyeROpen"
+    ]
+   },
+   {
+    "Target": "Parameter",
+    "Name": "LipSync",
+    "Ids": [
+     "ParamMouthOpenY"
+    ]
+   }
+  ]
+ },
+ "descriptor_deployed": {
+  "descriptor": "D:\\dsh_simroundtable\\deployed\\dsh-roundtable\\assets\\build\\gemini-v1\\gemini.layout.model3.json",
+  "files": {
+   "gemini.layout.moc3": {
+    "exists": true,
+    "bytes": 439808
+   },
+   "gemini.layout.physics3.json": {
+    "exists": true,
+    "bytes": 3264
+   },
+   "gemini.layout.4096/texture_00.png": {
+    "exists": true,
+    "bytes": 6225518
+   }
+  },
+  "groups": [
+   {
+    "Target": "Parameter",
+    "Name": "EyeBlink",
+    "Ids": [
+     "ParamEyeLOpen",
+     "ParamEyeROpen"
+    ]
+   },
+   {
+    "Target": "Parameter",
+    "Name": "LipSync",
+    "Ids": [
+     "ParamMouthOpenY"
+    ]
+   }
+  ]
+ },
+ "sync_with_deployed": {
+  "gemini.layout.4096/texture_00.png": {
+   "bytes": 6225518,
+   "same": true
+  },
+  "gemini.layout.angry.exp3.json": {
+   "bytes": 669,
+   "same": true
+  },
+  "gemini.layout.blink.motion3.json": {
+   "bytes": 1155,
+   "same": true
+  },
+  "gemini.layout.can3": {
+   "bytes": 17448,
+   "same": true
+  },
+  "gemini.layout.cdi3.json": {
+   "bytes": 4534,
+   "same": true
+  },
+  "gemini.layout.cmo3": {
+   "bytes": 12746939,
+   "same": true
+  },
+  "gemini.layout.idle.motion3.json": {
+   "bytes": 15999,
+   "same": true
+  },
+  "gemini.layout.json": {
+   "bytes": 5918,
+   "same": true
+  },
+  "gemini.layout.moc3": {
+   "bytes": 439808,
+   "same": true
+  },
+  "gemini.layout.model3.json": {
+   "bytes": 1112,
+   "same": true
+  },
+  "gemini.layout.nod.motion3.json": {
+   "bytes": 1751,
+   "same": true
+  },
+  "gemini.layout.physics3.json": {
+   "bytes": 3264,
+   "same": true
+  },
+  "gemini.layout.psd2live.json": {
+   "bytes": 4644,
+   "same": true
+  },
+  "gemini.layout.sad.exp3.json": {
+   "bytes": 671,
+   "same": true
+  },
+  "gemini.layout.shake.motion3.json": {
+   "bytes": 1573,
+   "same": true
+  },
+  "gemini.layout.smile.exp3.json": {
+   "bytes": 668,
+   "same": true
+  },
+  "gemini.layout.surprised.exp3.json": {
+   "bytes": 669,
+   "same": true
+  },
+  "parts/back hair.png": {
+   "bytes": 805200,
+   "same": true
+  },
+  "parts/bottomwear.png": {
+   "bytes": 397023,
+   "same": true
+  },
+  "parts/ears.png": {
+   "bytes": 41247,
+   "same": true
+  },
+  "parts/eye close-l.png": {
+   "bytes": 4482,
+   "same": true
+  },
+  "parts/eye close-r.png": {
+   "bytes": 3587,
+   "same": true
+  },
+  "parts/eyewhite-l.png": {
+   "bytes": 21532,
+   "same": true
+  },
+  "parts/eyewhite-r.png": {
+   "bytes": 20141,
+   "same": true
+  },
+  "parts/face.png": {
+   "bytes": 84940,
+   "same": true
+  },
+  "parts/footwear-l.png": {
+   "bytes": 41184,
+   "same": true
+  },
+  "parts/footwear-r.png": {
+   "bytes": 49745,
+   "same": true
+  },
+  "parts/front hair.png": {
+   "bytes": 920713,
+   "same": true
+  },
+  "parts/handwear.png": {
+   "bytes": 302287,
+   "same": true
+  },
+  "parts/head_base.png": {
+   "bytes": 1012730,
+   "same": true
+  },
+  "parts/headwear.png": {
+   "bytes": 19909,
+   "same": true
+  },
+  "parts/irides-l.png": {
+   "bytes": 4390,
+   "same": true
+  },
+  "parts/irides-r.png": {
+   "bytes": 4334,
+   "same": true
+  },
+  "parts/legwear-l.png": {
+   "bytes": 123924,
+   "same": true
+  },
+  "parts/legwear-r.png": {
+   "bytes": 109246,
+   "same": true
+  },
+  "parts/mouth close.png": {
+   "bytes": 306,
+   "same": true
+  },
+  "parts/mouth open.png": {
+   "bytes": 3323,
+   "same": true
+  },
+  "parts/neck.png": {
+   "bytes": 10277,
+   "same": true
+  },
+  "parts/neckwear.png": {
+   "bytes": 23456,
+   "same": true
+  },
+  "parts/tail.png": {
+   "bytes": 187587,
+   "same": true
+  },
+  "parts/topwear.png": {
+   "bytes": 149710,
+   "same": true
+  }
+ },
+ "sync_all_same": true,
+ "sync_mismatch": []
+}

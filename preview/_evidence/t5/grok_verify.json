@@ -1,0 +1,36 @@
+{
+ "idle": {
+  "frames": 575,
+  "seconds": 20.0,
+  "hz": 28.8,
+  "param_angle_y_pp": 0.8,
+  "param_angle_x_pp": 15.0,
+  "param_angle_z_pp": 10.0,
+  "hair_front_pp": 0.09,
+  "hair_back_pp": 0.067,
+  "corr_angleX_hairFront": 1.0,
+  "lagged_corr": {
+   "-3": 0.995,
+   "-2": 0.998,
+   "-1": 0.999,
+   "0": 1.0,
+   "1": 0.999,
+   "2": 0.998,
+   "3": 0.995
+  },
+  "rail_hits": 0,
+  "idle_group": "undefined",
+  "motion_playing": false,
+  "motion_starts": 575,
+  "verdict_nod": "PASS",
+  "verdict_hair": "PASS",
+  "verdict_idle_off": "PASS"
+ },
+ "acting": {
+  "frames": 241,
+  "param_angle_y_pp": 10.049,
+  "hair_front_pp": 0.097,
+  "corr_angleX_hairFront": 1.0,
+  "verdict_nod_alive": "PASS"
+ }
+}

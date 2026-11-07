@@ -1,0 +1,7 @@
+t5 / Grok idle re-verification (stage-760.html, hook after acting effect)
+  idle pass: 575 frames / 20.0 s (28.8 Hz)
+  ParamAngleY p-p 0.8 deg  (limit < 1.5)  PASS
+  ParamHairFront p-p 0.09, corr(AngleX,HairFront) 1.0, rail 0  PASS
+  corr by lag: {'-3': 0.995, '-2': 0.998, '-1': 0.999, '0': 1.0, '1': 0.999, '2': 0.998, '3': 0.995}
+  motionManager.groups.idle undefined, playing False, startRandomMotion calls 575  PASS
+  acting pass (Grok speaks): AngleY p-p 10.049 deg  PASS

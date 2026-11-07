@@ -1,0 +1,22 @@
+{
+ "lighter_area_px1x": 54.0,
+ "lighter_bbox_css1x": [
+  500.0,
+  130.0,
+  626.0,
+  199.5
+ ],
+ "lighter_mean_dL": 13.6,
+ "darker_area_px1x": 101.2,
+ "darker_bbox_css1x": [
+  500.5,
+  135.0,
+  626.0,
+  197.0
+ ],
+ "darker_mean_dL": -16.6,
+ "patch_edge_step_dL": 41.0,
+ "patch_edge_rows": 11,
+ "new_dark_px1x": 12666.5,
+ "old_dark_px1x": 12663.2
+}

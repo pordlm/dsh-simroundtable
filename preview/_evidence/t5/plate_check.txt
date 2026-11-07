@@ -1,0 +1,4 @@
+t5 / Gemini head_base plate check
+  new  frac_opaque_in_face=0.9997  ring12=0.9993  dark<60=6327px
+  old  frac_opaque_in_face=0.7897  ring12=0.8233
+  deployed same bytes: True (41 files)

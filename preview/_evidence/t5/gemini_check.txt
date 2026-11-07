@@ -1,0 +1,20 @@
+t5 / Gemini independent re-measure (shipped build)
+
+matte ground truth (defect px, alpha<0.60 where matte alpha>0.85):
+  neutral        total=  5456 face=   80 comps>=12px=86 largest=177
+  stage_pose     total= 52929 face=  822 comps>=12px=242 largest=4939
+  anglex_m10     total= 23146 face= 2581 comps>=12px=201 largest=1183
+  anglexy_p6p4   total= 22128 face= 1418 comps>=12px=197 largest=713
+
+alpha-only enclosed holes (face window, low alpha not touching the exterior):
+  neutral        comps=  6 px=   56 largest=17
+  stage_pose     comps= 11 px=  143 largest=374
+  anglex_m10     comps= 15 px=  775 largest=1090
+  anglexy_p6p4   comps= 16 px= 1218 largest=463
+
+stage-scale (k=0.14111) pale-band vs pre-fix dark seam:
+  neutral        old_dark_px(L<26)=  77 min_L=14.3 | new_pale_px(dL>10)=  23 max_dL=21.8 mean_dL=13.2 skin_L=71.0
+  stage_pose     old_dark_px(L<26)=  94 min_L=9.6 | new_pale_px(dL>10)=  41 max_dL=31.3 mean_dL=14.0 skin_L=71.9
+         6px bbox=[114, 131, 114, 136] = 301.3 stage px^2 mean_dL=13.3
+         6px bbox=[146, 106, 150, 107] = 301.3 stage px^2 mean_dL=12.8
+         6px bbox=[102, 33, 102, 38] = 301.3 stage px^2 mean_dL=12.5

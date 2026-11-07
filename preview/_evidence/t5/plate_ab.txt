@@ -1,0 +1,7 @@
+t5 / head_base fill (old plate -> shipped plate)
+  changed skin area: 38808 canvas px = 772.7 stage px^2 at k=0.141
+  changed bbox: [504, 166, 1437, 1351] canvas = [131.8, 167.4] stage CSS px
+  left step: inside L=74.2 outside L=29.8 (delta +44.4)
+  right step: inside L=57.4 outside L=36.9 (delta +20.5)
+  flatness: inside std=11.5 vs ring std=29.1 (L*)
+  edge p95 gradient 19.5 vs skin p95 31.8 L*/px

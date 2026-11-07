@@ -1,0 +1,34 @@
+t5 final acceptance suite — 2026-11-08 01:43:06
+
+[5] deploy: workspace 41 files vs deployed 41, 41 identical, differing=none -> SYNCED
+    head_base 1137974 B md5 cdcb04b7699182313131a123cc780adf
+    texture   6309222 B md5 0d4c0404ad2c7b58015f5a07219fb534
+    moc3      440512 B; lib differing=none
+
+[1/2] matte truth + alpha holes (canvas px @2048^2)
+  neutral      truth face=   56 total=  5440 largest=  177 | enclosed 5c/39px | open 0c/0px
+  stage_pose   truth face=  136 total= 52254 largest= 4939 | enclosed 5c/110px | open 0c/0px
+  anglex_m10   truth face=  187 total= 20776 largest=  978 | enclosed 6c/177px | open 0c/0px
+  anglexy_p6p4 truth face=   94 total= 20811 largest=  713 | enclosed 5c/79px | open 0c/0px
+
+[6] pale edge: fill 38808 canvas px = 772.7 stage px^2, 2 components
+    worst |edge dL*| over long edges (>=50 rows): 8.1 (limit < 3) FAIL; including 3-8 row slivers: 45.4 FAIL; flatness ratio [0.52, 0.54] PASS
+     11334px bbox=[841, 639, 979, 827] stage [19.6, 26.7] = 225.7 px^2 edges L 3.8(189r) R 45.4(8r) std 16.5 vs 30.4 bboxFill 0.431 onSide 0.051
+      9841px bbox=[1062, 644, 1201, 827] stage [19.8, 26.0] = 196.0 px^2 edges L None(3r) R 8.1(184r) std 16.6 vs 32.0 bboxFill 0.382 onSide 0.063
+
+[7] bg sensitivity in the face-rect skin (eroded 3 px); a seam is a band, so the
+    judgement is the largest connected component (<20 px), not a raw 0
+  neutral  extract alpha<250:   35 px / 20943 (0.167%), 5 comps, largest 13 px -> PASS
+  neutral      composite white/magenta:    3 px, 1 comps, largest 3 px, max_delta 58 -> PASS
+  stage_pose   composite white/magenta:   25 px, 3 comps, largest 10 px, max_delta 125 -> PASS
+  anglex_m10   composite white/magenta:   24 px, 3 comps, largest 11 px, max_delta 111 -> PASS
+  anglexy_p6p4 composite white/magenta:   31 px, 3 comps, largest 14 px, max_delta 152 -> PASS
+
+[4] A/B vs .bak at stage scale k=0.14111
+  stage_pose: old_dark_px=94 new_pale_px=78 max_dL=43.6 skin_L=72.1
+
+[3] shots
+  final_five_3x.png: grok@94,y399 s=0.14941, claude@237,y412 s=0.14111, gemini@380,y412 s=0.14111, gpt@508,y267 s=0.14111, glm@666,y412 s=0.14111
+  final_two_3x.png: grok@201,y419 s=0.16523, gemini@559,y432 s=0.15605
+
+elapsed 34.5 s

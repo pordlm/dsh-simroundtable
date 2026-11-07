@@ -1,0 +1,648 @@
+[
+ {
+  "debug": {
+   "count": 5,
+   "active": -1,
+   "step": 143,
+   "charH": 170,
+   "chairW": 124,
+   "chairH": 186,
+   "stageH": 403,
+   "topPad": 122,
+   "baseY": 292,
+   "tableTop": 253,
+   "tableH": 150,
+   "bubbleW": 206,
+   "bubbleRect": null,
+   "plates": [
+    [
+     68,
+     119,
+     50
+    ],
+    [
+     207,
+     267,
+     60
+    ],
+    [
+     350,
+     410,
+     61
+    ],
+    [
+     500,
+     546,
+     47
+    ],
+    [
+     642,
+     691,
+     50
+    ]
+   ],
+   "xs": [
+    94,
+    237,
+    380,
+    523,
+    666
+   ]
+  },
+  "dpr": 1,
+  "canvas": {
+   "w": 760,
+   "h": 403,
+   "cssW": 760,
+   "cssH": 403,
+   "res": 1
+  },
+  "seats": [
+   {
+    "i": 0,
+    "name": "grok",
+    "scale": 0.1494140625,
+    "pos": [
+     93.6,
+     399
+    ],
+    "localBounds": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "height": 306,
+    "width": 306,
+    "rotation": 0
+   },
+   {
+    "i": 1,
+    "name": "claude",
+    "scale": 0.14111328125,
+    "pos": [
+     236.79999999999998,
+     412
+    ],
+    "localBounds": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "height": 289,
+    "width": 289,
+    "rotation": 0
+   },
+   {
+    "i": 2,
+    "name": "gemini",
+    "scale": 0.14111328125,
+    "pos": [
+     380,
+     412
+    ],
+    "localBounds": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "height": 289,
+    "width": 289,
+    "rotation": 0
+   },
+   {
+    "i": 3,
+    "name": "gpt",
+    "scale": 0.14111328125,
+    "pos": [
+     507.53642578124993,
+     267
+    ],
+    "localBounds": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "height": 144.5,
+    "width": 144.5,
+    "rotation": 0
+   },
+   {
+    "i": 4,
+    "name": "glm",
+    "scale": 0.14111328125,
+    "pos": [
+     666.4,
+     412
+    ],
+    "localBounds": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "height": 289,
+    "width": 289,
+    "rotation": 0
+   }
+  ],
+  "shot": "D:\\dsh_simroundtable\\preview\\_evidence\\t5\\five_seat_1x.png",
+  "url": "http://127.0.0.1:8848/preview/stage-760.html?n=5&names=Grok,Claude,Gemini,GPT,GLM&seed=20261103&nogest=1&active=-1",
+  "size": [
+   760,
+   403
+  ]
+ },
+ {
+  "debug": {
+   "count": 5,
+   "active": -1,
+   "step": 143,
+   "charH": 170,
+   "chairW": 124,
+   "chairH": 186,
+   "stageH": 403,
+   "topPad": 122,
+   "baseY": 292,
+   "tableTop": 253,
+   "tableH": 150,
+   "bubbleW": 206,
+   "bubbleRect": null,
+   "plates": [
+    [
+     68,
+     119,
+     50
+    ],
+    [
+     207,
+     267,
+     60
+    ],
+    [
+     350,
+     410,
+     61
+    ],
+    [
+     500,
+     546,
+     47
+    ],
+    [
+     642,
+     691,
+     50
+    ]
+   ],
+   "xs": [
+    94,
+    237,
+    380,
+    523,
+    666
+   ]
+  },
+  "dpr": 2,
+  "canvas": {
+   "w": 1520,
+   "h": 806,
+   "cssW": 760,
+   "cssH": 403,
+   "res": 2
+  },
+  "seats": [
+   {
+    "i": 0,
+    "name": "grok",
+    "scale": 0.1494140625,
+    "pos": [
+     93.6,
+     399
+    ],
+    "localBounds": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "height": 306,
+    "width": 306,
+    "rotation": 0
+   },
+   {
+    "i": 1,
+    "name": "claude",
+    "scale": 0.14111328125,
+    "pos": [
+     236.79999999999998,
+     412
+    ],
+    "localBounds": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "height": 289,
+    "width": 289,
+    "rotation": 0
+   },
+   {
+    "i": 2,
+    "name": "gemini",
+    "scale": 0.14111328125,
+    "pos": [
+     380,
+     412
+    ],
+    "localBounds": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "height": 289,
+    "width": 289,
+    "rotation": 0
+   },
+   {
+    "i": 3,
+    "name": "gpt",
+    "scale": 0.14111328125,
+    "pos": [
+     507.53642578124993,
+     267
+    ],
+    "localBounds": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "height": 144.5,
+    "width": 144.5,
+    "rotation": 0
+   },
+   {
+    "i": 4,
+    "name": "glm",
+    "scale": 0.14111328125,
+    "pos": [
+     666.4,
+     412
+    ],
+    "localBounds": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "height": 289,
+    "width": 289,
+    "rotation": 0
+   }
+  ],
+  "shot": "D:\\dsh_simroundtable\\preview\\_evidence\\t5\\five_seat_2x.png",
+  "url": "http://127.0.0.1:8848/preview/stage-760.html?n=5&names=Grok,Claude,Gemini,GPT,GLM&seed=20261103&nogest=1&active=-1",
+  "size": [
+   760,
+   403
+  ]
+ },
+ {
+  "debug": {
+   "count": 5,
+   "active": 2,
+   "step": 143,
+   "charH": 170,
+   "chairW": 124,
+   "chairH": 186,
+   "stageH": 403,
+   "topPad": 122,
+   "baseY": 292,
+   "tableTop": 253,
+   "tableH": 150,
+   "bubbleW": 206,
+   "bubbleRect": [
+    1,
+    100,
+    268,
+    492
+   ],
+   "plates": [
+    [
+     68,
+     119,
+     50
+    ],
+    [
+     207,
+     267,
+     60
+    ],
+    [
+     350,
+     410,
+     61
+    ],
+    [
+     500,
+     546,
+     47
+    ],
+    [
+     642,
+     691,
+     50
+    ]
+   ],
+   "xs": [
+    94,
+    237,
+    380,
+    523,
+    666
+   ]
+  },
+  "dpr": 2,
+  "canvas": {
+   "w": 1520,
+   "h": 806,
+   "cssW": 760,
+   "cssH": 403,
+   "res": 2
+  },
+  "seats": [
+   {
+    "i": 0,
+    "name": "grok",
+    "scale": 0.1494140625,
+    "pos": [
+     93.6,
+     399
+    ],
+    "localBounds": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "height": 306,
+    "width": 306,
+    "rotation": 0
+   },
+   {
+    "i": 1,
+    "name": "claude",
+    "scale": 0.14111328125,
+    "pos": [
+     236.79999999999998,
+     412
+    ],
+    "localBounds": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "height": 289,
+    "width": 289,
+    "rotation": 0
+   },
+   {
+    "i": 2,
+    "name": "gemini",
+    "scale": 0.14111328125,
+    "pos": [
+     380,
+     412
+    ],
+    "localBounds": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "height": 289,
+    "width": 289,
+    "rotation": 0
+   },
+   {
+    "i": 3,
+    "name": "gpt",
+    "scale": 0.14111328125,
+    "pos": [
+     507.53642578124993,
+     267
+    ],
+    "localBounds": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "height": 144.5,
+    "width": 144.5,
+    "rotation": 0
+   },
+   {
+    "i": 4,
+    "name": "glm",
+    "scale": 0.14111328125,
+    "pos": [
+     666.4,
+     412
+    ],
+    "localBounds": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "height": 289,
+    "width": 289,
+    "rotation": 0
+   }
+  ],
+  "shot": "D:\\dsh_simroundtable\\preview\\_evidence\\t5\\five_seat_active_2x.png",
+  "url": "http://127.0.0.1:8848/preview/stage-760.html?n=5&names=Grok,Claude,Gemini,GPT,GLM&seed=20261103&nogest=1&active=2",
+  "size": [
+   760,
+   403
+  ]
+ },
+ {
+  "debug": {
+   "count": 2,
+   "active": -1,
+   "step": 358,
+   "charH": 188,
+   "chairW": 144,
+   "chairH": 216,
+   "stageH": 438,
+   "topPad": 124,
+   "baseY": 312,
+   "tableTop": 273,
+   "tableH": 165,
+   "bubbleW": 206,
+   "bubbleRect": null,
+   "plates": [
+    [
+     176,
+     226,
+     50
+    ],
+    [
+     529,
+     589,
+     61
+    ]
+   ],
+   "xs": [
+    201,
+    559
+   ]
+  },
+  "dpr": 1,
+  "canvas": {
+   "w": 760,
+   "h": 438,
+   "cssW": 760,
+   "cssH": 438,
+   "res": 1
+  },
+  "seats": [
+   {
+    "i": 0,
+    "name": "grok",
+    "scale": 0.16523437500000002,
+    "pos": [
+     201,
+     419
+    ],
+    "localBounds": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "height": 338.40000000000003,
+    "width": 338.40000000000003,
+    "rotation": 0
+   },
+   {
+    "i": 1,
+    "name": "gemini",
+    "scale": 0.15605468749999998,
+    "pos": [
+     559,
+     432
+    ],
+    "localBounds": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "height": 319.59999999999997,
+    "width": 319.59999999999997,
+    "rotation": 0
+   }
+  ],
+  "shot": "D:\\dsh_simroundtable\\preview\\_evidence\\t5\\two_seat_1x.png",
+  "url": "http://127.0.0.1:8848/preview/stage-760.html?n=2&names=Grok,Gemini&seed=20261103&nogest=1&active=-1",
+  "size": [
+   760,
+   438
+  ]
+ },
+ {
+  "debug": {
+   "count": 2,
+   "active": -1,
+   "step": 358,
+   "charH": 188,
+   "chairW": 144,
+   "chairH": 216,
+   "stageH": 438,
+   "topPad": 124,
+   "baseY": 312,
+   "tableTop": 273,
+   "tableH": 165,
+   "bubbleW": 206,
+   "bubbleRect": null,
+   "plates": [
+    [
+     176,
+     226,
+     50
+    ],
+    [
+     529,
+     589,
+     61
+    ]
+   ],
+   "xs": [
+    201,
+    559
+   ]
+  },
+  "dpr": 2,
+  "canvas": {
+   "w": 1520,
+   "h": 876,
+   "cssW": 760,
+   "cssH": 438,
+   "res": 2
+  },
+  "seats": [
+   {
+    "i": 0,
+    "name": "grok",
+    "scale": 0.16523437500000002,
+    "pos": [
+     201,
+     419
+    ],
+    "localBounds": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "height": 338.40000000000003,
+    "width": 338.40000000000003,
+    "rotation": 0
+   },
+   {
+    "i": 1,
+    "name": "gemini",
+    "scale": 0.15605468749999998,
+    "pos": [
+     559,
+     432
+    ],
+    "localBounds": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "height": 319.59999999999997,
+    "width": 319.59999999999997,
+    "rotation": 0
+   }
+  ],
+  "shot": "D:\\dsh_simroundtable\\preview\\_evidence\\t5\\two_seat_2x.png",
+  "url": "http://127.0.0.1:8848/preview/stage-760.html?n=2&names=Grok,Gemini&seed=20261103&nogest=1&active=-1",
+  "size": [
+   760,
+   438
+  ]
+ }
+]

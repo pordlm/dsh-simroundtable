@@ -1,0 +1,5 @@
+t5 / rendered-stage diff (same camera+seed, shipped plate vs .bak plate)
+  pale patch: 54.0 CSS px^2, bbox [np.float64(500.0), np.float64(130.0), np.float64(626.0), np.float64(199.5)] (1x), mean dL* 13.6
+  removed dark seam: 101.2 CSS px^2, mean dL* -16.6
+  patch boundary step: 41.0 L* over 11 rows
+  near-black px in Gemini head: old 12663.2 -> new 12666.5

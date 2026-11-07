@@ -1,0 +1,35 @@
+{
+ "fill_bbox_canvas": [
+  504,
+  166,
+  1437,
+  1351
+ ],
+ "fill_px_canvas": 38808,
+ "fill_px_stage1x": 772.7,
+ "fill_bbox_stage1x": [
+  131.8,
+  167.4
+ ],
+ "face_rect": {
+  "left": 839,
+  "top": 510,
+  "width": 372,
+  "height": 300
+ },
+ "fill_vs_face_rect_ratio": 0.348,
+ "left_step_l": {
+  "inside": 74.2,
+  "outside": 29.8
+ },
+ "right_step_l": {
+  "inside": 57.4,
+  "outside": 36.9
+ },
+ "inside_mean_l": 66.7,
+ "ring14_mean_l": 54.2,
+ "inside_std_l": 11.5,
+ "ring14_std_l": 29.1,
+ "edge_p95_gradient": 19.5,
+ "skin_p95_gradient": 31.8
+}
