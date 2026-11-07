@@ -61,7 +61,7 @@ pwsh -NoProfile -File D:\new-work\tools\relay.ps1 status
 | `relay.ps1 up` / `down` | 启动（幂等）/ **只关闭本实例**（浏览器级 CDP，不动用户 Edge） |
 | `relay.ps1 ask --new --message "…"` | 新会话提问，自动套 `defaultModel`/`defaultEffort` |
 | `relay.ps1 ask --chat <url> --message "…"` | 在指定会话追问 |
-| `relay.ps1 ask … --model "GPT-6 Pro" --effort 高 --file <path> --shot --json` | 指定模型/强度/附件/截图/JSON |
+| `relay.ps1 ask … --model "GPT-6 Pro" --effort 高 --file <path> --shot --json` | 指定模型/强度/附件/截图/JSON；`--file` 可重复传多张，prompt 文本用 `--message-file` |
 | `relay.ps1 chats [--find 词] [--open N]` | 列会话 / 查找 / 切到第 N 个 |
 | `relay.ps1 chips` / `model --model X --effort Y` | 查 / 改模型与推理强度 |
 | `relay.ps1 upload <file> --remove` | 只测附件上传+移除 |
@@ -72,6 +72,8 @@ pwsh -NoProfile -File D:\new-work\tools\relay.ps1 status
 | `node tools\relay-recover.mjs --id …` | 断线恢复：刷新会话取回服务端补完的答案 |
 | `node tools\relay-delete-chats.mjs [--yes]` | 按**白名单**删自动化会话（默认 dry-run，禁止按序号删） |
 | `node tools\relay-grab.mjs` / `relay-artifacts.mjs` / `relay-fetch-artifacts.mjs` | 抓会话产物（附件下载） |
+| `node tools\relay-grab-imagegen.mjs --chat <url> --list / --out <dir>` | **收 imagegen 出图**（图挂在专用卡片里，普通抓件脚本看不见；认精确 `dsh-automation` 标签） |
+| `node tools\relay-add-tabs.mjs --count N` | 追加 N 个带标记的并行标签（`dsh-automation:k`；取件脚本只认 lane 0 名，用前想清楚） |
 | `node tools\relay-batch.mjs --plan plan.json` / `relay-followup.mjs --ids …` | 批量跑任务 / 定向追问 |
 | `node tools\relay-site-probe.mjs --url …` | 站点只读勘察（dump 可点元素/正文/关键词） |
 | `node tools\relay-tabs-shots.mjs` | 逐标签只读截图（排查"卡片/弹窗在哪"最快） |

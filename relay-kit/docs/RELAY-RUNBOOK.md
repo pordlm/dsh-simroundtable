@@ -148,6 +148,32 @@ node D:\lnu-seat\tools\edge-close.mjs --endpoint $EP
 - **回答完成判定**：`[data-testid="stop-button"]` 不存在，靠"文本稳定 + 无停止按钮"；长回答要复读两次比对，避免截断流式输出。
 - **Markdown 保真**：`innerText` 会压平代码围栏与表格；需要原文应点回答下方"复制回复"（`data-testid="copy-turn-action-button"`）再读剪贴板。
 
+## 5.1 出图（imagegen）流水线（2026-11-07 实测，双参考图母图 + 表情编辑）
+
+给 imagegen 模型发「母图/表情编辑」请求并收割产出图的完整配方（Live2D 管线在用）：
+
+```powershell
+# ① 发 ask：--file 可重复传多张（双参考图 = 设定图 + 成年图）；prompt 文本用 --message-file，
+#    不能只 --file（relay-ask 要求 --message/--message-file）
+powershell -NoProfile -ExecutionPolicy Bypass -File ./tools/relay.ps1 ask --new ^
+  --file <参考图1> --file <参考图2> --file <prompt.txt> ^
+  --message-file <prompt.txt> --timeout 90 --json
+
+# ② 核对消息真的落进会话（横幅 reload 会吞消息，delivered.ok 也照吞；还要确认
+#    连续两次 --new 没有复用同一会话 —— 对比 chatUrl / 会话 id）
+node tools/relay-conv-json.mjs --chat <chatUrl>      # 看 [user] 节点的 attachments 与文本
+
+# ③ 轮询收图（reply「正在处理图片…」是误报，图在服务端继续生成）
+node tools/relay-grab-imagegen.mjs --chat <chatUrl> --list
+node tools/relay-grab-imagegen.mjs --chat <chatUrl> --out <dir>
+```
+
+实测数据：`reply 7 chars "正在处理图片…"`、`replyMatchesPrompt ratio 0` 都不代表失败；
+双图附件上传 ~2 分钟，出图本体 1–2 分钟（快于旧的 5–9 分钟经验值）。
+`ask` 的 JSON 输出里 `bannerSeen: true` 是重要的危险信号——那一次发送大概率要重发。
+表情编辑（「只改闭眼+张口，其余像素不动」）返回的是**整图重绘**（diff 全身 5–7 万 px），
+只能当取件源，不能当新母图。
+
 ## 6. 实测证据
 
 | 操作 | 证据 |

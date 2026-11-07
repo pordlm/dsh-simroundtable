@@ -73,7 +73,7 @@ relay-*.mjs ──► playwright-core.connectOverCDP(9223)
 | 6 | 附件留在草稿 | 上传后未发送 | `relay.ps1 clean` |
 | 7 | 回答像没写完 | 长回答中途停顿 | 用复读校验；必要时 `--timeout` 加大 |
 | 8 | 模型莫名变 `Auto` | 匹配式没锚定（历史 bug） | 所有模型匹配必须 `^` 锚定 |
-| 9 | **「网络传输中断」横幅** | 流中断时站点插的提示，**不是答案** | 刷新会话取回（`relay-recover` / `--reload`） |
+| 9 | **「网络传输中断」横幅** | 流中断时站点插的提示，**不是答案**；且横幅触发的自动 reload 可能把**刚发出的消息整个吞掉**（`ask` 报 `delivered.ok=true` 也照吞，2026-11-07 连吞 2 条） | 发完必须 `relay-conv-json` 核对 user 消息与附件真的在会话里，不在就重发 |
 | 10 | 解析回答里的 JSON 丢章 | 取"最后一个 `[`"会被正文方括号带偏 | 统一用 `tools/answer-parse.mjs` |
 | 11 | 消息落进**别的会话** | 页面还没真正切到目标会话 | 发消息前校验 URL/会话标题 |
 | 12 | 上传/提问 `429 Too Many Requests` | 站点限流（与文件大小无关） | 退避 ≥15 分钟；并发 ≤2–3、错开 30–60 秒 |
@@ -85,6 +85,9 @@ relay-*.mjs ──► playwright-core.connectOverCDP(9223)
 | 18 | **导航一刷，瞬态卡片/弹窗就没了** | 站点某些 UI（如插件安装卡片）是**瞬时 DOM**，不随会话保存 | 排查时**只读扫描 + 截图 + 事件驱动点击**，别 `goto` |
 | 19 | 开发者模式开关"点不动" | 站点返回 `PATCH 200` 假象，读回仍 `false` | 认定锁死，别反复试 |
 | 20 | 第三方插件"无法加载连接器" | `aip/connectors/*` 401（令牌无法解析） | 站点侧问题，用户侧修不了 |
+| 21 | 连续两次 `ask --new`，第二次**复用同一会话** | SPA 没真正回到新草稿就发了 | 发完用 `relay-conv-json` 核对会话 id 与 user 消息；不对就重发（2026-11-07 实录：一条表情编辑被发两遍进同一会话） |
+| 22 | 图片生成 `reply: "正在处理图片…"`（7 字符）且 `replyMatchesPrompt ratio 0` | **误报**：图在服务端继续生成，回复抓不到 | 按 `relay-grab-imagegen --list` 出现新 `file_…` 为准；2026-11-07 实测双图 attach 慢（~2 分钟）但生成只要 1–2 分钟 |
+| 23 | `relay-grab-imagegen` / `status` 报 `no tab marked dsh-automation`，但标签明明在 | 自动化标签重载后只剩 lane 1 名（`dsh-automation:1`），而这俩脚本只认精确 `dsh-automation`（lane 0 名） | 要么把该标签 `window.name` 改回 `dsh-automation`，要么全程带 `RELAY_TAB_INDEX=1`；开多条 lane 前先想清楚取件脚本认哪个名 |
 
 ## 6. 回答怎么"取准"（三条纪律）
 
