@@ -59,7 +59,11 @@ const RIGS={
   // lib/client.js: same numbers, expressed at this file's raw-dy convention).
   // `axe` is the part that holds the battle axe: hidden unless the axe gesture
   // says otherwise, so a meeting does not start with a halberd on the table.
-  grok:{url:"../assets/build/grok-v1/grok.layout.model3.json",scale:1.80,dx:0,dy:107,mouth:true,cut:true,axe:"PartExtra"}
+  grok:{url:"../assets/build/grok-v1/grok.layout.model3.json",scale:1.80,dx:0,dy:107,mouth:true,cut:true,axe:"PartExtra"},
+  // GLM / Qwen: same pipeline as Gemini, seated with her numbers (Claude look
+  // is the reference; see lib/client.js STAGE_CHARACTERS note).
+  glm:{url:"../assets/build/glm-v1/glm.layout.model3.json",scale:1.70,dx:0,dy:120,mouth:true,cut:true},
+  qwen:{url:"../assets/build/qwen-v1/qwen.layout.model3.json",scale:1.70,dx:0,dy:120,mouth:true,cut:true}
 };
 function characterFor(name){
   const key=String(name||"").toLowerCase();

@@ -76,6 +76,14 @@ const CHARACTERS = {
     probe: "../assets/build/grok-v1/grok.layout.moc3",
     files: ["model3.json", "grok.layout.moc3", "grok.layout.physics3.json", "texture_00.png"],
   },
+  glm: {
+    probe: "../assets/build/glm-v1/glm.layout.moc3",
+    files: ["model3.json", "glm.layout.moc3", "glm.layout.physics3.json", "texture_00.png"],
+  },
+  qwen: {
+    probe: "../assets/build/qwen-v1/qwen.layout.moc3",
+    files: ["model3.json", "qwen.layout.moc3", "qwen.layout.physics3.json", "texture_00.png"],
+  },
 };
 
 async function builtCharacters() {

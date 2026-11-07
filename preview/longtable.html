@@ -140,6 +140,29 @@ const MODELS = {
     gestures: true,
     sway: true
   },
+  GLM: {
+    url: '../assets/build/glm-v1/glm.layout.model3.json',
+    // 全身 Q 版（同 Gemini 管线，docs/art-requirements-glm.md）：坐姿照抄 Gemini
+    //（= Claude 观感基准）；闭眼外观烘在 face 层里，眨眼由 eyewhite/irides toggle 完成。
+    scale: 1.8,
+    dy: 160,
+    dyCharH: 244,
+    cut: true,
+    blink: true,
+    gestures: true,
+    sway: true
+  },
+  Qwen: {
+    url: '../assets/build/qwen-v1/qwen.layout.model3.json',
+    // 全身 Q 版（同 Gemini 管线，docs/art-requirements-qwen.md）：坐姿照抄 Gemini。
+    scale: 1.8,
+    dy: 160,
+    dyCharH: 244,
+    cut: true,
+    blink: true,
+    gestures: true,
+    sway: true
+  },
   Grok: {
     url: '../assets/build/grok-v1/grok.layout.model3.json',
     // 全身 Q 版（管线 B 逐件 + 母图头部底版）。她的画稿头位比 Claude 低 171 画布像素、
