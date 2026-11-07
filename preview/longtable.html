@@ -163,6 +163,43 @@ const MODELS = {
     gestures: true,
     sway: true
   },
+  Kimi: {
+    url: '../assets/build/kimi-v1/kimi.layout.model3.json',
+    // 全身 Q 版（同 Gemini 管线，docs/art-requirements-kimi.md）。她的墨迹含
+    // 及膝长发、虹膜画布位 (535) 比 Gemini (641) 高 106px，底部锚定下照抄 160
+    // 眼线会高出 ~23 舞台px；dy 按「虹膜画布高度差 × scale × 244/2048」解出 183。
+    scale: 1.8,
+    dy: 183,
+    dyCharH: 244,
+    cut: true,
+    blink: true,
+    gestures: true,
+    sway: true
+  },
+  Mimo: {
+    url: '../assets/build/mimo-v1/mimo.layout.model3.json',
+    // 全身 Q 版（同 Gemini 管线，docs/art-requirements-mimo.md）。虹膜画布位 619
+    // 比 Gemini 高 22px -> dy 165（同款眼线公式）。
+    scale: 1.8,
+    dy: 165,
+    dyCharH: 244,
+    cut: true,
+    blink: true,
+    gestures: true,
+    sway: true
+  },
+  MiniMax: {
+    url: '../assets/build/minimax-v1/minimax.layout.model3.json',
+    // 全身 Q 版（同 Gemini 管线，docs/art-requirements-minimax.md）。虹膜画布位 586
+    // 比 Gemini 高 55px -> dy 172（同款眼线公式）。
+    scale: 1.8,
+    dy: 172,
+    dyCharH: 244,
+    cut: true,
+    blink: true,
+    gestures: true,
+    sway: true
+  },
   Grok: {
     url: '../assets/build/grok-v1/grok.layout.model3.json',
     // 全身 Q 版（管线 B 逐件 + 母图头部底版）。她的画稿头位比 Claude 低 171 画布像素、

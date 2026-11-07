@@ -84,6 +84,18 @@ const CHARACTERS = {
     probe: "../assets/build/qwen-v1/qwen.layout.moc3",
     files: ["model3.json", "qwen.layout.moc3", "qwen.layout.physics3.json", "texture_00.png"],
   },
+  kimi: {
+    probe: "../assets/build/kimi-v1/kimi.layout.moc3",
+    files: ["model3.json", "kimi.layout.moc3", "kimi.layout.physics3.json", "texture_00.png"],
+  },
+  mimo: {
+    probe: "../assets/build/mimo-v1/mimo.layout.moc3",
+    files: ["model3.json", "mimo.layout.moc3", "mimo.layout.physics3.json", "texture_00.png"],
+  },
+  minimax: {
+    probe: "../assets/build/minimax-v1/minimax.layout.moc3",
+    files: ["model3.json", "minimax.layout.moc3", "minimax.layout.physics3.json", "texture_00.png"],
+  },
 };
 
 async function builtCharacters() {

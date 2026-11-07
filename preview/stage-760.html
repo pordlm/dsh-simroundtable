@@ -63,7 +63,10 @@ const RIGS={
   // GLM / Qwen: same pipeline as Gemini, seated with her numbers (Claude look
   // is the reference; see lib/client.js STAGE_CHARACTERS note).
   glm:{url:"../assets/build/glm-v1/glm.layout.model3.json",scale:1.70,dx:0,dy:120,mouth:true,cut:true},
-  qwen:{url:"../assets/build/qwen-v1/qwen.layout.model3.json",scale:1.70,dx:0,dy:120,mouth:true,cut:true}
+  qwen:{url:"../assets/build/qwen-v1/qwen.layout.model3.json",scale:1.70,dx:0,dy:120,mouth:true,cut:true},
+  kimi:{url:"../assets/build/kimi-v1/kimi.layout.model3.json",scale:1.70,dx:0,dy:136,mouth:true,cut:true},
+  mimo:{url:"../assets/build/mimo-v1/mimo.layout.model3.json",scale:1.70,dx:0,dy:123,mouth:true,cut:true},
+  minimax:{url:"../assets/build/minimax-v1/minimax.layout.model3.json",scale:1.70,dx:0,dy:128,mouth:true,cut:true}
 };
 function characterFor(name){
   const key=String(name||"").toLowerCase();
