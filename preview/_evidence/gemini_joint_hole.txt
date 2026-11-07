@@ -1,0 +1,45 @@
+AngleX=-10 BodyAngleX=-5.0 biggestHole=  1866
+AngleX= -6 BodyAngleX=-5.0 biggestHole=  1387
+AngleX= -3 BodyAngleX=-5.0 biggestHole=  1382
+AngleX= +0 BodyAngleX=-5.0 biggestHole=  1379
+AngleX= +3 BodyAngleX=-5.0 biggestHole=  1376
+AngleX= +6 BodyAngleX=-5.0 biggestHole=  1343
+AngleX=+10 BodyAngleX=-5.0 biggestHole=  1369
+AngleX=-10 BodyAngleX=-2.3 biggestHole=  1667
+AngleX= -6 BodyAngleX=-2.3 biggestHole=  1278
+AngleX= -3 BodyAngleX=-2.3 biggestHole=  1250
+AngleX= +0 BodyAngleX=-2.3 biggestHole=  1234
+AngleX= +3 BodyAngleX=-2.3 biggestHole=  1242
+AngleX= +6 BodyAngleX=-2.3 biggestHole=  1267
+AngleX=+10 BodyAngleX=-2.3 biggestHole=  1297
+AngleX=-10 BodyAngleX=+0.0 biggestHole=  1535
+AngleX= -6 BodyAngleX=+0.0 biggestHole=  1274
+AngleX= -3 BodyAngleX=+0.0 biggestHole=  1257
+AngleX= +0 BodyAngleX=+0.0 biggestHole=  1262
+AngleX= +3 BodyAngleX=+0.0 biggestHole=  1273
+AngleX= +6 BodyAngleX=+0.0 biggestHole=  1290
+AngleX=+10 BodyAngleX=+0.0 biggestHole=  1434
+AngleX=-10 BodyAngleX=+2.3 biggestHole=  1401
+AngleX= -6 BodyAngleX=+2.3 biggestHole=  1288
+AngleX= -3 BodyAngleX=+2.3 biggestHole=  1250
+AngleX= +0 BodyAngleX=+2.3 biggestHole=  1233
+AngleX= +3 BodyAngleX=+2.3 biggestHole=  1244
+AngleX= +6 BodyAngleX=+2.3 biggestHole=  1269
+AngleX=+10 BodyAngleX=+2.3 biggestHole=  1743
+AngleX=-10 BodyAngleX=+5.0 biggestHole=  1719
+AngleX= -6 BodyAngleX=+5.0 biggestHole=  1379
+AngleX= -3 BodyAngleX=+5.0 biggestHole=  1352
+AngleX= +0 BodyAngleX=+5.0 biggestHole=  1337
+AngleX= +3 BodyAngleX=+5.0 biggestHole=  1333
+AngleX= +6 BodyAngleX=+5.0 biggestHole=  1323
+AngleX=+10 BodyAngleX=+5.0 biggestHole=  1310
+
+biggest hole px table (rows: BodyAngleX, cols: AngleX)
+Body\Ang    -10      -6      -3      +0      +3      +6     +10
+  -5.0    1866    1387    1382    1379    1376    1343    1369
+  -2.3    1667    1278    1250    1234    1242    1267    1297
+  +0.0    1535    1274    1257    1262    1273    1290    1434
+  +2.3    1401    1288    1250    1233    1244    1269    1743
+  +5.0    1719    1379    1352    1337    1333    1323    1310
+
+worst 1866 px at AngleX=-10 BodyAngleX=-5.0 -> preview/_evidence/gemini_joint_hole.png (94x392)

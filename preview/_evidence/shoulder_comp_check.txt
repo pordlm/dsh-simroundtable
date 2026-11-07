@@ -1,0 +1,6 @@
+turn -6 uncompensated      turn= -6 hf=-0.118 -> biggestHole= 2488 px
+turn -6 compensated        turn= -6 hf=-0.046 -> biggestHole= 1278 px
+turn -10 uncompensated     turn=-10 hf=-0.118 -> biggestHole= 3366 px
+turn -10 compensated       turn=-10 hf=+0.002 -> biggestHole= 2376 px
+neutral uncompensated      turn= +0 hf=-0.118 -> biggestHole= 1228 px
+neutral compensated        turn= +0 hf=-0.118 -> biggestHole= 1228 px

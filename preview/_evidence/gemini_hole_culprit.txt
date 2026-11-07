@@ -1,0 +1,8 @@
+baseline stage pose {'ParamAngleX': -6, 'ParamBodyAngleX': -2.3, 'ParamHairFront': -0.118, 'ParamAngleY': -3.0, 'ParamBreath': 1.0}
+  all set -> biggestHole=2488 px
+  saved preview/_evidence/gemini_slit_stage_pose.png (260x502)
+  ParamAngleX=0 -> biggestHole= 1228 px
+  ParamBodyAngleX=0 -> biggestHole= 1277 px
+  ParamHairFront=0 -> biggestHole= 1274 px
+  ParamAngleY=0 -> biggestHole= 2564 px
+  ParamBreath=0 -> biggestHole= 1463 px

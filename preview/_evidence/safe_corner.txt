@@ -1,0 +1,5 @@
+biggest hole px with hair bias applied (rows: BodyAngleX, cols: AngleX)
+Body\Ang     -6      -8     -10
+  -2.3    1278    1292    2376
+  -1.2    1278    1289    1496
+  +0.0    1271    1299    1309

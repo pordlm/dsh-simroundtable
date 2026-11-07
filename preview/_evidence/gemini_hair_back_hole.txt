@@ -1,0 +1,14 @@
+
+[hard] base pose {'ParamAngleX': -10, 'ParamBodyAngleX': -5, 'ParamHairFront': -0.236, 'ParamAngleY': -5.5, 'ParamBreath': 1.0}
+  ParamHairBack=-0.10 -> biggestHole= 5174 px
+  ParamHairBack=-0.05 -> biggestHole= 5174 px
+  ParamHairBack=+0.00 -> biggestHole= 5174 px
+  ParamHairBack=+0.05 -> biggestHole= 5174 px
+  ParamHairBack=+0.10 -> biggestHole= 5174 px
+
+[stage] base pose {'ParamAngleX': -6, 'ParamBodyAngleX': -2.3, 'ParamHairFront': -0.118, 'ParamAngleY': -3.0, 'ParamBreath': 1.0}
+  ParamHairBack=-0.10 -> biggestHole= 2488 px
+  ParamHairBack=-0.05 -> biggestHole= 2488 px
+  ParamHairBack=+0.00 -> biggestHole= 2488 px
+  ParamHairBack=+0.05 -> biggestHole= 2488 px
+  ParamHairBack=+0.10 -> biggestHole= 2488 px

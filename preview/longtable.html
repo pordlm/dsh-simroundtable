@@ -372,7 +372,6 @@ const app = new PIXI.Application({
                  bax: rb('ParamBodyAngleX'), bay: rb('ParamBodyAngleY'), baz: rb('ParamBodyAngleZ') };
         }
       } catch (e) { /* 没有呼吸模块就用纯表演偏移 */ }
-      sv(core, 'ParamAngleX', (p.turn || 0) + ba.ax);
       sv(core, 'ParamAngleY', (p.nod || 0) + ba.ay);
       sv(core, 'ParamAngleZ', (p.tilt || 0) + ba.az);
       sv(core, 'ParamBodyAngleX', ba.bax);
@@ -398,7 +397,21 @@ const app = new PIXI.Application({
           (model.internalModel && model.internalModel.settings &&
             model.internalModel.settings.name) || '') ? 1 : 0;
       }
-      const hairVal = (p.hair || 0) - model.__hairComp * 0.0185 * (p.turn || 0);
+      if (model.__shoulderComp == null) {
+        model.__shoulderComp = /gemini/i.test(
+          (model.internalModel && model.internalModel.settings &&
+            model.internalModel.settings.name) || '') ? 1 : 0;
+      }
+      // Gemini 的前发收在肩缝上：头和躯干同向转时两块轮廓不再重叠，卡片底色从缝里
+      // 透出来（AngleX -6 / BodyAngleX -2.3 / hf -0.118 / breath 1 → 最大封闭洞
+      // 2488px²，读作肩上一块黑）。① 转头时前发往回收 hf + 0.012*|turn|：-6/-8° 回到
+      // 1278（基线 1228）；② 合计转头角封顶 ±8°：-10° 且躯干也转时补不回来（2376）。
+      const headTurn = model.__shoulderComp
+        ? Math.max(-8, Math.min(8, (p.turn || 0) + ba.ax))
+        : (p.turn || 0) + ba.ax;
+      sv(core, 'ParamAngleX', headTurn);
+      const hairVal = (p.hair || 0) - model.__hairComp * 0.0185 * (p.turn || 0)
+        + model.__shoulderComp * 0.012 * Math.max(0, -(p.turn || 0));
       sv(core, 'ParamHairFront', Math.max(-0.22, Math.min(0.22, hairVal)));
       // 只有把眼睛绑成 toggle 变体的模型（Claude v2）才能靠参数眨眼：
       // 1 显示睁眼三件、0 露出常显的闭眼件。没绑的模型不能写这个参数。

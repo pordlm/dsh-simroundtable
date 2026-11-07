@@ -195,7 +195,7 @@ function frame(models,wobbles,t,active,baseY){
           const g=id=>{try{return core.getParameterValueById(id)||0}catch(e){return 0}};
           bx=g('ParamAngleX');by=g('ParamAngleY');bz=g('ParamAngleZ');
           bbx=g('ParamBodyAngleX');bby=g('ParamBodyAngleY');bbz=g('ParamBodyAngleZ');}}catch(e){}
-      core.setParameterValueById('ParamAngleX',turn+bx);core.setParameterValueById('ParamAngleY',nod+by);
+      core.setParameterValueById('ParamAngleY',nod+by);
       try{core.setParameterValueById('ParamAngleZ',bz)}catch(e){}
       try{core.setParameterValueById('ParamBodyAngleX',bbx);core.setParameterValueById('ParamBodyAngleY',bby);}catch(e){}
       core.setParameterValueById('ParamBodyAngleZ',lean+bbz);
@@ -212,7 +212,15 @@ function frame(models,wobbles,t,active,baseY){
       // 钉在一起：hf = sway - 0.0185*turn，同样条件下可见量收成 8.5k–10.5k，
       // 摆动幅度从 2.5x 降到 1.24x。
       if(tgt.__hairComp==null)tgt.__hairComp=/grok/i.test((tgt.internalModel&&tgt.internalModel.settings&&tgt.internalModel.settings.name)||'')?1:0;
-      const hairVal=hairSway-tgt.__hairComp*0.0185*turn;
+      if(tgt.__shoulderComp==null)tgt.__shoulderComp=/gemini/i.test((tgt.internalModel&&tgt.internalModel.settings&&tgt.internalModel.settings.name)||'')?1:0;
+      // Gemini 的前发正好收在肩缝上：head 与 body 同向转时两块轮廓不再重叠，
+      // 卡片底色就从缝里透出来（AngleX -6 / BodyAngleX -2.3 / hf -0.118 / breath 1
+      // 实测最大封闭洞 2488 px²，裁图就是肩上一条黑色斜块）。两道都实测过：
+      // ① 头往一侧转时前发往回收 hf + 0.012*|turn| —— -6/-8° 时洞回到 1278（基线 1228）；
+      // ② 合起来的转头角封顶 ±8° —— -10° 且躯干也转时补不回来（2376），-8° 只有 1292。
+      const headTurn=tgt.__shoulderComp?Math.max(-8,Math.min(8,turn+bx)):turn+bx;
+      const hairVal=hairSway-tgt.__hairComp*0.0185*turn+tgt.__shoulderComp*0.012*Math.max(0,-turn);
+      core.setParameterValueById('ParamAngleX',headTurn);core.setParameterValueById('ParamAngleY',nod+by);
       try{core.setParameterValueById('ParamHairFront',Math.max(-.22,Math.min(.22,hairVal)))}catch(e){}
       try{core.setParameterValueById('ParamBreath',breath)}catch(e){}
       // Part opacity is an input to the core update, so it has to be written

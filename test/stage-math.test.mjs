@@ -192,15 +192,40 @@ function buildRow(elapsedFrom = 0) {
   });
 }
 
-// --- 4. the Grok hair counter-offset is armed per rig ----------------------
+// --- 4. per-rig hair corrections are armed by name -------------------------
 {
   const { models, wobbles } = buildRow();
   const layout = stageLayout(models.length);
   stageFrame(models, wobbles, 1000, -1, layout.baseY);
   assert.equal(models[0].__hairComp, 1, "grok rig must get the counter-offset");
-  for (const model of models.slice(1)) {
+  assert.equal(models[2].__shoulderComp, 1, "gemini rig must get the shoulder guard");
+  for (const [index, model] of models.entries()) {
+    if (index === 0) continue;
     assert.equal(model.__hairComp, 0, `${model.internalModel.settings.name} must not get it`);
   }
+  for (const [index, model] of models.entries()) {
+    if (index === 2) continue;
+    assert.equal(model.__shoulderComp, 0, `${model.internalModel.settings.name} must not get it`);
+  }
+}
+
+// --- 4b. Gemini's head turn stays inside the measured safe range -----------
+// Browser evidence (preview/_evidence/safe_corner.txt): with the forward hair
+// bias applied the enclosed hole stays at the ~1228 px pose baseline up to
+// -8 deg, but at -10 deg with the torso also turned it reopens to 2376 px, so
+// the summed head turn is capped at 8. The rigs here never reach the cap on
+// their own, so this pins the invariant rather than the trigger.
+{
+  const { models, wobbles } = buildRow();
+  const layout = stageLayout(models.length);
+  const gemini = models[2];
+  let maxAbs = 0;
+  for (let elapsed = 0; elapsed <= 24000; elapsed += 41) {
+    stageFrame(models, wobbles, elapsed, -1, layout.baseY);
+    maxAbs = Math.max(maxAbs, Math.abs(gemini.$.values.get("ParamAngleX")));
+  }
+  assert.ok(maxAbs <= 8 + 1e-9, `gemini head turn left the safe range: ${maxAbs.toFixed(2)}°`);
+  assert.ok(maxAbs > 1, `gemini head barely turns at all: ${maxAbs.toFixed(2)}°`);
 }
 
 // --- 5. layout sanity: seats do not overlap --------------------------------

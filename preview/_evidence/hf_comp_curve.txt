@@ -1,0 +1,16 @@
+
+[gemini] base {'ParamAngleX': -6, 'ParamBodyAngleX': -2.3, 'ParamAngleY': -3.0, 'ParamBreath': 1.0}, hf_min -0.118
+  hf=-0.118 -> biggestHole= 2488 px
+  hf=-0.088 -> biggestHole= 2217 px
+  hf=-0.059 -> biggestHole= 1284 px
+  hf=-0.029 -> biggestHole= 1280 px
+  hf=+0.000 -> biggestHole= 1274 px
+
+[grok] base {'ParamAngleX': -6, 'ParamBodyAngleX': -2.3, 'ParamAngleY': -3.0, 'ParamBreath': 1.0}, hf_min -0.146
+  hf=-0.146 -> biggestHole= 4492 px
+  hf=-0.109 -> biggestHole= 4492 px
+  hf=-0.073 -> biggestHole= 4492 px
+  hf=-0.036 -> biggestHole= 4492 px
+  hf=+0.000 -> biggestHole= 4492 px
+
+[claude] base {'ParamAngleX': -6, 'ParamBodyAngleX': -2.3, 'ParamAngleY': -3.0, 'ParamBreath': 1.0}, hf_min -0.11
