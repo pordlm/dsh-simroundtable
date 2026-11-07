@@ -2,7 +2,7 @@ import asyncio, io, base64
 from PIL import Image
 import numpy as np
 from playwright.async_api import async_playwright
-URL="http://127.0.0.1:8848/preview/stage-760.html?n=5&names=Grok,Claude,Gemini,GPT,DeepSeek&nogest=1&nolook=1"
+URL="http://127.0.0.1:8848/preview/stage-760.html?n=5&names=Grok,Claude,Gemini,GPT,DeepSeek"
 JS="""async () => { const app=window.__app; return {url: await app.renderer.extract.base64(app.stage,'image/png'),
  m: window.__models.map(x=>{const cm=x.internalModel.coreModel; const g=id=>{try{return cm.getParameterValueById(id)}catch(e){return null}}; return {hf:g('ParamHairFront'),hx:g('ParamAngleX'),hb:g('ParamHairBack'),eye:g('ParamEyeLOpen')};})}; }"""
 async def main():
