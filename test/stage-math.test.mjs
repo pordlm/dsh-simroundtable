@@ -240,12 +240,62 @@ function buildRow(elapsedFrom = 0, breathValues = null) {
   });
 }
 
+// --- 3c. the passive nod is damped, a deliberate nod is not -----------------
+// The library's breath module writes absolute degrees to ParamAngleY (peak 8 at
+// weight 0.5 = +/-4 deg on a 3.5345 s period) and a served Idle clip adds
+// another +/-3.4, which the user saw as "the seat never stops nodding". The hook
+// keeps only a sliver of that and adds the acting nod at full amplitude.
+{
+  const { models, wobbles } = buildRow();
+  const layout = stageLayout(models.length);
+  stageFrame(models, wobbles, 7000, -1, layout.baseY);
+  models.forEach((model, index) => {
+    const hook = model.$.state.hooks.beforeModelUpdate;
+    const nod = model.__stageActing.nod;
+    model.$.values.set("ParamAngleY", 4); // what breath writes at its peak
+    hook();
+    const got = model.$.values.get("ParamAngleY");
+    assert.ok(Math.abs(got - (0.4 + nod)) < 1e-9,
+      `seat ${index} must damp the passive nod to 10% and keep the acting nod (got ${got.toFixed(3)}, nod ${nod.toFixed(3)})`);
+    assert.ok(Math.abs(got - 4) > 1, `seat ${index} left the breath nod untouched (${got.toFixed(3)})`);
+  });
+}
+// --- 3d. front hair follows the head, it does not counter it ----------------
+// A counter-offset (the old -0.0185 * turn) dragged the locks against the skull
+// and is what read as "the hair slid off the scalp".
+{
+  const { models, wobbles } = buildRow();
+  const layout = stageLayout(models.length);
+  stageFrame(models, wobbles, 9000, -1, layout.baseY);
+  const grok = models[0];
+  const hook = grok.$.state.hooks.beforeModelUpdate;
+  grok.$.values.set("ParamAngleX", 6);
+  hook();
+  const hfRight = grok.$.values.get("ParamHairFront");
+  grok.$.values.set("ParamAngleX", -6);
+  hook();
+  const hfLeft = grok.$.values.get("ParamHairFront");
+  assert.ok(hfRight > hfLeft + 1e-6,
+    `grok hair must move with the turn (left ${hfLeft.toFixed(3)}, right ${hfRight.toFixed(3)})`);
+  // Gemini keeps its seam bias and must not be given the follow term.
+  const gem = models[2];
+  const gemHook = gem.$.state.hooks.beforeModelUpdate;
+  gem.$.values.set("ParamAngleX", 6);
+  gemHook();
+  const gRight = gem.$.values.get("ParamHairFront");
+  gem.$.values.set("ParamAngleX", -6);
+  gemHook();
+  const gLeft = gem.$.values.get("ParamHairFront");
+  assert.ok(Math.abs(gRight - gLeft) < 1e-9,
+    `gemini hair must stay on its own seam bias (left ${gLeft}, right ${gRight})`);
+}
+
 // --- 4. per-rig hair corrections are armed by name -------------------------
 {
   const { models, wobbles } = buildRow();
   const layout = stageLayout(models.length);
   stageFrame(models, wobbles, 1000, -1, layout.baseY);
-  assert.equal(models[0].__hairComp, 1, "grok rig must get the counter-offset");
+  assert.equal(models[0].__hairComp, 1, "grok rig must get the head-follow hair term");
   assert.equal(models[2].__shoulderComp, 1, "gemini rig must get the shoulder guard");
   for (const [index, model] of models.entries()) {
     if (index === 0) continue;

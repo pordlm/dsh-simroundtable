@@ -167,18 +167,32 @@ function frame(models,wobbles,t,active,baseY){
       turn+=w.look*6;
       m.y=seatY;m.rotation=0;}
     // 前发靠手摆：rig 的 PhysicsHairFront 被关掉了（整块网格同时含刘海与侧发，
-    // 软阈值会把刘海拖到眼上），所以这里补两个不同周期的正弦。
-    const hairSway=.085*Math.sin(t/1500+i*1.7)+.035*Math.sin(t/620+i*2.3);
+    // 软阈值会把刘海拖到眼上）。但这里**不再**补自由正弦：原来那两个不同周期
+    // （1.5 s / 0.62 s）的摆动在头不动时也会把整片发片左右推，而且大半时间顶在
+    // -0.22 的夹紧轨上，看上去就是「头发离开头皮在平移」。现在发片只跟本帧最终
+    // 转头角同向跟随（见 applyActing）+ 手势带来的 follow-through。
+    const hairSway=0;
     // Acting 只给「我们自己加的那一点」：呼吸 / 眨眼 / 物理全部交回库的
     // internalModel.update()（单模型展示页就是这么跑的），我们只通过
     // beforeModelUpdate 钩子把 turn/nod/lean/hair 叠上去。钩子触发点在呼吸与物理
     // 之后、唯一一次 core.update() 之前，所以是用 addParameterValueById 叠加，
     // 不会互相覆盖，也不会每帧写两遍（抖动就是这么来的）。
     const ACTING_TURN=2.5;
+    // 库自带的呼吸给的是绝对角度（ParamAngleY 峰值 8 × 权重 0.5 = ±4°，周期
+    // 3.5345 s），再叠一段 Idle 动作还有 ±3.4°，于是「被动」通道就把头摇出
+    // 13-14° 峰峰值而且永不停止——用户说的「待机不停点头」就是它。留一点余味，
+    // 其余在这里压掉；手势/发言的 nod 在压完之后加，幅度不受影响。
+    const PASSIVE_NOD=0.1;
+    // 前发跟随：每 1° 最终转头角给 ParamHairFront 这么多，方向与转头**同向**。
+    // rig 本身已经带着发片走（实测发片质心 0.0011 单位/度），这里只补切件缺的
+    // 那点重量；旧代码是 -0.0185×turn 的**反向**偏移，等于让发片逆着头走，正是
+    // 「平移脱离头皮」的来源。±7.5° 时 |hf| < 0.05，离 0.22 的夹紧还远。
+    const HEAD_HAIR_FOLLOW=0.006;
     const applyActing=(tgt)=>{try{
       const im=tgt.internalModel;const core=im&&im.coreModel;const a=tgt.__acting;
       if(!core||!a)return;
       const set=(id,v)=>{if(!Number.isFinite(v))return;try{core.setParameterValueById(id,v)}catch(e){}};
+      const get=(id)=>{try{return Number(core.getParameterValueById(id))||0}catch(e){return 0}};
       const add=(id,v)=>{if(!Number.isFinite(v)||v===0)return;
         try{if(typeof core.addParameterValueById==='function'){core.addParameterValueById(id,v);return;}}catch(e){}
         let cur=0;try{cur=core.getParameterValueById(id)||0}catch(e2){return}set(id,cur+v);};
@@ -188,20 +202,24 @@ function frame(models,wobbles,t,active,baseY){
         set('ParamAngleX',Math.max(-6,Math.min(6,sum)));}
       else add('ParamAngleX',a.turn);
       add('ParamAngleY',a.nod);add('ParamBodyAngleZ',a.lean);
+      // 压掉被动点头，再加上本帧的 acting nod（呼吸/动作已经写过值，读改写安全）。
+      set('ParamAngleY',PASSIVE_NOD*get('ParamAngleY')+(Number.isFinite(a.nod)?a.nod:0));
       set('ParamMouthOpenY',a.mouth);
       for(const id of PHONE_PARAMS)set(id,0);
-      set('ParamHairFront',a.hair);
+      // 发片跟本帧**最终**转头角同向走（呼吸也算在内），只有标了 __hairComp 的 rig。
+      const hairFollow=tgt.__hairComp?HEAD_HAIR_FOLLOW*get('ParamAngleX'):0;
+      set('ParamHairFront',Math.max(-.22,Math.min(.22,(Number.isFinite(a.hair)?a.hair:0)+hairFollow)));
       if(tgt.__axePart){try{core.setPartOpacityById(tgt.__axePart,a.axe)}catch(e){}}
       tgt.__applied={hair:a.hair,turn:a.turn,nod:a.nod,lean:a.lean};
     }catch(e){}};
     const applyPose=(tgt)=>{try{
       if(tgt.__hairComp==null)tgt.__hairComp=/grok/i.test((tgt.internalModel&&tgt.internalModel.settings&&tgt.internalModel.settings.name)||'')?1:0;
       if(tgt.__shoulderComp==null)tgt.__shoulderComp=/gemini/i.test((tgt.internalModel&&tgt.internalModel.settings&&tgt.internalModel.settings.name)||'')?1:0;
-      // 前发参数只给 ±0.22：再大侧发会甩离头皮。Grok 的 FrontHair 在 Face 底版
-      // 之下（cdi3 绘制序 1 vs 11），转头时两层相对滑动（实测可见前发 12.3k/13.7k
-      // vs 6.8k），补一个与转头反向的偏移把两层钉在一起；Gemini 再加一点向前的
-      // 偏置堵注肩缝。
-      const hairVal=hairSway-tgt.__hairComp*0.0185*turn+tgt.__shoulderComp*0.012*Math.max(0,-turn);
+      // 前发参数只给 ±0.22：再大侧发会甩离头皮。这里**不再**给 Grok 反向补偿
+      // （-0.0185×turn）：实测 +hf 与 +ParamAngleX 让发片同向移动（+0.0200 单位/hf
+      // vs +0.0011 单位/度），反向偏移等于把发片往头转的反方向拽。跟随改到
+      // applyActing 里按本帧最终角度同向给；Gemini 仍加一点向前偏置堵住肩缝。
+      const hairVal=hairSway+tgt.__shoulderComp*0.012*Math.max(0,-turn);
       tgt.__acting={turn:Math.max(-ACTING_TURN,Math.min(ACTING_TURN,turn)),nod,lean,
         hair:Math.max(-.22,Math.min(.22,hairVal)),mouth:mouthVal,axe:axeVal};
       if(!tgt.__hooked){tgt.__hooked=true;const im=tgt.internalModel;
@@ -216,7 +234,11 @@ function frame(models,wobbles,t,active,baseY){
   }
 }
 function dropPhone(m){
-  try{m.internalModel.motionManager.stopAllMotions()}catch(e){}
+  try{const mm=m.internalModel.motionManager;mm.stopAllMotions();
+    // stopAllMotions() 只停当前这一段：MotionManager 在状态结束后会从 groups.idle
+    // 重启动 Idle（导出的 model3.json 带 12 s Idle，lib/stage.js 在生产里把 Motions
+    // 裁掉了，但本页加载的是原始文件）。清掉组，getRandomMotion() 就找不到可重启的。
+    if(mm.groups)mm.groups.idle=undefined;}catch(e){}
   try{const core=m.internalModel.coreModel;
     for(const id of PHONE_PARTS){try{core.setPartOpacityById(id,0)}catch(e){}}
     for(const id of PHONE_PARAMS){try{core.setParameterValueById(id,0)}catch(e){}}
