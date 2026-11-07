@@ -146,7 +146,7 @@ function frame(models,wobbles,t,active,baseY){
       // lips move instead of on an unrelated slow sine.
       const sy=c.mouth?Math.abs(Math.sin(s*5.5)*.72+Math.sin(s*8.9)*.28):0;
       nod=2.6*Math.sin(s*3.1)+5.2*(sy-.5);lean=3.2*Math.sin(s*1.55)+1.1*(sy-.5);
-      turn=1.5*Math.sin(s*1.1);breath=.5+.5*Math.sin(s*1.7);m.y=seatY-3;m.rotation=0;
+      turn=1.5*Math.sin(s*1.1);breath=.5+.5*Math.sin(s*1.7);m.y=seatY;m.rotation=0;
       mouthVal=c.mouth?(sy>.32?1:0):0;
     }
     else{nod=1.4*Math.sin(t/w.bobPeriod+w.phase*.7);lean=w.swayAmp*Math.sin(t/w.swayPeriod+w.phase);
@@ -165,85 +165,48 @@ function frame(models,wobbles,t,active,baseY){
         lookTarget=Math.max(-1,Math.min(1,(models[active].x-m.x)/240));
       w.look=(w.look||0)*0.93+lookTarget*0.07;
       turn+=w.look*6;
-      m.y=seatY+Math.sin(t/w.bobPeriod+w.phase)*w.bobAmp;m.rotation=Math.sin(t/(w.swayPeriod*.8)+w.phase)*.003;}
+      m.y=seatY;m.rotation=0;}
     // 前发靠手摆：rig 的 PhysicsHairFront 被关掉了（整块网格同时含刘海与侧发，
     // 软阈值会把刘海拖到眼上），所以这里补两个不同周期的正弦。
     const hairSway=.085*Math.sin(t/1500+i*1.7)+.035*Math.sin(t/620+i*2.3);
-    // Blink has to be driven by hand now: the pages run with autoUpdate:false
-    // (the library's own update on PIXI.Ticker.shared fought our pose writes and
-    // read as a jitter), and with it went the only thing that used to blink the
-    // eyes. A fixed cadence read as mechanical ("每隔几秒眨一次很怪"), so each
-    // cycle is shifted by a hash of its index: still deterministic in `t` (so
-    // ?tpin freezes the same frame) but irregular to the eye.
-    const hash01=(n)=>{const x=Math.sin(n*127.1+311.7)*43758.5453;return x-Math.floor(x);};
-    const blinkOpen=()=>{const per=2600+i*430,k=Math.floor(t/per);
-      for(let j=k;j>=k-1;j--){const at=j*per+hash01(j*31+i*7)*Math.min(950,per*.35),d=t-at;
-        if(d>=0&&d<=170)return d<45?1-d/45:(d-45)/125;}
-      return 1;};
-    const eyeOpen=blinkOpen();
-    const ballX=.18*Math.sin(t/2600+i*1.3),ballY=.08*Math.sin(t/1700+i*2.1);
-    // Frame delta for the rig's own breath module (see applyPose). With a pinned
-    // clock the breath must not advance, otherwise ?tpin frames would differ.
-    const frameDt=PINNED?0:Math.min(64,Math.max(0,t-(w.__lastT==null?t:w.__lastT)));
-    w.__lastT=t;
-    const applyPose=(tgt)=>{try{const core=tgt.internalModel.coreModel;
-      // The library used to animate the whole body from its breath module; with
-      // autoUpdate:false we own the frame, so run that module ourselves and ADD
-      // our gesture offsets on top. Measured on the real rigs, the module sways
-      // AngleX ±5.0°, AngleY ±2.6°, AngleZ ±2.1°, BodyAngleX ±2.3°,
-      // BodyAngleY ±1.1°, BodyAngleZ ±1.6° — that is the "natural small sway"
-      // the seats had before, and no hand-written sine matched it.
-      let bx=0,by=0,bz=0,bbx=0,bby=0,bbz=0;
-      try{const im=tgt.internalModel;
-        if(im.breath){im.breath.update(core,frameDt/1000);
-          const g=id=>{try{return core.getParameterValueById(id)||0}catch(e){return 0}};
-          bx=g('ParamAngleX');by=g('ParamAngleY');bz=g('ParamAngleZ');
-          bbx=g('ParamBodyAngleX');bby=g('ParamBodyAngleY');bbz=g('ParamBodyAngleZ');}}catch(e){}
-      core.setParameterValueById('ParamAngleY',nod+by);
-      try{core.setParameterValueById('ParamAngleZ',bz)}catch(e){}
-      try{core.setParameterValueById('ParamBodyAngleX',bbx);core.setParameterValueById('ParamBodyAngleY',bby);}catch(e){}
-      core.setParameterValueById('ParamBodyAngleZ',lean+bbz);
-      try{core.setParameterValueById('ParamMouthOpenY',mouthVal)}catch(e){}
-      try{core.setParameterValueById('ParamEyeLOpen',eyeOpen);core.setParameterValueById('ParamEyeROpen',eyeOpen);}catch(e){}
-      try{core.setParameterValueById('ParamEyeBallX',ballX);core.setParameterValueById('ParamEyeBallY',ballY);}catch(e){}
-      for(const id of PHONE_PARAMS){try{core.setParameterValueById(id,0)}catch(e){}}
-      // 前发是刚性跟头（物理关掉），参数只给 ±0.22：再大侧发就会甩离头皮，
-      // 露出发际线后面的洞（深色舞台上读作黑斑；见 longtable 的 applyPoseParams）。
-      // Grok 的 FrontHair 在 Face 底版之下（cdi3 绘制序 1 vs 11），转头时两层
-      // 相对滑动：实测「前发可见像素」在 ang ±6°、hf 0 时 12.3k/13.7k，ang 0° 时
-      // 只有 6.8k —— 侧发就是这样一会儿从底版下面钻出来、一会儿又被压回去
-      // （用户说的「两撮头发有时候突然被遮住」）。补一个与转头反向的偏移把两层
-      // 钉在一起：hf = sway - 0.0185*turn，同样条件下可见量收成 8.5k–10.5k，
-      // 摆动幅度从 2.5x 降到 1.24x。
+    // Acting 只给「我们自己加的那一点」：呼吸 / 眨眼 / 物理全部交回库的
+    // internalModel.update()（单模型展示页就是这么跑的），我们只通过
+    // beforeModelUpdate 钩子把 turn/nod/lean/hair 叠上去。钩子触发点在呼吸与物理
+    // 之后、唯一一次 core.update() 之前，所以是用 addParameterValueById 叠加，
+    // 不会互相覆盖，也不会每帧写两遍（抖动就是这么来的）。
+    const ACTING_TURN=2.5;
+    const applyActing=(tgt)=>{try{
+      const im=tgt.internalModel;const core=im&&im.coreModel;const a=tgt.__acting;
+      if(!core||!a)return;
+      const set=(id,v)=>{if(!Number.isFinite(v))return;try{core.setParameterValueById(id,v)}catch(e){}};
+      const add=(id,v)=>{if(!Number.isFinite(v)||v===0)return;
+        try{if(typeof core.addParameterValueById==='function'){core.addParameterValueById(id,v);return;}}catch(e){}
+        let cur=0;try{cur=core.getParameterValueById(id)||0}catch(e2){return}set(id,cur+v);};
+      // Gemini 的肩缝：合起来的转头角压在 ±6°，实测缝在 0°/±4° 是 166/200 px²，
+      // ±6° 400，±8° 672（preview/_evidence/seam_sweep_b0_hf0.txt）。
+      if(tgt.__shoulderComp){let sum=a.turn;try{sum+=core.getParameterValueById('ParamAngleX')||0}catch(e){}
+        set('ParamAngleX',Math.max(-6,Math.min(6,sum)));}
+      else add('ParamAngleX',a.turn);
+      add('ParamAngleY',a.nod);add('ParamBodyAngleZ',a.lean);
+      set('ParamMouthOpenY',a.mouth);
+      for(const id of PHONE_PARAMS)set(id,0);
+      set('ParamHairFront',a.hair);
+      if(tgt.__axePart){try{core.setPartOpacityById(tgt.__axePart,a.axe)}catch(e){}}
+      tgt.__applied={hair:a.hair,turn:a.turn,nod:a.nod,lean:a.lean};
+    }catch(e){}};
+    const applyPose=(tgt)=>{try{
       if(tgt.__hairComp==null)tgt.__hairComp=/grok/i.test((tgt.internalModel&&tgt.internalModel.settings&&tgt.internalModel.settings.name)||'')?1:0;
       if(tgt.__shoulderComp==null)tgt.__shoulderComp=/gemini/i.test((tgt.internalModel&&tgt.internalModel.settings&&tgt.internalModel.settings.name)||'')?1:0;
-      // Gemini 的前发正好收在肩缝上：head 与 body 同向转时两块轮廓不再重叠，
-      // 卡片底色就从缝里透出来（AngleX -6 / BodyAngleX -2.3 / hf -0.118 / breath 1
-      // 实测最大封闭洞 2488 px²，裁图就是肩上一条黑色斜块）。两道都实测过：
-      // ① 头往一侧转时前发往回收 hf + 0.012*|turn| —— -6/-8° 时洞回到 1278（基线 1228）；
-      // ② 躯干确实转过去时（|BodyAngleX| > 0.8）合起来的转头角封顶 ±8° —— 那时
-      //   -10° 连补偿都补不回来（2376），-8° 只有 1292。封顶是有条件的：无条件
-      //   ±8° 会把表演点头削平（实测手势下正好停在 -8.00），而躯干摆正时 -10°
-      //   也只有 1309 px²，根本没缝。
-      const bodyTurn=bbx||0;
-      tgt.__headTurnCap=tgt.__shoulderComp?(Math.abs(bodyTurn)>0.8?8:10):0;
-      tgt.__headTurnRaw=turn+bx;
-      const headTurn=tgt.__headTurnCap?Math.max(-tgt.__headTurnCap,Math.min(tgt.__headTurnCap,turn+bx)):turn+bx;
+      // 前发参数只给 ±0.22：再大侧发会甩离头皮。Grok 的 FrontHair 在 Face 底版
+      // 之下（cdi3 绘制序 1 vs 11），转头时两层相对滑动（实测可见前发 12.3k/13.7k
+      // vs 6.8k），补一个与转头反向的偏移把两层钉在一起；Gemini 再加一点向前的
+      // 偏置堵注肩缝。
       const hairVal=hairSway-tgt.__hairComp*0.0185*turn+tgt.__shoulderComp*0.012*Math.max(0,-turn);
-      core.setParameterValueById('ParamAngleX',headTurn);core.setParameterValueById('ParamAngleY',nod+by);
-      try{core.setParameterValueById('ParamHairFront',Math.max(-.22,Math.min(.22,hairVal)))}catch(e){}
-      try{core.setParameterValueById('ParamBreath',breath)}catch(e){}
-      // Part opacity is an input to the core update, so it has to be written
-      // before core.update() below; the renderer then reads it for this frame.
-      if(tgt.__axePart){try{core.setPartOpacityById(tgt.__axePart,axeVal)}catch(e){}}
-      // Hair/swing physics is another thing the library ran for us inside
-      // internalModel.update(): with autoUpdate:false it never steps, so
-      // ParamHairBack was pinned at 0 and the ponytails stopped reacting to the
-      // head turn. Step it ourselves once per frame, after the angle inputs above
-      // (it reads ParamAngleX/Z + ParamBodyAngleX/Z) and before core.update().
-      try{const im=tgt.internalModel;if(im.physics)im.physics.evaluate(core,frameDt/1000);}catch(e){}
-      core.update();}catch(e){}};
-    if(m.__fade==null)m.__fade=0;
+      tgt.__acting={turn:Math.max(-ACTING_TURN,Math.min(ACTING_TURN,turn)),nod,lean,
+        hair:Math.max(-.22,Math.min(.22,hairVal)),mouth:mouthVal,axe:axeVal};
+      if(!tgt.__hooked){tgt.__hooked=true;const im=tgt.internalModel;
+        if(im&&typeof im.on==='function')im.on('beforeModelUpdate',()=>applyActing(tgt));}
+    }catch(e){}};    if(m.__fade==null)m.__fade=0;
     if(m.__fade<1)m.__fade=Math.min(1,m.__fade+.08);
     applyPose(m);
     m.alpha=m.__fade*(1-bookReady);
@@ -349,18 +312,23 @@ function dropPhone(m){
   const tPin=q.has('tpin')?Number(q.get('tpin')):null;
   const tick=()=>frame(models,wobbles,tPin!==null&&Number.isFinite(tPin)?tPin:performance.now()-t0,active,baseY);
   tick();app.ticker.add(tick);
+  // 库的 autoUpdate 只接受 Ticker 类（内部用 Oe.shared），传实例会 Cannot read
+  // properties of undefined (reading 'add')。注册类之后它跑在 PIXI.Ticker.shared 上；
+  // 我们的 frame() 仍挂在 app.ticker 上，但不再写同一个参数，所以只差一帧相位。
+  try{PIXI.live2d.Live2DModel.registerTicker(PIXI.Ticker);}catch(e){console.warn('registerTicker',e);}
   await Promise.all(xs.map(async(x,i)=>{
     const c=characterFor(names[i]);
-    // autoUpdate:false —— 框架自带的 update 挂在 PIXI.Ticker.shared 上，和我们的
+    // autoUpdate:true —— 框架自带的 update 挂在 PIXI.Ticker.shared 上，和我们的
     // frame()（挂在 app.ticker 上）各跑一遍：它每帧写呼吸/眨眼/姿势，把 frame() 刚
     // 写好的参数又盖回去，两次写入的相位又不一定落在同一帧，于是整座模型在两套
     // 姿势之间来回跳（观感就是「整个人小幅抖动 / 有重影」）。
     // 实测：?tpin=6000 冻结时钟后连拍 4 张，autoUpdate:true 时相邻两帧差 1800–9200
     // 个像素；把它关掉后 4 张逐字节相同（0 px）。
     let m=null;
-    try{m=await PIXI.live2d.Live2DModel.from(c.url,{autoInteract:false,autoUpdate:false});}
+    try{m=await PIXI.live2d.Live2DModel.from(c.url,{autoInteract:false,autoUpdate:true});}
     catch(e){
-      if(c.key!==WHALE.key){try{m=await PIXI.live2d.Live2DModel.from(WHALE.url,{autoInteract:false,autoUpdate:false});}catch(e2){m=null}}
+      console.warn('rig failed', c.url, String(e));
+      if(c.key!==WHALE.key){try{m=await PIXI.live2d.Live2DModel.from(WHALE.url,{autoInteract:false,autoUpdate:true});}catch(e2){m=null}}
       if(!m)return;
       m.__char=WHALE;
     }
@@ -388,14 +356,14 @@ function dropPhone(m){
       m.__book=bk;
       if(q.get('book')==='1')bk.force=true;
       m.__loadBook=async()=>{try{
-        const alt=await PIXI.live2d.Live2DModel.from(bk.url,{autoInteract:false,autoUpdate:false});
+        const alt=await PIXI.live2d.Live2DModel.from(bk.url,{autoInteract:false,autoUpdate:true});
         alt.anchor.set(.5,1);alt.zIndex=i;alt.alpha=0;alt.visible=false;
         if(c.cut){const clip2=new PIXI.Graphics();clip2.beginFill(0x000000);
           clip2.drawRect(-4000,-4000,8000,4000+baseY);clip2.endFill();
           app.stage.addChild(clip2);alt.mask=clip2;}
         dropPhone(alt);app.stage.addChild(alt);bk.model=alt;}catch(e){}};
     }
-  }));
+  })).then(()=>{window.__loaded=true;});
 
   requestAnimationFrame(()=>requestAnimationFrame(()=>{
     const plateRects=[...inner.querySelectorAll('.plate')].map(p=>{const r=p.getBoundingClientRect();

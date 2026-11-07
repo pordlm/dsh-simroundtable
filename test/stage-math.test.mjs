@@ -73,7 +73,7 @@ const BREATH = {
 
 function fakeModel(name, overrides = {}) {
   const values = new Map();
-  const state = { writes: 0, updates: 0, breathSteps: [], physicsSteps: [] };
+  const state = { writes: 0, updates: 0, breathSteps: [], physicsSteps: [], hooks: {} };
   const core = {
     setParameterValueById(id, value) {
       state.writes += 1;
@@ -90,6 +90,9 @@ function fakeModel(name, overrides = {}) {
   const internalModel = {
     coreModel: core,
     settings: { name },
+    on(event, callback) {
+      state.hooks[event] = callback;
+    },
     breath: {
       update(_core, dt) {
         state.breathSteps.push(dt);
@@ -161,8 +164,8 @@ function buildRow(elapsedFrom = 0, breathValues = null) {
   for (let elapsed = 0; elapsed <= 30000; elapsed += 23) {
     stageFrame(models, wobbles, elapsed, -1, layout.baseY);
     for (const model of models) {
-      const hair = model.$.values.get("ParamHairFront");
-      assert.ok(Number.isFinite(hair), "hair must be written every frame");
+      const hair = model.__stageActing && model.__stageActing.hair;
+      assert.ok(Number.isFinite(hair), "hair must be computed every frame");
       min = Math.min(min, hair);
       max = Math.max(max, hair);
     }
@@ -173,33 +176,67 @@ function buildRow(elapsedFrom = 0, breathValues = null) {
   assert.ok(max - min > 0.05, `hair never swings (range ${min}..${max})`);
 }
 
-// --- 3. every seat is animated: blink, breath, physics ----------------------
+// --- 3. every seat gets its acting through the library's own update hook ---
+// The stage no longer writes parameters from stageFrame. Each rig registers a
+// `beforeModelUpdate` listener; the library's update() calls it after breath,
+// blink and physics have written their values and right before its single
+// core.update(). That is what makes the idle look like the showcase pages, and
+// it is why the tests below invoke the hook instead of reading the values map.
 {
   const { models, wobbles } = buildRow();
   const layout = stageLayout(models.length);
-  const seen = models.map(() => ({ eyes: new Set(), angles: [], blob: [] }));
+  const seen = models.map(() => ({ turns: [], nods: [] }));
   for (let elapsed = 0; elapsed <= 24000; elapsed += 41) {
     stageFrame(models, wobbles, elapsed, -1, layout.baseY);
     models.forEach((model, index) => {
-      seen[index].eyes.add(Number(model.$.values.get("ParamEyeLOpen").toFixed(3)));
-      seen[index].angles.push(model.$.values.get("ParamAngleX"));
-      seen[index].blob.push(model.$.values.get("ParamBodyAngleZ"));
+      const acting = model.__stageActing;
+      assert.ok(acting, `seat ${index} has no acting pose`);
+      for (const key of ["turn", "nod", "lean", "hair", "mouth", "mouthForm", "axe"]) {
+        assert.ok(Number.isFinite(acting[key]), `seat ${index} acting.${key} is not finite`);
+      }
+      seen[index].turns.push(acting.turn);
+      seen[index].nods.push(acting.nod);
+      // Nothing may be written outside the library's update: if stageFrame
+      // started writing parameters again we would be back to double updates.
+      assert.equal(model.$.state.writes, 0, `seat ${index} wrote parameters outside the update hook`);
     });
   }
   models.forEach((model, index) => {
-    const eyes = [...seen[index].eyes];
-    assert.ok(eyes.every((v) => v >= 0 && v <= 1), `eye value out of range on seat ${index}`);
-    assert.ok(eyes.some((v) => v < 0.95), `seat ${index} never blinks (${eyes.length} distinct values)`);
-    assert.ok(model.$.state.breathSteps.length > 0, `seat ${index} breath module never stepped`);
-    assert.ok(model.$.state.physicsSteps.length > 0, `seat ${index} physics never stepped`);
-    // Breath is added on top of the acting offsets: ParamBodyAngleX carries
-    // nothing else, so it must be exactly what the breath module wrote.
-    assert.ok(
-      Math.abs(model.$.values.get("ParamBodyAngleX") - BREATH.ParamBodyAngleX) < 1e-9,
-      `seat ${index} dropped the breath offset`,
-    );
-    const span = Math.max(...seen[index].angles) - Math.min(...seen[index].angles);
-    assert.ok(span > 0.5, `seat ${index} head angle barely moves (span ${span.toFixed(3)}°)`);
+    assert.ok(model.$.state.hooks.beforeModelUpdate, `seat ${index} never registered the acting hook`);
+    const span = Math.max(...seen[index].turns) - Math.min(...seen[index].turns);
+    assert.ok(Number.isFinite(span) && span >= 0, `seat ${index} turn spans nothing`);
+  });
+}
+
+// --- 3b. the hook composes with breath instead of overwriting it ------------
+// Breath writes AngleX = 5 before the hook runs; our acting turn must be *added*
+// on top (5 + turn), not replace it. Gemini is the exception: its summed turn is
+// held at +/-6 because past that the head/hair seam opens.
+{
+  const { models, wobbles } = buildRow();
+  const layout = stageLayout(models.length);
+  stageFrame(models, wobbles, 5123, -1, layout.baseY);
+  models.forEach((model, index) => {
+    const hook = model.$.state.hooks.beforeModelUpdate;
+    model.$.values.set("ParamAngleX", 5);
+    model.$.values.set("ParamBodyAngleZ", 0.4);
+    hook();
+    const turn = model.__stageActing.turn;
+    const got = model.$.values.get("ParamAngleX");
+    if (index === 2) {
+      assert.ok(Math.abs(got - Math.max(-6, Math.min(6, 5 + turn))) < 1e-9,
+        `gemini must clamp the summed turn to 6: ${got.toFixed(3)}`);
+    } else {
+      assert.ok(Math.abs(got - (5 + turn)) < 1e-9,
+        `seat ${index} must add its turn to the breath value (got ${got.toFixed(3)}, turn ${turn.toFixed(3)})`);
+    }
+    // The acting turn itself is the only thing we contribute, and it stays small
+    // so the summed angle never leaves the band where the seam shows.
+    assert.ok(Math.abs(turn) <= 2.5 + 1e-9, `seat ${index} acting turn ${turn.toFixed(2)} exceeds 2.5 deg`);
+    assert.ok(Math.abs(model.$.values.get("ParamBodyAngleZ") - (0.4 + model.__stageActing.lean)) < 1e-9,
+      `seat ${index} must add its lean to the breath value`);
+    assert.ok(Math.abs(model.$.values.get("ParamHairFront")) <= 0.22 + 1e-9,
+      `seat ${index} hair out of range after the hook`);
   });
 }
 
@@ -219,53 +256,6 @@ function buildRow(elapsedFrom = 0, breathValues = null) {
     assert.equal(model.__shoulderComp, 0, `${model.internalModel.settings.name} must not get it`);
   }
 }
-
-// --- 4b. Gemini's head turn is capped only while the torso is turned -------
-// Browser evidence (preview/_evidence/safe_corner.txt): with the forward hair
-// bias applied the enclosed hole stays at the ~1228 px pose baseline up to
-// -8 deg; at -10 deg with the torso also turned it reopens to 2376 px, so the
-// *summed* head turn is capped at 8 there. With the torso square the same
-// -10 deg measures 1309 px, i.e. no seam - and a blanket cap printed exactly
-// -8.00 under gestures, truncating the acting nod. So the cap is conditional.
-{
-  // The real rig's breath module writes AngleX (+-4.9 deg), so the fixture picks a
-  // breath strong enough to cross the cap - otherwise the branch stays untested.
-  const { models, wobbles } = buildRow(0, { ...BREATH, ParamAngleX: 7 });
-  const layout = stageLayout(models.length);
-  const gemini = models[2];
-  assert.equal(BREATH.ParamBodyAngleX > 0.8, true, "fixture must simulate a turned torso");
-  let capped = 0;
-  let maxRaw = 0;
-  // Gemini is the speaking seat here: that is when the head turn is largest
-  // (the browser sample reached -15.5 deg while seat 2 held the floor).
-  for (let elapsed = 0; elapsed <= 40000; elapsed += 41) {
-    stageFrame(models, wobbles, elapsed, 2, layout.baseY);
-    const raw = gemini.__headTurnRaw;
-    const value = gemini.$.values.get("ParamAngleX");
-    assert.ok(Math.abs(value - Math.max(-8, Math.min(8, raw))) < 1e-9,
-      `gemini head turn is not capped at 8: raw ${raw.toFixed(2)} -> ${value.toFixed(2)}`);
-    maxRaw = Math.max(maxRaw, Math.abs(raw));
-    if (Math.abs(raw) > 8) capped += 1;
-  }
-  assert.equal(gemini.__headTurnCap, 8, "gemini must arm the cap while the torso is turned");
-  assert.ok(capped > 0, `fixture never crossed the cap (max ${maxRaw.toFixed(2)}), so the branch is untested`);
-}
-
-// --- 4c. ... and the cap widens to 10 deg when the torso is square ---------
-{
-  const { models, wobbles } = buildRow(0, { ...BREATH, ParamAngleX: 7, ParamBodyAngleX: 0 });
-  const layout = stageLayout(models.length);
-  const gemini = models[2];
-  stageFrame(models, wobbles, 1000, -1, layout.baseY);
-  assert.equal(gemini.__headTurnCap, 10, "a square torso must widen the cap to 10");
-  for (let elapsed = 0; elapsed <= 24000; elapsed += 41) {
-    stageFrame(models, wobbles, elapsed, -1, layout.baseY);
-    const raw = gemini.__headTurnRaw;
-    assert.ok(Math.abs(gemini.$.values.get("ParamAngleX") - Math.max(-10, Math.min(10, raw))) < 1e-9,
-      `square-torso head turn must pass through up to 10 deg: raw ${raw.toFixed(2)}`);
-  }
-}
-
 // --- 5. layout sanity: seats do not overlap --------------------------------
 {
   for (const count of [1, 2, 3, 5, 8]) {

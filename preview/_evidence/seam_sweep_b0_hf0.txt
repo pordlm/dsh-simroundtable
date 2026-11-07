@@ -1,0 +1,13 @@
+ax=+10	max=732	area=4659
+ax=+6	max=320	area=3243
+ax=+4	max=199	area=2319
+ax=+2	max=179	area=1602
+ax=+0	max=166	area=1514
+ax=-2	max=156	area=1541
+ax=-4	max=200	area=2338
+ax=-6	max=400	area=3484
+ax=-8	max=672	area=4507
+ax=-10	max=677	area=4703
+ax=-12	max=548	area=4758
+
+metric: bg=(0, 255, 0) closing r=9, 700x700 DPR1 scale0.55
