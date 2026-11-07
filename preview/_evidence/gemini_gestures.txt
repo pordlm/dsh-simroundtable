@@ -1,0 +1,7 @@
+samples=360 over 90s
+AngleX    -10.00..+2.76  (cap should hold at +-8)
+BodyAngleX +0.00..+0.00
+HairFront  -0.084..+0.220
+samples past the cap: 100
+most negative AngleX sample: ['-10.000', '0.000', '0.220', '1.149', '0.342']
+hole at that sample: 1294 px (baseline 1228, pre-fix slit 2488)

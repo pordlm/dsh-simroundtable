@@ -405,9 +405,14 @@ const app = new PIXI.Application({
       // Gemini 的前发收在肩缝上：头和躯干同向转时两块轮廓不再重叠，卡片底色从缝里
       // 透出来（AngleX -6 / BodyAngleX -2.3 / hf -0.118 / breath 1 → 最大封闭洞
       // 2488px²，读作肩上一块黑）。① 转头时前发往回收 hf + 0.012*|turn|：-6/-8° 回到
-      // 1278（基线 1228）；② 合计转头角封顶 ±8°：-10° 且躯干也转时补不回来（2376）。
-      const headTurn = model.__shoulderComp
-        ? Math.max(-8, Math.min(8, (p.turn || 0) + ba.ax))
+      // 1278（基线 1228）；② 合计转头角封顶：躯干摆正 10°（-10° 1309px²，-12° 1798），
+      // 躯干转过（>0.8）时收紧 8°（2376）。必须留封顶：手势能把合头转推到 -15.5°，
+      // 那时洞回到 2411px²。
+      const bodyTurn = ba.bax || 0;
+      model.__headTurnCap = model.__shoulderComp ? (Math.abs(bodyTurn) > 0.8 ? 8 : 10) : 0;
+      model.__headTurnRaw = (p.turn || 0) + ba.ax;
+      const headTurn = model.__headTurnCap
+        ? Math.max(-model.__headTurnCap, Math.min(model.__headTurnCap, (p.turn || 0) + ba.ax))
         : (p.turn || 0) + ba.ax;
       sv(core, 'ParamAngleX', headTurn);
       const hairVal = (p.hair || 0) - model.__hairComp * 0.0185 * (p.turn || 0)

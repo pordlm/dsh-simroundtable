@@ -1,0 +1,14 @@
+biggest hole px, square torso, hair bias 0.012*|turn| applied
+AngleX   hf      hole
+    -8  -0.022    1299
+   -10  +0.002    1309
+   -12  +0.026    1798
+   -13  +0.038    1975
+   -14  +0.050    2140
+   -15  +0.062    2315
+   -16  +0.074    2480
+same grid, hair bias NOT applied (hf = stage minimum)
+    -8  -0.118    1455
+   -10  -0.118    1673
+   -12  -0.118    1917
+   -14  -0.118    2310

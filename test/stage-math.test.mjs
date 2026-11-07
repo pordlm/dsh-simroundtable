@@ -93,7 +93,7 @@ function fakeModel(name, overrides = {}) {
     breath: {
       update(_core, dt) {
         state.breathSteps.push(dt);
-        for (const [id, value] of Object.entries(BREATH)) values.set(id, value);
+        for (const [id, value] of Object.entries(internalModel.breath.values || BREATH)) values.set(id, value);
       },
     },
     physics: {
@@ -117,9 +117,20 @@ function fakeModel(name, overrides = {}) {
 
 const SEATS = ["grok-v1", "claude", "gemini-v1", "gpt-half-atlas2048", "whale-girl"];
 
-function buildRow(elapsedFrom = 0) {
+// stageGesture picks its next move with Math.random, so without a seed the
+// assertions below would pass or fail depending on the run. Freeze it.
+{
+  let seed = 20261107;
+  Math.random = () => {
+    seed = (seed * 1103515245 + 12345) % 2147483648;
+    return seed / 2147483648;
+  };
+}
+
+function buildRow(elapsedFrom = 0, breathValues = null) {
   const models = SEATS.map((name) => {
     const model = fakeModel(name);
+    if (breathValues) model.internalModel.breath.values = breathValues;
     model.__stageCharacter = stageCharacterFor({ key: name, label: name });
     return model;
   });
@@ -209,23 +220,50 @@ function buildRow(elapsedFrom = 0) {
   }
 }
 
-// --- 4b. Gemini's head turn stays inside the measured safe range -----------
+// --- 4b. Gemini's head turn is capped only while the torso is turned -------
 // Browser evidence (preview/_evidence/safe_corner.txt): with the forward hair
 // bias applied the enclosed hole stays at the ~1228 px pose baseline up to
-// -8 deg, but at -10 deg with the torso also turned it reopens to 2376 px, so
-// the summed head turn is capped at 8. The rigs here never reach the cap on
-// their own, so this pins the invariant rather than the trigger.
+// -8 deg; at -10 deg with the torso also turned it reopens to 2376 px, so the
+// *summed* head turn is capped at 8 there. With the torso square the same
+// -10 deg measures 1309 px, i.e. no seam - and a blanket cap printed exactly
+// -8.00 under gestures, truncating the acting nod. So the cap is conditional.
 {
-  const { models, wobbles } = buildRow();
+  // The real rig's breath module writes AngleX (+-4.9 deg), so the fixture picks a
+  // breath strong enough to cross the cap - otherwise the branch stays untested.
+  const { models, wobbles } = buildRow(0, { ...BREATH, ParamAngleX: 7 });
   const layout = stageLayout(models.length);
   const gemini = models[2];
-  let maxAbs = 0;
+  assert.equal(BREATH.ParamBodyAngleX > 0.8, true, "fixture must simulate a turned torso");
+  let capped = 0;
+  let maxRaw = 0;
+  // Gemini is the speaking seat here: that is when the head turn is largest
+  // (the browser sample reached -15.5 deg while seat 2 held the floor).
+  for (let elapsed = 0; elapsed <= 40000; elapsed += 41) {
+    stageFrame(models, wobbles, elapsed, 2, layout.baseY);
+    const raw = gemini.__headTurnRaw;
+    const value = gemini.$.values.get("ParamAngleX");
+    assert.ok(Math.abs(value - Math.max(-8, Math.min(8, raw))) < 1e-9,
+      `gemini head turn is not capped at 8: raw ${raw.toFixed(2)} -> ${value.toFixed(2)}`);
+    maxRaw = Math.max(maxRaw, Math.abs(raw));
+    if (Math.abs(raw) > 8) capped += 1;
+  }
+  assert.equal(gemini.__headTurnCap, 8, "gemini must arm the cap while the torso is turned");
+  assert.ok(capped > 0, `fixture never crossed the cap (max ${maxRaw.toFixed(2)}), so the branch is untested`);
+}
+
+// --- 4c. ... and the cap widens to 10 deg when the torso is square ---------
+{
+  const { models, wobbles } = buildRow(0, { ...BREATH, ParamAngleX: 7, ParamBodyAngleX: 0 });
+  const layout = stageLayout(models.length);
+  const gemini = models[2];
+  stageFrame(models, wobbles, 1000, -1, layout.baseY);
+  assert.equal(gemini.__headTurnCap, 10, "a square torso must widen the cap to 10");
   for (let elapsed = 0; elapsed <= 24000; elapsed += 41) {
     stageFrame(models, wobbles, elapsed, -1, layout.baseY);
-    maxAbs = Math.max(maxAbs, Math.abs(gemini.$.values.get("ParamAngleX")));
+    const raw = gemini.__headTurnRaw;
+    assert.ok(Math.abs(gemini.$.values.get("ParamAngleX") - Math.max(-10, Math.min(10, raw))) < 1e-9,
+      `square-torso head turn must pass through up to 10 deg: raw ${raw.toFixed(2)}`);
   }
-  assert.ok(maxAbs <= 8 + 1e-9, `gemini head turn left the safe range: ${maxAbs.toFixed(2)}°`);
-  assert.ok(maxAbs > 1, `gemini head barely turns at all: ${maxAbs.toFixed(2)}°`);
 }
 
 // --- 5. layout sanity: seats do not overlap --------------------------------
