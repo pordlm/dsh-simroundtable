@@ -108,6 +108,10 @@ const CHARACTERS = {
     probe: "../assets/build/minimax-prop-v1/minimax-prop.layout.moc3",
     files: ["model3.json", "minimax-prop.layout.moc3", "minimax-prop.layout.physics3.json", "texture_00.png"],
   },
+  dounai: {
+    probe: "../assets/build/dounai-v1/dounai.layout.moc3",
+    files: ["model3.json", "dounai.layout.moc3", "dounai.layout.physics3.json", "texture_00.png"],
+  },
 };
 
 async function builtCharacters() {

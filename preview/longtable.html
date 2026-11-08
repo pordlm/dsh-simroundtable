@@ -203,6 +203,20 @@ const MODELS = {
     sway: true,
     alt: { url: '../assets/build/minimax-prop-v1/minimax-prop.layout.model3.json' }
   },
+  Dounai: {
+    url: '../assets/build/dounai-v1/dounai.layout.model3.json',
+    // 豆包吉祥物(管线 A 最简结构,docs/art-requirements-dounai.md)。这张设定图
+    // 本身是「大头娃娃」占比(头宽≈体宽的 97%),1.8 时头比邻居大一倍;缩到 1.2
+    // 头宽才与 Gemini 相当。scale 变小眼睛相对下沉,dy 按眼线公式**减小**补偿
+    //(160-167×0.6≈60,实测再微调 -8 → 52;260 会把她整个沉到桌后,底锚定别反)。
+    scale: 1.2,
+    dy: 52,
+    dyCharH: 244,
+    cut: true,
+    blink: true,
+    gestures: true,
+    sway: true
+  },
   Grok: {
     url: '../assets/build/grok-v1/grok.layout.model3.json',
     // 全身 Q 版（管线 B 逐件 + 母图头部底版）。她的画稿头位比 Claude 低 171 画布像素、
