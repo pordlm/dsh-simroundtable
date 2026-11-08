@@ -53,3 +53,19 @@ probe 1:1 品红底:开眼 ✓、`ParamEye[LR]Open=0` 闭眼自然(烘 face 弧�
 `ParamMouthOpenY=1` 张口 ✓;三态 enclosed holes≥40px 全 0;绿残留 3px。
 Cubism 5.3 打开 cmo3:部件树 Head/Extra/Body、AngleX ±45° 变形无破面。
 `npm test` 46/46;deployed 已同步。
+
+## 5. 持物变体（2026-11-08 第二轮）
+
+一轮编辑出「双手持银长笛（斜持腰前，按键朝左下）」的 prop 母图（`relay-kit/prompts/kimi-p2-prop.txt`，
+diff 校验确认改动集中在手部区）；`cut_prop_variant.py --char kimi` 复用基础件，
+只新增 **objects 层**（diff 闭合区 = 手+银长笛（斜持腰前，按键朝左下），prop 母图色）并把 handwear 减去
+objects（袖子保留）。objects 区贴绿底的过渡像素整块剔除（否则变体镶绿边）。
+`kimi_prop_to_canvas.py`（同 INK）→ `kimi_prop_build.py`（`--name kimi-prop`，
+manifest 文件名是 `<ch>-prop.layout.json`）→ `assets/build/kimi-prop-v1`。
+
+- **objects 必须在 manifest LAYERS 里**（同 earwear 教训），z 在 handwear 之后。
+- **headless MCP 的 request_id 有账本**：失败尝试也会占用 id，重跑前改 id 或重启服务。
+- probe 品红底三态 0 透洞；Cubism/pause 均正常。
+- 注册：`lib/stage.js` `kimiProp/mimoProp/minimaxProp`；`lib/client.js` 三个座位的
+  `book:` 指向变体（复用 claude-book 机制：静听 9s 交叉淡入、开口淡出、applyPose
+  复制到手部动作）；longtable 同款 `alt:`。deployed 已同步。

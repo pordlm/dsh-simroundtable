@@ -47,3 +47,19 @@ Prompt:`relay-kit/prompts/minimax-p0-master.txt`、`minimax-p1-expressions.txt`�
 `minimax_build.py`(全参数显式)。moc3 372KB,单页 4096,EyeBlink/LipSync ✓。
 probe 品红底三态 holes≥40px = 0;闭眼微笑自然、张口 ✓。合成校验 0.42%。
 `npm test` 46/46;deployed 已同步。
+
+## 5. 持物变体（2026-11-08 第二轮）
+
+一轮编辑出「双手持奶油橙海螺（双手捧腰前，尖朝右上）」的 prop 母图（`relay-kit/prompts/minimax-p2-prop.txt`，
+diff 校验确认改动集中在手部区）；`cut_prop_variant.py --char minimax` 复用基础件，
+只新增 **objects 层**（diff 闭合区 = 手+奶油橙海螺（双手捧腰前，尖朝右上），prop 母图色）并把 handwear 减去
+objects（袖子保留）。objects 区贴绿底的过渡像素整块剔除（否则变体镶绿边）。
+`minimax_prop_to_canvas.py`（同 INK）→ `minimax_prop_build.py`（`--name minimax-prop`，
+manifest 文件名是 `<ch>-prop.layout.json`）→ `assets/build/minimax-prop-v1`。
+
+- **objects 必须在 manifest LAYERS 里**（同 earwear 教训），z 在 handwear 之后。
+- **headless MCP 的 request_id 有账本**：失败尝试也会占用 id，重跑前改 id 或重启服务。
+- probe 品红底三态 0 透洞；Cubism/pause 均正常。
+- 注册：`lib/stage.js` `kimiProp/mimoProp/minimaxProp`；`lib/client.js` 三个座位的
+  `book:` 指向变体（复用 claude-book 机制：静听 9s 交叉淡入、开口淡出、applyPose
+  复制到手部动作）；longtable 同款 `alt:`。deployed 已同步。

@@ -96,6 +96,18 @@ const CHARACTERS = {
     probe: "../assets/build/minimax-v1/minimax.layout.moc3",
     files: ["model3.json", "minimax.layout.moc3", "minimax.layout.physics3.json", "texture_00.png"],
   },
+  kimiProp: {
+    probe: "../assets/build/kimi-prop-v1/kimi-prop.layout.moc3",
+    files: ["model3.json", "kimi-prop.layout.moc3", "kimi-prop.layout.physics3.json", "texture_00.png"],
+  },
+  mimoProp: {
+    probe: "../assets/build/mimo-prop-v1/mimo-prop.layout.moc3",
+    files: ["model3.json", "mimo-prop.layout.moc3", "mimo-prop.layout.physics3.json", "texture_00.png"],
+  },
+  minimaxProp: {
+    probe: "../assets/build/minimax-prop-v1/minimax-prop.layout.moc3",
+    files: ["model3.json", "minimax-prop.layout.moc3", "minimax-prop.layout.physics3.json", "texture_00.png"],
+  },
 };
 
 async function builtCharacters() {
