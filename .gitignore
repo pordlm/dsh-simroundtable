@@ -77,3 +77,4 @@ preview/_diag/__pycache__/
 *.npy
 *.npz
 .tmp-*/
+.push-*.ps1
