@@ -1,10 +1,10 @@
 # T7 顾问终审：T1 / T2 / T3
 
-终审结论：**FAIL，当前状态不能交付。T1、T2 各有一条已复现的阻塞路径；T3 阶段能力限制 PASS。**
+终审结论：**PASS，T1 / T2 / T3 当前修复闭环，可交付。** 终审期间发现并复现的 F1、F2 已由 captain 修复；本报告保留修复前证据，并在各项末尾记录复核结果。
 
 范围：只读检查实际代码与 README_t6.md；仅新增本报告，未修改实现或测试。复核重跑 `node preview/_evidence/stability2/inject_t6.mjs`，7/7 PASS；下述边界没有被该脚本覆盖。此前全量 81/81 与 check 10/10 证据见 README_t6.md:16–23，不能据此排除新发现的竞态。
 
-## T1 终态 durable — FAIL
+## T1 终态 durable — PASS（F1 已修复复核）
 
 主流程符合目标：lib/meetings.js:591–608 的 persistTerminal 共尝试四次，失败后保存 shadow；lib/meetings.js:610–628 保存完整 structuredClone(record)，包含 finalAnswer、答案、排名、评审、错误、时间及工作区，足够同一 manager 生命周期内恢复；lib/meetings.js:664–668 的 releaseRun 有 shadow 则保留 active；lib/meetings.js:698–708 的 reconcile 优先 shadow 并尝试 heal，不会把该 completed shadow 改判 interrupted。lib/meetings.js:323 与 :387 的终态 guard 也阻止迟到事件覆盖。
 
@@ -36,7 +36,9 @@ console.log(manager.active.size, manager.terminalShadow.size);
 
 退避评价：lib/meetings.js:67–79 固定 50+150+400=600ms 的 Atomics.wait 阻塞整个 Node 事件循环；这是每条终态写盘失败的等待上限，并非全局上限，也不包含同步文件 I/O 时延。默认小并发、罕见故障下可作为当前折中，不单独列为阻塞；批量 dispose 会线性累计，其他会议 timer/cancel 也会延迟，应在后续改为异步有界重试并维持同样所有权约束。
 
-## T2 agents.create 可取消 — FAIL
+**F1 复核结果（已解决）**：当前 lib/meetings.js:1229–1233 已替换为逐 run 检查 shadow，仅无 shadow 时删除 active。同一最小注入重跑得到 `{ active: 1, shadow: 1 }`；针对性回归 `node --test --test-name-pattern='same tick|completed record whose write keeps failing' test/meetings.test.mjs` 为 2/2 PASS。当前 manager 生命周期内的不丢终态要求满足。持久故障期间进程强制退出无法靠内存 shadow 保证恢复，这属于本方案明确边界；本结论不把 write/rename 成功等同于带 fsync 的断电持久性。
+
+## T2 agents.create 可取消 — PASS（F2 已修复复核）
 
 一般路径正常：lib/meetings.js:256–281 的 raceAbort 能在 create 永不 resolve 时退出；:1131–1146 的迟到回调可处理“先 abort，后续任务才 resolve”的情况，原独立脚本也验证 dispose=1、late=1。
 
@@ -70,6 +72,8 @@ console.log({ disposed, late: run.lateOrchestrators, owned: !!run.orchestrator }
 
 未发现当前代码会把已经正常交付的 handle 因 abandoned 回调再次 dispose 的路径：正常交付不会进入 catch，abandoned 保持 false；正常 execute.finally dispose 是预期清理。当前确证问题是漏 dispose，而非 use-after-dispose。
 
+**F2 复核结果（已解决）**：当前 lib/meetings.js:1134–1138 判据已改为 `if (!abandoned && !run.controller.signal.aborted) return;`。同一最小注入重跑：resolve→abort 为 aborted/disposed=1/late=1/owned=false；abort→resolve 同样清理一次；仅 resolve 为 delivered/disposed=0/late=0/owned=true。新增 test/meetings.test.mjs:472 的同帧取消回归通过；未发现新判据会清理已交付 handle 的等价路径：then 一旦正常跳过便不会再次执行，已交付 handle 由 execute.finally 负责。新判据查询 signal 发生于交付前，若 abort 已赢得 race，handle 清理是正确归属。
+
 ## T3 stage-specific web — PASS
 
 - lib/engine.js:94–97：仅 answer 且无附件允许 WEB_TOOLS，其余 stage 默认空表；:272–285 将表写入 child plan。
@@ -82,4 +86,4 @@ console.log({ disposed, late: run.lateOrchestrators, owned: !!run.orchestrator }
 
 ## 交付判定
 
-**不能交付：先修复 F1（dispose 清空未持久化 run）及 F2（resolve→abort 同栈 handle 泄漏），补回归并重新终审。**
+**可以交付：T1 / T2 / T3 PASS，F1 / F2 已修复且通过独立注入与针对性回归。** captain 报告最终提交 cacccaa，全量 82/82、check 10/10 通过；本终审亲自重跑原独立注入 7/7、两条边界回归 2/2，以及修复前后对照注入。一次复核命令恰逢共享文件写入，首个 Node 子进程遇到瞬时 SyntaxError；待文件写入完成后相同注入成功，最终文件可正常 import，该瞬时结果未算作通过证据。

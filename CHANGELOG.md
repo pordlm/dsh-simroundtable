@@ -186,11 +186,11 @@ Items the user reviewed on 2026-11-12 and accepted as "not a major bug, record a
   (rounded upper lip, no dashed rim), closed state is unchanged.
 - **Gemini right-jaw fill boundary** sits at ΔL* ≈ 0.94 at 1x (was 8.15);
   the 6x-only straight edge at the 26 CSS px seam is accepted as invisible.
-- **Advisor (gpt-6.1-sol) review of 0.6.1 is missing.** The three rounds of
-  advisor review cover the earlier permission/race fixes; the T1/T2/T3 work
-  above was verified independently by the verifier agent (81/81 tests,
-  non-hollow comparison against 0.6.0, behavioural injections for the timeout,
-  the shadow, and the stage tool table). The advisor session was interrupted by
-  its provider three times in a row, so this release ships on verifier evidence
-  alone — re-run the advisor review before the next release.
+- **Advisor review of 0.6.1 passed on round four.** The first three rounds
+  covered the earlier permission/race fixes; round four covered the T1/T2/T3
+  work below after two blocking paths it found were fixed (a same-microtask
+  `create` resolve that leaked the handle, and `dispose()` releasing a run whose
+  terminal record was still unhealed). Evidence:
+  `preview/_evidence/stability2/REVIEW_round4.md` plus the verifier's independent
+  7/7 report in the same directory.
 
