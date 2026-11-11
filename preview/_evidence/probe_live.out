@@ -1,0 +1,28 @@
+Traceback (most recent call last):
+  File "D:\dsh_simroundtable\preview\_diag\_probe_live.py", line 28, in <module>
+    asyncio.run(main())
+  File "C:\dev\python 3.12.0\Lib\asyncio\runners.py", line 194, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "C:\dev\python 3.12.0\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\dev\python 3.12.0\Lib\asyncio\base_events.py", line 664, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "D:\dsh_simroundtable\preview\_diag\_probe_live.py", line 13, in main
+    await pg.wait_for_function("window.__loaded === true && window.__models.filter(Boolean).length >= 3", timeout=180000)
+  File "C:\dev\python 3.12.0\Lib\site-packages\playwright\async_api\_generated.py", line 11240, in wait_for_function
+    await self._impl_obj.wait_for_function(
+  File "C:\dev\python 3.12.0\Lib\site-packages\playwright\_impl\_page.py", line 1032, in wait_for_function
+    return await self._main_frame.wait_for_function(**locals_to_params(locals()))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\dev\python 3.12.0\Lib\site-packages\playwright\_impl\_frame.py", line 773, in wait_for_function
+    return from_channel(await self._channel.send("waitForFunction", params))
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\dev\python 3.12.0\Lib\site-packages\playwright\_impl\_connection.py", line 59, in send
+    return await self._connection.wrap_api_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\dev\python 3.12.0\Lib\site-packages\playwright\_impl\_connection.py", line 514, in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+playwright._impl._errors.TimeoutError: Page.wait_for_function: Timeout 180000ms exceeded.

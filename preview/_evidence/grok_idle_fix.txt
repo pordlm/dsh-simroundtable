@@ -1,0 +1,41 @@
+Grok idle fix (t2) — before/after on the real stage harness
+===========================================================
+Harness: preview/stage-760.html?n=3&names=Grok,Claude,Gemini&active=1&nogest=1&seed=20261103
+Sampling: a `beforeModelUpdate` listener registered AFTER the stage hook, so the values are
+the ones the core actually consumes (breath + motion + acting all applied). 20 s each.
+
+metric                          before (git HEAD)      after (patched)
+-----------------------------   -------------------    -------------------------------
+ParamAngleY p-p                 13.547 deg             0.800 deg      (acceptance < 1.5)
+ParamAngleX p-p                 26.580 deg             15.000 deg     (library breath only)
+ParamHairFront p-p              0.222 (-0.220..0.002)  0.090 (-0.030..+0.060)
+frames on the -0.22 clamp rail  46/1154                0/1104
+corr(AngleX, ParamHairFront)    +0.058                 +1.000         (acceptance > 0.2,
+                                                                       i.e. same direction)
+idle motion group               set, playing=true      undefined, playing=false
+|hair centroid - face centroid| 11.13 canvas px        7.36 canvas px
+                                (1.78 stage px)        (1.18 stage px)
+hook calls                      57.7 /s                55.2 /s  (= 1 per frame)
+
+Interpretation
+--------------
+* ParamAngleY: the nod was the library's passive breath channel (peak 8 x weight 0.5 = +-4 deg
+  on a 3.5345 s period) and, on any descriptor that carries Motions, the 12 s Idle clip
+  (+-3.4 deg) restarted by MotionManager.shouldRequestIdleMotion(). stopAllMotions() alone does
+  not stop it; clearing motionManager.groups.idle does. The hook now keeps 10 % of the passive
+  value (PASSIVE_NOD) and still adds the acting nod at full amplitude.
+* Front hair: two free-running sines (1.5 s and 0.62 s) drove ParamHairFront directly and the
+  old -0.0185*turn term pushed the plate AGAINST the head turn. Measured on the rig, +hf moves
+  the hair the same way +AngleX moves the head (+0.0200 canvas units per unit hf vs +0.0011 per
+  degree), so the counter term was the "sliding off the scalp" direction. The plate is now
+  driven by the frame's FINAL head angle (0.006 per degree, |hf| < 0.05) and the counter term
+  is gone; the residual |hair-face| distance swing is 1.18 stage px over 20 s, i.e. the plate
+  rotates with the skull instead of sliding across it.
+
+Screenshots: preview/_evidence/grok_head_before.png, grok_head_fixed.png,
+             grok_filmstrip_baseline.png, grok_filmstrip_fixed.png (10 head crops, 2 s apart),
+             grok_hf_vs_angle.png (probe.html, hf +-0.22 vs AngleX +-7.5).
+Probes: preview/_diag/_grok_stage_verify.py, _grok_plate_track.py, _grok_filmstrip.py,
+        _grok_hf_visual.py.
+Checks: npm run check (clean), npm test (46/46 pass), deployed/dsh-roundtable/lib/client.js
+        MD5 07AC3D6F8DBE4B1A2FCAE3EE29640F60 == lib/client.js.

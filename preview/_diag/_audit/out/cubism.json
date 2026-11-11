@@ -1,0 +1,23 @@
+{
+ "checked_at": "2026-11-08 23:20:01",
+ "editors": [
+  {
+   "exe": "G:\\Live2D Cubism\\Live2D Cubism 5.3\\CubismEditor5.exe",
+   "dir": "G:\\Live2D Cubism\\Live2D Cubism 5.3",
+   "viewer": "G:\\Live2D Cubism\\Live2D Cubism 5.3\\CubismViewer5.exe",
+   "size": 77152
+  }
+ ],
+ "registry": [
+  {
+   "display_name": "Live2D Cubism 5.3.00",
+   "version": "5.3.00",
+   "location": null
+  }
+ ],
+ "external_api": {
+  "port": 22033,
+  "helper": "assets/_raw/cubism_api.py",
+  "token": "assets/_raw/.cubism-token"
+ }
+}

@@ -14,7 +14,19 @@ deployed/
 # 开发期素材与构建产物（不入库）
 assets/_raw/
 assets/incoming/
-assets/build/
+# Live2D 构建产物：默认不入库，只白名单要发布的角色（含 .cmo3 可编辑源）
+assets/build/*
+!assets/build/glm-v1/
+!assets/build/qwen-v1/
+!assets/build/kimi-v1/
+!assets/build/mimo-v1/
+!assets/build/minimax-v1/
+!assets/build/dounai-v1/
+!assets/build/gemini-v1/
+!assets/build/grok-v1/
+!assets/build/claude-v2/
+!assets/build/claude-v3/
+!assets/build/gpt-v1/
 preview/*.png
 preview/*.jpg
 preview/*.gif
@@ -34,3 +46,26 @@ relay-kit/tools/relay.config.json
 shots/
 .tmp/
 
+# 体积过大的证据与调试产物（已入库的旧文件保留，新增的不再提交）
+preview/_evidence/_raw/
+preview/_evidence/**/_raw/
+preview/_evidence/final2/
+preview/_evidence/t3/
+preview/_evidence/t4/
+preview/_evidence/t5/
+preview/_evidence/t6/
+preview/_evidence/t7/
+preview/_evidence/t1/
+preview/_evidence/t11/
+preview/_evidence/t12/
+preview/_evidence/t10/
+preview/_evidence/t8/
+preview/_evidence/t9/
+preview/_diag/*.png
+preview/_diag/**/*.png
+preview/_diag/__pycache__/
+.agent-teams/
+
+# 调试用的 numpy 快照（体积大）
+*.npy
+*.npz

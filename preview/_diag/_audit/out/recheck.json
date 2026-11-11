@@ -1,0 +1,1723 @@
+{
+ "exempt_below": 0.5019607843137255,
+ "generated_at": "2026-11-09T00:50:07",
+ "chars": {
+  "dounai": {
+   "pose": {
+    "neutral": {
+     "holes_raw": {
+      "enclosed_n": 3,
+      "enclosed_px": 13,
+      "largest_enclosed_px": 5
+     },
+     "holes_exempt": {
+      "enclosed_n": 1,
+      "enclosed_px": 5,
+      "largest_enclosed_px": 5
+     },
+     "components": [
+      {
+       "px_in_window": 5,
+       "px_total": 5,
+       "px_solid": 5,
+       "bbox": [
+        956,
+        991,
+        958,
+        992
+       ]
+      }
+     ],
+     "open_px": 32120,
+     "open_n": 1,
+     "window_solid": false,
+     "truth_in_window": 23,
+     "seam_px": 0,
+     "seam_largest": 0,
+     "seam_dark_stage": 83
+    },
+    "stage_pose": {
+     "holes_raw": {
+      "enclosed_n": 15,
+      "enclosed_px": 82,
+      "largest_enclosed_px": 9
+     },
+     "holes_exempt": {
+      "enclosed_n": 4,
+      "enclosed_px": 26,
+      "largest_enclosed_px": 9
+     },
+     "components": [
+      {
+       "px_in_window": 9,
+       "px_total": 9,
+       "px_solid": 9,
+       "bbox": [
+        1383,
+        501,
+        1383,
+        509
+       ]
+      },
+      {
+       "px_in_window": 7,
+       "px_total": 7,
+       "px_solid": 7,
+       "bbox": [
+        804,
+        929,
+        805,
+        934
+       ]
+      },
+      {
+       "px_in_window": 5,
+       "px_total": 5,
+       "px_solid": 5,
+       "bbox": [
+        800,
+        937,
+        802,
+        939
+       ]
+      },
+      {
+       "px_in_window": 5,
+       "px_total": 5,
+       "px_solid": 5,
+       "bbox": [
+        944,
+        976,
+        946,
+        977
+       ]
+      }
+     ],
+     "open_px": 35054,
+     "open_n": 1,
+     "window_solid": false,
+     "truth_in_window": 4967,
+     "seam_px": 0,
+     "seam_largest": 0,
+     "seam_dark_stage": 85
+    },
+    "anglex_m6": {
+     "holes_raw": {
+      "enclosed_n": 10,
+      "enclosed_px": 51,
+      "largest_enclosed_px": 8
+     },
+     "holes_exempt": {
+      "enclosed_n": 5,
+      "enclosed_px": 24,
+      "largest_enclosed_px": 5
+     },
+     "components": [
+      {
+       "px_in_window": 5,
+       "px_total": 5,
+       "px_solid": 5,
+       "bbox": [
+        1390,
+        879,
+        1390,
+        883
+       ]
+      },
+      {
+       "px_in_window": 5,
+       "px_total": 5,
+       "px_solid": 5,
+       "bbox": [
+        1386,
+        897,
+        1386,
+        901
+       ]
+      },
+      {
+       "px_in_window": 8,
+       "px_total": 8,
+       "px_solid": 5,
+       "bbox": [
+        805,
+        937,
+        806,
+        943
+       ]
+      },
+      {
+       "px_in_window": 5,
+       "px_total": 5,
+       "px_solid": 5,
+       "bbox": [
+        948,
+        983,
+        950,
+        984
+       ]
+      },
+      {
+       "px_in_window": 4,
+       "px_total": 4,
+       "px_solid": 4,
+       "bbox": [
+        1385,
+        902,
+        1385,
+        905
+       ]
+      }
+     ],
+     "open_px": 33770,
+     "open_n": 1,
+     "window_solid": false,
+     "truth_in_window": 1656,
+     "seam_px": 0,
+     "seam_largest": 0,
+     "seam_dark_stage": 81
+    },
+    "anglex_p6": {
+     "holes_raw": {
+      "enclosed_n": 6,
+      "enclosed_px": 31,
+      "largest_enclosed_px": 9
+     },
+     "holes_exempt": {
+      "enclosed_n": 1,
+      "enclosed_px": 4,
+      "largest_enclosed_px": 4
+     },
+     "components": [
+      {
+       "px_in_window": 4,
+       "px_total": 4,
+       "px_solid": 4,
+       "bbox": [
+        965,
+        983,
+        967,
+        984
+       ]
+      }
+     ],
+     "open_px": 33064,
+     "open_n": 1,
+     "window_solid": false,
+     "truth_in_window": 1354,
+     "seam_px": 0,
+     "seam_largest": 0,
+     "seam_dark_stage": 87
+    },
+    "anglex_m10": {
+     "holes_raw": {
+      "enclosed_n": 18,
+      "enclosed_px": 334,
+      "largest_enclosed_px": 121
+     },
+     "holes_exempt": {
+      "enclosed_n": 7,
+      "enclosed_px": 267,
+      "largest_enclosed_px": 121
+     },
+     "components": [
+      {
+       "px_in_window": 121,
+       "px_total": 165,
+       "px_solid": 121,
+       "bbox": [
+        1383,
+        350,
+        1384,
+        511
+       ]
+      },
+      {
+       "px_in_window": 120,
+       "px_total": 179,
+       "px_solid": 120,
+       "bbox": [
+        1379,
+        332,
+        1379,
+        510
+       ]
+      },
+      {
+       "px_in_window": 6,
+       "px_total": 6,
+       "px_solid": 6,
+       "bbox": [
+        1385,
+        896,
+        1385,
+        901
+       ]
+      },
+      {
+       "px_in_window": 6,
+       "px_total": 6,
+       "px_solid": 6,
+       "bbox": [
+        1380,
+        910,
+        1381,
+        914
+       ]
+      },
+      {
+       "px_in_window": 5,
+       "px_total": 5,
+       "px_solid": 5,
+       "bbox": [
+        1389,
+        879,
+        1389,
+        883
+       ]
+      }
+     ],
+     "open_px": 33620,
+     "open_n": 1,
+     "window_solid": false,
+     "truth_in_window": 2205,
+     "seam_px": 0,
+     "seam_largest": 0,
+     "seam_dark_stage": 84
+    },
+    "anglex_p10": {
+     "holes_raw": {
+      "enclosed_n": 17,
+      "enclosed_px": 491,
+      "largest_enclosed_px": 343
+     },
+     "holes_exempt": {
+      "enclosed_n": 3,
+      "enclosed_px": 416,
+      "largest_enclosed_px": 343
+     },
+     "components": [
+      {
+       "px_in_window": 343,
+       "px_total": 465,
+       "px_solid": 343,
+       "bbox": [
+        729,
+        330,
+        731,
+        511
+       ]
+      },
+      {
+       "px_in_window": 40,
+       "px_total": 40,
+       "px_solid": 40,
+       "bbox": [
+        726,
+        471,
+        726,
+        510
+       ]
+      },
+      {
+       "px_in_window": 33,
+       "px_total": 104,
+       "px_solid": 33,
+       "bbox": [
+        727,
+        327,
+        731,
+        423
+       ]
+      }
+     ],
+     "open_px": 32485,
+     "open_n": 1,
+     "window_solid": false,
+     "truth_in_window": 1863,
+     "seam_px": 0,
+     "seam_largest": 0,
+     "seam_dark_stage": 88
+    },
+    "ax6ay4": {
+     "holes_raw": {
+      "enclosed_n": 5,
+      "enclosed_px": 22,
+      "largest_enclosed_px": 5
+     },
+     "holes_exempt": {
+      "enclosed_n": 1,
+      "enclosed_px": 5,
+      "largest_enclosed_px": 5
+     },
+     "components": [
+      {
+       "px_in_window": 5,
+       "px_total": 5,
+       "px_solid": 5,
+       "bbox": [
+        965,
+        981,
+        967,
+        982
+       ]
+      }
+     ],
+     "open_px": 33641,
+     "open_n": 1,
+     "window_solid": false,
+     "truth_in_window": 2123,
+     "seam_px": 0,
+     "seam_largest": 0,
+     "seam_dark_stage": 89
+    }
+   },
+   "head_base": {
+    "layout": "assets\\build\\dounai-v1\\dounai.layout.json",
+    "declared": true,
+    "image": "parts/head_base.png",
+    "exists": true
+   },
+   "truth": true,
+   "window": [
+    725,
+    391,
+    1393,
+    1041
+   ],
+   "build_state": {
+    "dounai.layout.json": {
+     "mtime": "2026-11-09T00:45:07",
+     "size": 4132
+    },
+    "dounai.layout.model3.json": {
+     "mtime": "2026-11-09T00:45:12",
+     "size": 1112
+    }
+   },
+   "dlstar": {
+    "status": "n/a",
+    "reason": "有 head base，但无修复前参考板（pale_edge 需 new_plate vs ref_plate），新 rig 无从对比；自足替代探测在 gemini 锚点上复现不出 8.1，故不作判据",
+    "plate": "head_base.png"
+   }
+  },
+  "glm": {
+   "pose": {
+    "neutral": {
+     "holes_raw": {
+      "enclosed_n": 1,
+      "enclosed_px": 19,
+      "largest_enclosed_px": 19
+     },
+     "holes_exempt": {
+      "enclosed_n": 1,
+      "enclosed_px": 19,
+      "largest_enclosed_px": 19
+     },
+     "components": [
+      {
+       "px_in_window": 19,
+       "px_total": 19,
+       "px_solid": 19,
+       "bbox": [
+        842,
+        731,
+        849,
+        734
+       ]
+      }
+     ],
+     "open_px": 0,
+     "open_n": 0,
+     "window_solid": true,
+     "truth_in_window": 22,
+     "seam_px": 6,
+     "seam_largest": 2,
+     "seam_dark_stage": 23
+    },
+    "stage_pose": {
+     "holes_raw": {
+      "enclosed_n": 4,
+      "enclosed_px": 34,
+      "largest_enclosed_px": 16
+     },
+     "holes_exempt": {
+      "enclosed_n": 4,
+      "enclosed_px": 34,
+      "largest_enclosed_px": 16
+     },
+     "components": [
+      {
+       "px_in_window": 16,
+       "px_total": 16,
+       "px_solid": 16,
+       "bbox": [
+        828,
+        718,
+        835,
+        721
+       ]
+      },
+      {
+       "px_in_window": 7,
+       "px_total": 7,
+       "px_solid": 7,
+       "bbox": [
+        1266,
+        782,
+        1266,
+        788
+       ]
+      },
+      {
+       "px_in_window": 7,
+       "px_total": 32,
+       "px_solid": 7,
+       "bbox": [
+        1267,
+        838,
+        1267,
+        869
+       ]
+      },
+      {
+       "px_in_window": 4,
+       "px_total": 4,
+       "px_solid": 4,
+       "bbox": [
+        1267,
+        742,
+        1267,
+        745
+       ]
+      }
+     ],
+     "open_px": 0,
+     "open_n": 0,
+     "window_solid": false,
+     "truth_in_window": 76,
+     "seam_px": 2,
+     "seam_largest": 1,
+     "seam_dark_stage": 20
+    }
+   },
+   "head_base": {
+    "layout": "assets\\build\\glm-v1\\glm.layout.json",
+    "declared": true,
+    "image": "parts/head_base.png",
+    "exists": true
+   },
+   "truth": true,
+   "window": [
+    788,
+    387,
+    1295,
+    845
+   ],
+   "build_state": {
+    "glm.layout.json": {
+     "mtime": "2026-11-09T00:40:14",
+     "size": 5242
+    },
+    "glm.layout.model3.json": {
+     "mtime": "2026-11-09T00:40:37",
+     "size": 1076
+    }
+   },
+   "dlstar": {
+    "status": "n/a",
+    "reason": "有 head base，但无修复前参考板（pale_edge 需 new_plate vs ref_plate），新 rig 无从对比；自足替代探测在 gemini 锚点上复现不出 8.1，故不作判据",
+    "plate": "head_base.png"
+   }
+  },
+  "kimi": {
+   "pose": {
+    "neutral": {
+     "holes_raw": {
+      "enclosed_n": 7,
+      "enclosed_px": 1410,
+      "largest_enclosed_px": 623
+     },
+     "holes_exempt": {
+      "enclosed_n": 5,
+      "enclosed_px": 162,
+      "largest_enclosed_px": 87
+     },
+     "components": [
+      {
+       "px_in_window": 623,
+       "px_total": 1423,
+       "px_solid": 87,
+       "bbox": [
+        713,
+        701,
+        746,
+        781
+       ]
+      },
+      {
+       "px_in_window": 40,
+       "px_total": 40,
+       "px_solid": 40,
+       "bbox": [
+        1168,
+        440,
+        1175,
+        448
+       ]
+      },
+      {
+       "px_in_window": 19,
+       "px_total": 19,
+       "px_solid": 19,
+       "bbox": [
+        860,
+        743,
+        863,
+        749
+       ]
+      },
+      {
+       "px_in_window": 12,
+       "px_total": 12,
+       "px_solid": 12,
+       "bbox": [
+        825,
+        625,
+        827,
+        630
+       ]
+      },
+      {
+       "px_in_window": 38,
+       "px_total": 38,
+       "px_solid": 4,
+       "bbox": [
+        741,
+        637,
+        745,
+        648
+       ]
+      }
+     ],
+     "open_px": 102,
+     "open_n": 1,
+     "window_solid": false,
+     "truth_in_window": 111,
+     "seam_px": 0,
+     "seam_largest": 0,
+     "seam_dark_stage": 0
+    },
+    "stage_pose": {
+     "holes_raw": {
+      "enclosed_n": 5,
+      "enclosed_px": 156,
+      "largest_enclosed_px": 79
+     },
+     "holes_exempt": {
+      "enclosed_n": 4,
+      "enclosed_px": 120,
+      "largest_enclosed_px": 79
+     },
+     "components": [
+      {
+       "px_in_window": 79,
+       "px_total": 964,
+       "px_solid": 79,
+       "bbox": [
+        704,
+        684,
+        733,
+        753
+       ]
+      },
+      {
+       "px_in_window": 18,
+       "px_total": 18,
+       "px_solid": 18,
+       "bbox": [
+        844,
+        727,
+        847,
+        733
+       ]
+      },
+      {
+       "px_in_window": 13,
+       "px_total": 13,
+       "px_solid": 13,
+       "bbox": [
+        1157,
+        430,
+        1161,
+        434
+       ]
+      },
+      {
+       "px_in_window": 10,
+       "px_total": 10,
+       "px_solid": 10,
+       "bbox": [
+        812,
+        609,
+        813,
+        615
+       ]
+      }
+     ],
+     "open_px": 0,
+     "open_n": 0,
+     "window_solid": false,
+     "truth_in_window": 145,
+     "seam_px": 0,
+     "seam_largest": 0,
+     "seam_dark_stage": 0
+    }
+   },
+   "head_base": {
+    "layout": "assets\\build\\kimi-layout\\kimi.layout.json",
+    "declared": true,
+    "image": "parts/head_base.png",
+    "exists": true
+   },
+   "truth": true,
+   "window": [
+    729,
+    389,
+    1252,
+    853
+   ],
+   "build_state": {
+    "kimi.layout.json": {
+     "mtime": "2026-11-08T03:50:34",
+     "size": 5027
+    },
+    "kimi.layout.model3.json": {
+     "mtime": "2026-11-08T03:50:36",
+     "size": 1088
+    }
+   },
+   "dlstar": {
+    "status": "n/a",
+    "reason": "有 head base，但无修复前参考板（pale_edge 需 new_plate vs ref_plate），新 rig 无从对比；自足替代探测在 gemini 锚点上复现不出 8.1，故不作判据",
+    "plate": "head_base.png"
+   }
+  },
+  "kimi-prop": {
+   "pose": {
+    "neutral": {
+     "holes_raw": {
+      "enclosed_n": 6,
+      "enclosed_px": 1355,
+      "largest_enclosed_px": 623
+     },
+     "holes_exempt": {
+      "enclosed_n": 4,
+      "enclosed_px": 151,
+      "largest_enclosed_px": 86
+     },
+     "components": [
+      {
+       "px_in_window": 623,
+       "px_total": 1423,
+       "px_solid": 86,
+       "bbox": [
+        713,
+        701,
+        746,
+        781
+       ]
+      },
+      {
+       "px_in_window": 42,
+       "px_total": 42,
+       "px_solid": 42,
+       "bbox": [
+        1168,
+        440,
+        1176,
+        447
+       ]
+      },
+      {
+       "px_in_window": 19,
+       "px_total": 19,
+       "px_solid": 19,
+       "bbox": [
+        860,
+        743,
+        863,
+        749
+       ]
+      },
+      {
+       "px_in_window": 38,
+       "px_total": 38,
+       "px_solid": 4,
+       "bbox": [
+        741,
+        637,
+        745,
+        648
+       ]
+      }
+     ],
+     "open_px": 102,
+     "open_n": 1,
+     "window_solid": false,
+     "truth_in_window": 85,
+     "seam_px": 0,
+     "seam_largest": 0,
+     "seam_dark_stage": 0
+    },
+    "stage_pose": {
+     "holes_raw": {
+      "enclosed_n": 4,
+      "enclosed_px": 109,
+      "largest_enclosed_px": 54
+     },
+     "holes_exempt": {
+      "enclosed_n": 3,
+      "enclosed_px": 77,
+      "largest_enclosed_px": 54
+     },
+     "components": [
+      {
+       "px_in_window": 54,
+       "px_total": 947,
+       "px_solid": 54,
+       "bbox": [
+        703,
+        685,
+        732,
+        751
+       ]
+      },
+      {
+       "px_in_window": 18,
+       "px_total": 18,
+       "px_solid": 18,
+       "bbox": [
+        843,
+        727,
+        846,
+        733
+       ]
+      },
+      {
+       "px_in_window": 5,
+       "px_total": 5,
+       "px_solid": 5,
+       "bbox": [
+        1157,
+        431,
+        1159,
+        433
+       ]
+      }
+     ],
+     "open_px": 0,
+     "open_n": 0,
+     "window_solid": false,
+     "truth_in_window": 103,
+     "seam_px": 0,
+     "seam_largest": 0,
+     "seam_dark_stage": 0
+    }
+   },
+   "head_base": {
+    "layout": "assets\\build\\kimi-prop-layout\\kimi-prop.layout.json",
+    "declared": true,
+    "image": "parts/head_base.png",
+    "exists": true
+   },
+   "truth": true,
+   "window": [
+    729,
+    389,
+    1252,
+    853
+   ],
+   "build_state": {
+    "kimi-prop.layout.json": {
+     "mtime": "2026-11-08T13:18:04",
+     "size": 5255
+    },
+    "kimi-prop.layout.model3.json": {
+     "mtime": "2026-11-08T13:18:10",
+     "size": 1148
+    }
+   },
+   "dlstar": {
+    "status": "n/a",
+    "reason": "有 head base，但无修复前参考板（pale_edge 需 new_plate vs ref_plate），新 rig 无从对比；自足替代探测在 gemini 锚点上复现不出 8.1，故不作判据",
+    "plate": "head_base.png"
+   }
+  },
+  "mimo": {
+   "pose": {
+    "neutral": {
+     "holes_raw": {
+      "enclosed_n": 7,
+      "enclosed_px": 2591,
+      "largest_enclosed_px": 1280
+     },
+     "holes_exempt": {
+      "enclosed_n": 7,
+      "enclosed_px": 97,
+      "largest_enclosed_px": 23
+     },
+     "components": [
+      {
+       "px_in_window": 1244,
+       "px_total": 25443,
+       "px_solid": 23,
+       "bbox": [
+        1213,
+        719,
+        1362,
+        1252
+       ]
+      },
+      {
+       "px_in_window": 18,
+       "px_total": 18,
+       "px_solid": 18,
+       "bbox": [
+        822,
+        669,
+        827,
+        672
+       ]
+      },
+      {
+       "px_in_window": 14,
+       "px_total": 14,
+       "px_solid": 14,
+       "bbox": [
+        1260,
+        682,
+        1261,
+        688
+       ]
+      },
+      {
+       "px_in_window": 13,
+       "px_total": 13,
+       "px_solid": 13,
+       "bbox": [
+        824,
+        643,
+        825,
+        650
+       ]
+      },
+      {
+       "px_in_window": 11,
+       "px_total": 11,
+       "px_solid": 11,
+       "bbox": [
+        794,
+        595,
+        796,
+        600
+       ]
+      }
+     ],
+     "open_px": 0,
+     "open_n": 0,
+     "window_solid": false,
+     "truth_in_window": 98,
+     "seam_px": 1,
+     "seam_largest": 1,
+     "seam_dark_stage": 4
+    },
+    "stage_pose": {
+     "holes_raw": {
+      "enclosed_n": 10,
+      "enclosed_px": 3424,
+      "largest_enclosed_px": 1740
+     },
+     "holes_exempt": {
+      "enclosed_n": 10,
+      "enclosed_px": 1146,
+      "largest_enclosed_px": 548
+     },
+     "components": [
+      {
+       "px_in_window": 1491,
+       "px_total": 25008,
+       "px_solid": 548,
+       "bbox": [
+        1204,
+        714,
+        1349,
+        1250
+       ]
+      },
+      {
+       "px_in_window": 1740,
+       "px_total": 25455,
+       "px_solid": 405,
+       "bbox": [
+        681,
+        707,
+        825,
+        1245
+       ]
+      },
+      {
+       "px_in_window": 106,
+       "px_total": 357,
+       "px_solid": 106,
+       "bbox": [
+        1217,
+        757,
+        1235,
+        814
+       ]
+      },
+      {
+       "px_in_window": 30,
+       "px_total": 30,
+       "px_solid": 30,
+       "bbox": [
+        761,
+        745,
+        765,
+        764
+       ]
+      },
+      {
+       "px_in_window": 17,
+       "px_total": 17,
+       "px_solid": 17,
+       "bbox": [
+        812,
+        629,
+        814,
+        636
+       ]
+      }
+     ],
+     "open_px": 0,
+     "open_n": 0,
+     "window_solid": false,
+     "truth_in_window": 1038,
+     "seam_px": 1,
+     "seam_largest": 1,
+     "seam_dark_stage": 3
+    }
+   },
+   "head_base": {
+    "layout": "assets\\build\\mimo-layout\\mimo.layout.json",
+    "declared": true,
+    "image": "parts/head_base.png",
+    "exists": true
+   },
+   "truth": true,
+   "window": [
+    757,
+    469,
+    1280,
+    773
+   ],
+   "build_state": {
+    "mimo.layout.json": {
+     "mtime": "2026-11-08T03:49:52",
+     "size": 5238
+    },
+    "mimo.layout.model3.json": {
+     "mtime": "2026-11-08T03:49:54",
+     "size": 1088
+    }
+   },
+   "dlstar": {
+    "status": "n/a",
+    "reason": "有 head base，但无修复前参考板（pale_edge 需 new_plate vs ref_plate），新 rig 无从对比；自足替代探测在 gemini 锚点上复现不出 8.1，故不作判据",
+    "plate": "head_base.png"
+   }
+  },
+  "mimo-prop": {
+   "pose": {
+    "neutral": {
+     "holes_raw": {
+      "enclosed_n": 2,
+      "enclosed_px": 2313,
+      "largest_enclosed_px": 1222
+     },
+     "holes_exempt": {
+      "enclosed_n": 1,
+      "enclosed_px": 12,
+      "largest_enclosed_px": 12
+     },
+     "components": [
+      {
+       "px_in_window": 1222,
+       "px_total": 25404,
+       "px_solid": 12,
+       "bbox": [
+        1212,
+        719,
+        1362,
+        1253
+       ]
+      }
+     ],
+     "open_px": 0,
+     "open_n": 0,
+     "window_solid": false,
+     "truth_in_window": 4,
+     "seam_px": 1,
+     "seam_largest": 1,
+     "seam_dark_stage": 4
+    },
+    "stage_pose": {
+     "holes_raw": {
+      "enclosed_n": 3,
+      "enclosed_px": 2946,
+      "largest_enclosed_px": 1535
+     },
+     "holes_exempt": {
+      "enclosed_n": 3,
+      "enclosed_px": 768,
+      "largest_enclosed_px": 595
+     },
+     "components": [
+      {
+       "px_in_window": 1535,
+       "px_total": 25457,
+       "px_solid": 595,
+       "bbox": [
+        1204,
+        709,
+        1359,
+        1255
+       ]
+      },
+      {
+       "px_in_window": 1396,
+       "px_total": 24909,
+       "px_solid": 158,
+       "bbox": [
+        683,
+        716,
+        830,
+        1243
+       ]
+      },
+      {
+       "px_in_window": 15,
+       "px_total": 62,
+       "px_solid": 15,
+       "bbox": [
+        1223,
+        762,
+        1235,
+        797
+       ]
+      }
+     ],
+     "open_px": 0,
+     "open_n": 0,
+     "window_solid": false,
+     "truth_in_window": 667,
+     "seam_px": 1,
+     "seam_largest": 1,
+     "seam_dark_stage": 2
+    }
+   },
+   "head_base": {
+    "layout": "assets\\build\\mimo-prop-layout\\mimo-prop.layout.json",
+    "declared": true,
+    "image": "parts/head_base.png",
+    "exists": true
+   },
+   "truth": true,
+   "window": [
+    757,
+    469,
+    1280,
+    773
+   ],
+   "build_state": {
+    "mimo-prop.layout.json": {
+     "mtime": "2026-11-08T13:22:05",
+     "size": 5468
+    },
+    "mimo-prop.layout.model3.json": {
+     "mtime": "2026-11-08T13:22:10",
+     "size": 1148
+    }
+   },
+   "dlstar": {
+    "status": "n/a",
+    "reason": "有 head base，但无修复前参考板（pale_edge 需 new_plate vs ref_plate），新 rig 无从对比；自足替代探测在 gemini 锚点上复现不出 8.1，故不作判据",
+    "plate": "head_base.png"
+   }
+  },
+  "minimax": {
+   "pose": {
+    "neutral": {
+     "holes_raw": {
+      "enclosed_n": 9,
+      "enclosed_px": 389,
+      "largest_enclosed_px": 145
+     },
+     "holes_exempt": {
+      "enclosed_n": 8,
+      "enclosed_px": 244,
+      "largest_enclosed_px": 89
+     },
+     "components": [
+      {
+       "px_in_window": 89,
+       "px_total": 89,
+       "px_solid": 89,
+       "bbox": [
+        1145,
+        766,
+        1170,
+        772
+       ]
+      },
+      {
+       "px_in_window": 86,
+       "px_total": 86,
+       "px_solid": 86,
+       "bbox": [
+        943,
+        766,
+        969,
+        772
+       ]
+      },
+      {
+       "px_in_window": 33,
+       "px_total": 33,
+       "px_solid": 33,
+       "bbox": [
+        776,
+        717,
+        783,
+        725
+       ]
+      },
+      {
+       "px_in_window": 10,
+       "px_total": 10,
+       "px_solid": 10,
+       "bbox": [
+        897,
+        747,
+        903,
+        749
+       ]
+      },
+      {
+       "px_in_window": 10,
+       "px_total": 10,
+       "px_solid": 10,
+       "bbox": [
+        1180,
+        752,
+        1186,
+        753
+       ]
+      }
+     ],
+     "open_px": 771,
+     "open_n": 1,
+     "window_solid": false,
+     "truth_in_window": 266,
+     "seam_px": 0,
+     "seam_largest": 0,
+     "seam_dark_stage": 0
+    },
+    "stage_pose": {
+     "holes_raw": {
+      "enclosed_n": 10,
+      "enclosed_px": 694,
+      "largest_enclosed_px": 358
+     },
+     "holes_exempt": {
+      "enclosed_n": 10,
+      "enclosed_px": 542,
+      "largest_enclosed_px": 263
+     },
+     "components": [
+      {
+       "px_in_window": 358,
+       "px_total": 651,
+       "px_solid": 263,
+       "bbox": [
+        1196,
+        801,
+        1237,
+        837
+       ]
+      },
+      {
+       "px_in_window": 88,
+       "px_total": 88,
+       "px_solid": 88,
+       "bbox": [
+        1132,
+        759,
+        1157,
+        765
+       ]
+      },
+      {
+       "px_in_window": 136,
+       "px_total": 246,
+       "px_solid": 79,
+       "bbox": [
+        852,
+        808,
+        876,
+        836
+       ]
+      },
+      {
+       "px_in_window": 66,
+       "px_total": 66,
+       "px_solid": 66,
+       "bbox": [
+        936,
+        758,
+        956,
+        763
+       ]
+      },
+      {
+       "px_in_window": 13,
+       "px_total": 26,
+       "px_solid": 13,
+       "bbox": [
+        771,
+        708,
+        777,
+        714
+       ]
+      }
+     ],
+     "open_px": 1246,
+     "open_n": 1,
+     "window_solid": false,
+     "truth_in_window": 1411,
+     "seam_px": 0,
+     "seam_largest": 0,
+     "seam_dark_stage": 0
+    }
+   },
+   "head_base": {
+    "layout": "assets\\build\\minimax-layout\\minimax.layout.json",
+    "declared": true,
+    "image": "parts/head_base.png",
+    "exists": true
+   },
+   "truth": true,
+   "window": [
+    775,
+    439,
+    1340,
+    820
+   ],
+   "build_state": {
+    "minimax.layout.json": {
+     "mtime": "2026-11-08T03:54:52",
+     "size": 5270
+    },
+    "minimax.layout.model3.json": {
+     "mtime": "2026-11-08T03:54:54",
+     "size": 1124
+    }
+   },
+   "dlstar": {
+    "status": "n/a",
+    "reason": "有 head base，但无修复前参考板（pale_edge 需 new_plate vs ref_plate），新 rig 无从对比；自足替代探测在 gemini 锚点上复现不出 8.1，故不作判据",
+    "plate": "head_base.png"
+   }
+  },
+  "minimax-prop": {
+   "pose": {
+    "neutral": {
+     "holes_raw": {
+      "enclosed_n": 7,
+      "enclosed_px": 377,
+      "largest_enclosed_px": 145
+     },
+     "holes_exempt": {
+      "enclosed_n": 6,
+      "enclosed_px": 232,
+      "largest_enclosed_px": 88
+     },
+     "components": [
+      {
+       "px_in_window": 88,
+       "px_total": 88,
+       "px_solid": 88,
+       "bbox": [
+        1145,
+        766,
+        1170,
+        772
+       ]
+      },
+      {
+       "px_in_window": 86,
+       "px_total": 86,
+       "px_solid": 86,
+       "bbox": [
+        943,
+        766,
+        969,
+        772
+       ]
+      },
+      {
+       "px_in_window": 33,
+       "px_total": 33,
+       "px_solid": 33,
+       "bbox": [
+        776,
+        717,
+        783,
+        725
+       ]
+      },
+      {
+       "px_in_window": 10,
+       "px_total": 10,
+       "px_solid": 10,
+       "bbox": [
+        1180,
+        752,
+        1186,
+        753
+       ]
+      },
+      {
+       "px_in_window": 9,
+       "px_total": 9,
+       "px_solid": 9,
+       "bbox": [
+        897,
+        747,
+        903,
+        749
+       ]
+      }
+     ],
+     "open_px": 772,
+     "open_n": 1,
+     "window_solid": false,
+     "truth_in_window": 256,
+     "seam_px": 0,
+     "seam_largest": 0,
+     "seam_dark_stage": 0
+    },
+    "stage_pose": {
+     "holes_raw": {
+      "enclosed_n": 8,
+      "enclosed_px": 672,
+      "largest_enclosed_px": 349
+     },
+     "holes_exempt": {
+      "enclosed_n": 8,
+      "enclosed_px": 495,
+      "largest_enclosed_px": 231
+     },
+     "components": [
+      {
+       "px_in_window": 349,
+       "px_total": 508,
+       "px_solid": 231,
+       "bbox": [
+        1203,
+        800,
+        1237,
+        832
+       ]
+      },
+      {
+       "px_in_window": 95,
+       "px_total": 95,
+       "px_solid": 95,
+       "bbox": [
+        1132,
+        758,
+        1156,
+        765
+       ]
+      },
+      {
+       "px_in_window": 73,
+       "px_total": 73,
+       "px_solid": 73,
+       "bbox": [
+        936,
+        758,
+        956,
+        764
+       ]
+      },
+      {
+       "px_in_window": 117,
+       "px_total": 242,
+       "px_solid": 58,
+       "bbox": [
+        853,
+        809,
+        877,
+        836
+       ]
+      },
+      {
+       "px_in_window": 13,
+       "px_total": 26,
+       "px_solid": 13,
+       "bbox": [
+        771,
+        709,
+        777,
+        715
+       ]
+      }
+     ],
+     "open_px": 1249,
+     "open_n": 1,
+     "window_solid": false,
+     "truth_in_window": 1350,
+     "seam_px": 0,
+     "seam_largest": 0,
+     "seam_dark_stage": 0
+    }
+   },
+   "head_base": {
+    "layout": "assets\\build\\minimax-prop-layout\\minimax-prop.layout.json",
+    "declared": true,
+    "image": "parts/head_base.png",
+    "exists": true
+   },
+   "truth": true,
+   "window": [
+    775,
+    439,
+    1340,
+    820
+   ],
+   "build_state": {
+    "minimax-prop.layout.json": {
+     "mtime": "2026-11-08T13:18:55",
+     "size": 5498
+    },
+    "minimax-prop.layout.model3.json": {
+     "mtime": "2026-11-08T13:18:57",
+     "size": 1184
+    }
+   },
+   "dlstar": {
+    "status": "n/a",
+    "reason": "有 head base，但无修复前参考板（pale_edge 需 new_plate vs ref_plate），新 rig 无从对比；自足替代探测在 gemini 锚点上复现不出 8.1，故不作判据",
+    "plate": "head_base.png"
+   }
+  },
+  "qwen": {
+   "pose": {
+    "neutral": {
+     "holes_raw": {
+      "enclosed_n": 0,
+      "enclosed_px": 0,
+      "largest_enclosed_px": 0
+     },
+     "holes_exempt": {
+      "enclosed_n": 0,
+      "enclosed_px": 0,
+      "largest_enclosed_px": 0
+     },
+     "components": [],
+     "open_px": 0,
+     "open_n": 0,
+     "window_solid": false,
+     "truth_in_window": 0,
+     "seam_px": 0,
+     "seam_largest": 0,
+     "seam_dark_stage": 0
+    },
+    "stage_pose": {
+     "holes_raw": {
+      "enclosed_n": 0,
+      "enclosed_px": 0,
+      "largest_enclosed_px": 0
+     },
+     "holes_exempt": {
+      "enclosed_n": 0,
+      "enclosed_px": 0,
+      "largest_enclosed_px": 0
+     },
+     "components": [],
+     "open_px": 0,
+     "open_n": 0,
+     "window_solid": true,
+     "truth_in_window": 0,
+     "seam_px": 0,
+     "seam_largest": 0,
+     "seam_dark_stage": 0
+    },
+    "anglex_m6": {
+     "holes_raw": {
+      "enclosed_n": 0,
+      "enclosed_px": 0,
+      "largest_enclosed_px": 0
+     },
+     "holes_exempt": {
+      "enclosed_n": 0,
+      "enclosed_px": 0,
+      "largest_enclosed_px": 0
+     },
+     "components": [],
+     "open_px": 0,
+     "open_n": 0,
+     "window_solid": false,
+     "truth_in_window": 0,
+     "seam_px": 0,
+     "seam_largest": 0,
+     "seam_dark_stage": 0
+    },
+    "anglex_p6": {
+     "holes_raw": {
+      "enclosed_n": 0,
+      "enclosed_px": 0,
+      "largest_enclosed_px": 0
+     },
+     "holes_exempt": {
+      "enclosed_n": 0,
+      "enclosed_px": 0,
+      "largest_enclosed_px": 0
+     },
+     "components": [],
+     "open_px": 0,
+     "open_n": 0,
+     "window_solid": false,
+     "truth_in_window": 1,
+     "seam_px": 0,
+     "seam_largest": 0,
+     "seam_dark_stage": 0
+    },
+    "anglex_m10": {
+     "holes_raw": {
+      "enclosed_n": 0,
+      "enclosed_px": 0,
+      "largest_enclosed_px": 0
+     },
+     "holes_exempt": {
+      "enclosed_n": 0,
+      "enclosed_px": 0,
+      "largest_enclosed_px": 0
+     },
+     "components": [],
+     "open_px": 0,
+     "open_n": 0,
+     "window_solid": false,
+     "truth_in_window": 0,
+     "seam_px": 0,
+     "seam_largest": 0,
+     "seam_dark_stage": 0
+    },
+    "anglex_p10": {
+     "holes_raw": {
+      "enclosed_n": 2,
+      "enclosed_px": 13,
+      "largest_enclosed_px": 8
+     },
+     "holes_exempt": {
+      "enclosed_n": 2,
+      "enclosed_px": 13,
+      "largest_enclosed_px": 8
+     },
+     "components": [
+      {
+       "px_in_window": 8,
+       "px_total": 8,
+       "px_solid": 8,
+       "bbox": [
+        1105,
+        794,
+        1109,
+        796
+       ]
+      },
+      {
+       "px_in_window": 5,
+       "px_total": 5,
+       "px_solid": 5,
+       "bbox": [
+        1108,
+        787,
+        1108,
+        791
+       ]
+      }
+     ],
+     "open_px": 0,
+     "open_n": 0,
+     "window_solid": false,
+     "truth_in_window": 22,
+     "seam_px": 0,
+     "seam_largest": 0,
+     "seam_dark_stage": 0
+    },
+    "ax6ay4": {
+     "holes_raw": {
+      "enclosed_n": 0,
+      "enclosed_px": 0,
+      "largest_enclosed_px": 0
+     },
+     "holes_exempt": {
+      "enclosed_n": 0,
+      "enclosed_px": 0,
+      "largest_enclosed_px": 0
+     },
+     "components": [],
+     "open_px": 0,
+     "open_n": 0,
+     "window_solid": false,
+     "truth_in_window": 0,
+     "seam_px": 0,
+     "seam_largest": 0,
+     "seam_dark_stage": 0
+    }
+   },
+   "head_base": {
+    "layout": "assets\\build\\qwen-v1\\qwen.layout.json",
+    "declared": true,
+    "image": "parts/head_base.png",
+    "exists": true
+   },
+   "truth": true,
+   "window": [
+    801,
+    413,
+    1293,
+    806
+   ],
+   "build_state": {
+    "qwen.layout.json": {
+     "mtime": "2026-11-09T00:43:36",
+     "size": 5030
+    },
+    "qwen.layout.model3.json": {
+     "mtime": "2026-11-09T00:43:57",
+     "size": 1088
+    }
+   },
+   "dlstar": {
+    "status": "n/a",
+    "reason": "有 head base，但无修复前参考板（pale_edge 需 new_plate vs ref_plate），新 rig 无从对比；自足替代探测在 gemini 锚点上复现不出 8.1，故不作判据",
+    "plate": "head_base.png"
+   }
+  }
+ }
+}

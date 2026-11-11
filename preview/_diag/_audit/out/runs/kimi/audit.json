@@ -1,0 +1,356 @@
+{
+ "generated_at": "2026-11-09 07:52:35",
+ "protocol": {
+  "scale": 1.0,
+  "canvas": 2048,
+  "extract": "renderer.extract.base64(app.stage,'image/png')",
+  "thresholds": {
+   "truth": {
+    "neutral": 60,
+    "stage_pose": 200,
+    "anglex_m6": 200,
+    "anglex_p6": 200,
+    "anglex_m10": 600,
+    "anglex_p10": 600,
+    "ax6ay4": 200
+   },
+   "hole_total": 200,
+   "hole_largest": 200,
+   "hole_open": 0,
+   "dark_seam_px": 20,
+   "dark_seam_component": 10,
+   "dark_seam_gap": 3,
+   "edge_dl": 3.0,
+   "edge_long_rows": 50,
+   "bg_component": 20
+  }
+ },
+ "rigs": {
+  "kimi": {
+   "key": "kimi",
+   "build": "assets/build/kimi-v1",
+   "model3": "assets/build/kimi-v1/kimi.layout.model3.json",
+   "layout": "assets/build/kimi-v1/kimi.layout.json",
+   "matte": "assets/build/kimi-parts/matte.png",
+   "face_rect": {
+    "left": 757,
+    "top": 417,
+    "width": 467,
+    "height": 408
+   },
+   "window": [
+    727,
+    387,
+    1254,
+    855
+   ],
+   "mapping": {
+    "scale": 1.2705882352941176,
+    "dx": 374.09411764705885,
+    "dy": 41.2,
+    "bbox": [
+     68,
+     51,
+     955,
+     1496
+    ],
+    "alpha_thr": 64
+   },
+   "union_bbox": [
+    458,
+    102,
+    1589,
+    1945
+   ],
+   "notes": [
+    "layout picked by bbox residual: kimi-v1/kimi.layout.json (7.6 px) over kimi-layout/kimi.layout.json=7.6",
+    "matte-map residual: left -2 top -4 right +1 bottom +3 px"
+   ],
+   "has_truth": true,
+   "truth_disabled": null,
+   "has_plate": true,
+   "plate_reference": "no backup build with a plate",
+   "skin_mask_px": 47608,
+   "skin_mask_kind": "matte-skin-tone",
+   "poses": {
+    "neutral": {
+     "params": {},
+     "truth": {
+      "in_window": 35,
+      "total": 1798,
+      "components_ge12px": 16,
+      "largest": 43
+     },
+     "holes": {
+      "enclosed_n": 3,
+      "enclosed_px": 1150,
+      "largest_enclosed_px": 555,
+      "open_n": 1,
+      "open_px": 59,
+      "window_solid": false
+     },
+     "dark": {
+      "stage_px": 0,
+      "components": 0,
+      "largest": 0,
+      "dark_px_stage": 0,
+      "dark_px_fullres": 252
+     },
+     "edge": null,
+     "edge_components": null,
+     "edge_long_edges": null,
+     "edge_render": null,
+     "advisory_steps": [
+      {
+       "x": 1245,
+       "y0": 442,
+       "y1": 564,
+       "rows": 123,
+       "dl_median": -31.69,
+       "dl_max": 66.07,
+       "l_left": 61.1,
+       "l_right": 29.3,
+       "l_std_left": 18.2,
+       "l_std_right": 11.8
+      },
+      {
+       "x": 859,
+       "y0": 405,
+       "y1": 514,
+       "rows": 110,
+       "dl_median": -16.93,
+       "dl_max": 51.64,
+       "l_left": 95.2,
+       "l_right": 78.3,
+       "l_std_left": 1.9,
+       "l_std_right": 10.6
+      },
+      {
+       "x": 928,
+       "y0": 743,
+       "y1": 849,
+       "rows": 107,
+       "dl_median": 15.77,
+       "dl_max": 74.62,
+       "l_left": 62.2,
+       "l_right": 74.1,
+       "l_std_left": 21.8,
+       "l_std_right": 28.8
+      },
+      {
+       "x": 1031,
+       "y0": 731,
+       "y1": 837,
+       "rows": 107,
+       "dl_median": 15.09,
+       "dl_max": 68.12,
+       "l_left": 74.4,
+       "l_right": 70.2,
+       "l_std_left": 23.3,
+       "l_std_right": 26.1
+      },
+      {
+       "x": 1030,
+       "y0": 733,
+       "y1": 838,
+       "rows": 106,
+       "dl_median": 19.79,
+       "dl_max": 74.28,
+       "l_left": 68.9,
+       "l_right": 73.3,
+       "l_std_left": 26.4,
+       "l_std_right": 21.2
+      },
+      {
+       "x": 1240,
+       "y0": 663,
+       "y1": 766,
+       "rows": 104,
+       "dl_median": -6.07,
+       "dl_max": 40.45,
+       "l_left": 78.6,
+       "l_right": 73.5,
+       "l_std_left": 5.0,
+       "l_std_right": 11.5
+      }
+     ],
+     "flatness": {
+      "inner_std": 22.5,
+      "ring_std": 23.7,
+      "ratio": 0.95
+     },
+     "bg": {
+      "px": 0,
+      "components": 0,
+      "largest": 0,
+      "bbox": null,
+      "skin_px_half": 6372,
+      "max_delta": 0,
+      "alpha_below_250": {
+       "px": 0,
+       "components": 0,
+       "largest": 0,
+       "bbox": null
+      }
+     },
+     "verdict": {
+      "truth": "PASS",
+      "holes": "FAIL",
+      "dark": "PASS",
+      "bg": "PASS",
+      "pass": false
+     },
+     "pass": false,
+     "defect_png": "kimi_neutral_defects.png"
+    },
+    "stage_pose": {
+     "params": {
+      "AngleX": -6,
+      "AngleY": -3,
+      "BodyAngleX": -2.3,
+      "HairFront": -0.118,
+      "Breath": 1.0
+     },
+     "truth": {
+      "in_window": 71,
+      "total": 18248,
+      "components_ge12px": 148,
+      "largest": 1362
+     },
+     "holes": {
+      "enclosed_n": 1,
+      "enclosed_px": 67,
+      "largest_enclosed_px": 67,
+      "open_n": 0,
+      "open_px": 0,
+      "window_solid": false
+     },
+     "dark": {
+      "stage_px": 0,
+      "components": 0,
+      "largest": 0,
+      "dark_px_stage": 0,
+      "dark_px_fullres": 271
+     },
+     "edge": null,
+     "edge_components": null,
+     "edge_long_edges": null,
+     "edge_render": null,
+     "advisory_steps": [
+      {
+       "x": 925,
+       "y0": 744,
+       "y1": 849,
+       "rows": 106,
+       "dl_median": -4.47,
+       "dl_max": 86.42,
+       "l_left": 33.5,
+       "l_right": 68.3,
+       "l_std_left": 25.7,
+       "l_std_right": 34.0
+      },
+      {
+       "x": 847,
+       "y0": 405,
+       "y1": 506,
+       "rows": 102,
+       "dl_median": -17.28,
+       "dl_max": 53.87,
+       "l_left": 94.9,
+       "l_right": 76.3,
+       "l_std_left": 2.8,
+       "l_std_right": 11.9
+      },
+      {
+       "x": 1227,
+       "y0": 456,
+       "y1": 553,
+       "rows": 98,
+       "dl_median": -31.4,
+       "dl_max": 52.49,
+       "l_left": 88.1,
+       "l_right": 58.8,
+       "l_std_left": 4.1,
+       "l_std_right": 13.7
+      },
+      {
+       "x": 1059,
+       "y0": 387,
+       "y1": 482,
+       "rows": 96,
+       "dl_median": 23.62,
+       "dl_max": 53.47,
+       "l_left": 67.6,
+       "l_right": 94.0,
+       "l_std_left": 12.8,
+       "l_std_right": 5.5
+      },
+      {
+       "x": 740,
+       "y0": 489,
+       "y1": 584,
+       "rows": 96,
+       "dl_median": -15.68,
+       "dl_max": 64.39,
+       "l_left": 88.8,
+       "l_right": 73.7,
+       "l_std_left": 14.3,
+       "l_std_right": 19.1
+      },
+      {
+       "x": 753,
+       "y0": 499,
+       "y1": 589,
+       "rows": 91,
+       "dl_median": 14.38,
+       "dl_max": 61.09,
+       "l_left": 73.9,
+       "l_right": 92.5,
+       "l_std_left": 12.6,
+       "l_std_right": 12.9
+      }
+     ],
+     "flatness": {
+      "inner_std": 22.9,
+      "ring_std": 21.9,
+      "ratio": 1.05
+     },
+     "bg": {
+      "px": 0,
+      "components": 0,
+      "largest": 0,
+      "bbox": null,
+      "skin_px_half": 6372,
+      "max_delta": 0,
+      "alpha_below_250": {
+       "px": 13,
+       "components": 4,
+       "largest": 7,
+       "bbox": [
+        730,
+        690,
+        1232,
+        851
+       ]
+      }
+     },
+     "verdict": {
+      "truth": "PASS",
+      "holes": "PASS",
+      "dark": "PASS",
+      "bg": "PASS",
+      "pass": true
+     },
+     "pass": true
+    }
+   },
+   "pass": false,
+   "failed_poses": [
+    "neutral"
+   ]
+  }
+ },
+ "not_rerun": {},
+ "skipped": {},
+ "elapsed_s": 12.2
+}
