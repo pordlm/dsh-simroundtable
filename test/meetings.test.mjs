@@ -107,8 +107,13 @@ function makeStallingAfterAnswersSpawner() {
   return { spawns, startActivation };
 }
 
-function makeContext({ workspace, spawner, agents } = {}) {
+function makeContext({ workspace, workspaces, spawner, agents } = {}) {
   const created = [];
+  // The registry double mirrors the host: the API may only name a workspace
+  // that is registered here (by id or by this exact path).
+  const registered = Array.isArray(workspaces)
+    ? workspaces
+    : [{ id: "ws-1", path: workspace, title: "Workspace" }];
   const ctx = {
     logger: { warn() {} },
     llm: {
@@ -132,7 +137,7 @@ function makeContext({ workspace, spawner, agents } = {}) {
     },
     get(name) {
       if (name === "workspaceRegistry") {
-        return { list: () => [{ id: "ws-1", path: workspace, title: "Workspace" }] };
+        return { list: () => registered };
       }
       if (name === "agents") return this.agents;
       return undefined;
@@ -398,6 +403,113 @@ test("a meeting that outlives its deadline fails instead of hanging", async () =
   }
 });
 
+test("an orchestrator creation that never resolves still ends the meeting", async () => {
+  const workspace = makeWorkspace();
+  try {
+    // `agents.create()` hanging is the one host call the run timer must also
+    // bound, otherwise a dead provider keeps `execute()` alive forever and the
+    // meeting squats on a concurrency slot.
+    const agents = { create: () => new Promise(() => {}), get: () => undefined };
+    const manager = makeManager(makeContext({ workspace, agents, spawner: makeSpawner({ pending: true }) }), { childTimeoutMs: 150, runTimeoutMs: 150 });
+    const detail = await manager.create({ topic: "orchestrator 卡死", answerers: ROSTER, rounds: 0, workspace });
+
+    let final = manager.detail(workspace, detail.id);
+    for (let step = 0; step < 100 && final.status === "running"; step += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      final = manager.detail(workspace, detail.id);
+    }
+
+    assert.equal(final.status, "failed");
+    assert.ok(
+      final.failures.some((failure) => failure.message === ZH.meetingTimedOut.replace("{ms}", "150")),
+      JSON.stringify(final.failures),
+    );
+    // The slot is released even though the host promise is still pending.
+    assert.equal(manager.active.size, 0);
+  } finally {
+    rmSync(workspace, { recursive: true, force: true });
+  }
+});
+
+test("an orchestrator that arrives after the deadline is disposed, not leaked", async () => {
+  const workspace = makeWorkspace();
+  try {
+    let release;
+    let disposeCalls = 0;
+    const agents = {
+      create: () => new Promise((resolve) => {
+        release = () => {
+          resolve({
+            agent: { id: "late-orchestrator", session: {} },
+            dispose: async () => { disposeCalls += 1; },
+          });
+        };
+      }),
+      get: () => undefined,
+    };
+    const manager = makeManager(makeContext({ workspace, agents, spawner: makeSpawner({ pending: true }) }), { childTimeoutMs: 150, runTimeoutMs: 150 });
+    const detail = await manager.create({ topic: "迟到 orchestrator", answerers: ROSTER, rounds: 0, workspace });
+
+    let final = manager.detail(workspace, detail.id);
+    for (let step = 0; step < 100 && final.status === "running"; step += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      final = manager.detail(workspace, detail.id);
+    }
+    assert.equal(final.status, "failed");
+    assert.equal(disposeCalls, 0, "nothing to dispose while the host is still creating it");
+
+    // The handle shows up after the run gave up: it must be disposed once.
+    release();
+    for (let step = 0; step < 50 && disposeCalls === 0; step += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    assert.equal(disposeCalls, 1);
+  } finally {
+    rmSync(workspace, { recursive: true, force: true });
+  }
+});
+
+test("a handle that lands in the same tick as the cancel is disposed, not leaked", async () => {
+  const workspace = makeWorkspace();
+  try {
+    let release;
+    let disposeCalls = 0;
+    const agents = {
+      create: () => new Promise((resolve) => {
+        release = () => {
+          resolve({
+            agent: { id: "racy-orchestrator", session: {} },
+            dispose: async () => { disposeCalls += 1; },
+          });
+        };
+      }),
+      get: () => undefined,
+    };
+    const manager = makeManager(
+      makeContext({ workspace, agents, spawner: makeSpawner({ pending: true }) }),
+      { childTimeoutMs: 5_000, runTimeoutMs: 5_000 },
+    );
+    const detail = await manager.create({ topic: "同帧 cancel", answerers: ROSTER, rounds: 0, workspace });
+    // Wait until the orchestrator call is actually in flight, then resolve the
+    // host call and abort the run inside one synchronous block: the create
+    // `then` and the await's catch land in the same microtask batch, so
+    // "abandoned" alone would still be false when the handle is inspected.
+    for (let step = 0; step < 200 && typeof release !== "function"; step += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+    assert.equal(typeof release, "function", "the orchestrator call never started");
+    release();
+    manager.cancel(workspace, detail.id);
+
+    for (let step = 0; step < 50 && disposeCalls === 0; step += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    assert.equal(disposeCalls, 1);
+  } finally {
+    rmSync(workspace, { recursive: true, force: true });
+  }
+});
+
 test("a deadline that hits a later stage fails the meeting instead of completing a fallback", async () => {
   const workspace = makeWorkspace();
   try {
@@ -514,6 +626,203 @@ test("a running record left by a dead process reads as interrupted", () => {
     assert.equal(listed.meetings[0].status, "interrupted");
     const detail = manager.detail(workspace, id);
     assert.ok(detail.limitations.includes(ZH.meetingInterruptedNote));
+  } finally {
+    rmSync(workspace, { recursive: true, force: true });
+  }
+});
+
+/** The statuses a meeting may never silently lose on the way to disk. */
+const TERMINAL_STATUSES = new Set(["completed", "failed", "cancelled", "interrupted"]);
+
+/**
+ * Make terminal writes fail the way a full disk or a read-only workspace does.
+ *
+ * Only terminal records are affected: the `queued` first write and the
+ * `running` progress snapshots keep landing, which is exactly the state that
+ * used to lose a finished meeting — the disk stayed on `running` while memory
+ * already had the answer.
+ */
+function failTerminalWrites(manager, { times = Number.POSITIVE_INFINITY } = {}) {
+  const original = manager.write.bind(manager);
+  const calls = [];
+  let remaining = times;
+  manager.write = (record, options) => {
+    const call = { status: record.status, strict: options?.strict === true };
+    calls.push(call);
+    if (TERMINAL_STATUSES.has(record.status) && remaining > 0) {
+      remaining -= 1;
+      call.failed = true;
+      // `write()` normally logs before it throws; mirror that so the failure
+      // looks like a real filesystem error to everything downstream.
+      const error = new Error("disk full");
+      error.code = "ENOSPC";
+      manager.ctx.logger?.warn?.(`dsh-simroundtable: could not write meeting record: ${error.message}`);
+      if (options?.strict) throw error;
+      return false;
+    }
+    return original(record, options);
+  };
+  return {
+    calls,
+    get failures() {
+      return calls.filter((call) => call.failed === true).length;
+    },
+    terminalCalls() {
+      return calls.filter((call) => TERMINAL_STATUSES.has(call.status));
+    },
+    restore() {
+      manager.write = original;
+    },
+  };
+}
+
+test("a completed record is retried until the terminal write is durable", async () => {
+  const workspace = makeWorkspace();
+  try {
+    const manager = makeManager(makeContext({ workspace, spawner: makeSpawner() }));
+    // Exactly one failure: the retry has to win on its second attempt.
+    const failure = failTerminalWrites(manager, { times: 1 });
+    const detail = await manager.create({ topic: "重试写盘", answerers: ROSTER, rounds: 0, workspace });
+    const run = manager.active.get(detail.id);
+    await run.promise;
+
+    assert.equal(failure.failures, 1, "the injected failure must have been hit");
+    assert.equal(failure.terminalCalls().length, 2, "one failed terminal write, one successful retry");
+    assert.equal(manager.terminalShadow.size, 0, "a successful retry leaves no shadow behind");
+
+    const final = manager.detail(workspace, detail.id);
+    assert.equal(final.status, "completed");
+    assert.equal(final.finalAnswer.text, "final synthesis");
+
+    const onDisk = JSON.parse(readFileSync(join(workspace, ".roundtable", `${detail.id}.json`), "utf8"));
+    assert.equal(onDisk.status, "completed");
+    assert.equal(onDisk.finalAnswer.text, "final synthesis");
+
+    // A brand-new manager (a host restart) reads the durable result, not an
+    // interrupted meeting.
+    const restarted = makeManager(makeContext({ workspace, spawner: makeSpawner() }));
+    assert.equal(restarted.detail(workspace, detail.id).status, "completed");
+    assert.equal(restarted.detail(workspace, detail.id).limitations.includes(ZH.meetingInterruptedNote), false);
+  } finally {
+    rmSync(workspace, { recursive: true, force: true });
+  }
+});
+
+test("a completed record whose write keeps failing stays completed in memory instead of becoming interrupted", async () => {
+  const workspace = makeWorkspace();
+  try {
+    const manager = makeManager(makeContext({ workspace, spawner: makeSpawner() }));
+    const failure = failTerminalWrites(manager);
+    const detail = await manager.create({ topic: "写盘一直失败", answerers: ROSTER, rounds: 0, workspace });
+    const run = manager.active.get(detail.id);
+    await run.promise;
+
+    assert.equal(failure.terminalCalls().length, 4, "one attempt plus the three retries");
+    assert.equal(manager.terminalShadow.size, 1);
+    const shadow = [...manager.terminalShadow.values()][0];
+    assert.equal(shadow.id, detail.id);
+    assert.equal(shadow.status, "completed");
+    assert.equal(shadow.finalAnswer.text, "final synthesis");
+    assert.equal(shadow.error, "disk full");
+    assert.equal(shadow.record.answers.length, 2);
+
+    // The run must not leave `active` before its terminal record is durable:
+    // otherwise a read would fall back to the stale `running` file.
+    assert.equal(manager.active.get(detail.id), run, "the run stays in active behind its shadow");
+
+    const final = manager.detail(workspace, detail.id);
+    assert.equal(final.status, "completed");
+    assert.equal(final.finalAnswer.text, "final synthesis");
+    assert.equal(final.limitations.includes(ZH.meetingInterruptedNote), false, "a finished meeting is never called interrupted");
+    assert.equal(manager.list(workspace).meetings[0].status, "completed");
+
+    // The file itself is still the last successful snapshot.
+    const onDisk = JSON.parse(readFileSync(join(workspace, ".roundtable", `${detail.id}.json`), "utf8"));
+    assert.equal(onDisk.status, "running");
+
+    // A late cancel must not rewrite a finished meeting.
+    assert.equal(manager.cancel(workspace, detail.id).status, "completed");
+
+    // A shutdown keeps the unhealable shadow and still serves the real outcome;
+    // the run also stays in `active`, because its terminal record never became
+    // durable and "durable before released" has not happened.
+    await manager.dispose();
+    assert.equal(manager.terminalShadow.size, 1, "an unhealable shadow survives a shutdown");
+    assert.equal(manager.active.has(detail.id), true, "an unhealed run is not released by a shutdown");
+    assert.equal(manager.detail(workspace, detail.id).status, "completed");
+
+    // Once the filesystem works again, the next read heals the file.
+    failure.restore();
+    assert.equal(manager.detail(workspace, detail.id).status, "completed");
+    assert.equal(manager.terminalShadow.size, 0, "a successful write clears the shadow");
+    assert.equal(manager.active.size, 0, "the healed run is released");
+    const healed = JSON.parse(readFileSync(join(workspace, ".roundtable", `${detail.id}.json`), "utf8"));
+    assert.equal(healed.status, "completed");
+    assert.equal(healed.finalAnswer.text, "final synthesis");
+    assert.equal(manager.detail(workspace, detail.id).limitations.includes(ZH.meetingInterruptedNote), false);
+  } finally {
+    rmSync(workspace, { recursive: true, force: true });
+  }
+});
+
+test("a failed meeting keeps its terminal shadow when the write keeps failing", async () => {
+  const workspace = makeWorkspace();
+  try {
+    const manager = makeManager(makeContext({ workspace, spawner: makeSpawner() }));
+    const failure = failTerminalWrites(manager);
+    const detail = await manager.create({
+      topic: "坏模型",
+      answerers: [{ provider: "p1", model: "missing-model" }, ROSTER[1]],
+      workspace,
+    });
+    const run = manager.active.get(detail.id);
+    await run.promise;
+
+    assert.equal(failure.terminalCalls().length, 4);
+    const shadow = [...manager.terminalShadow.values()][0];
+    assert.equal(shadow.status, "failed");
+    assert.ok(shadow.record.failures.some((failureEntry) => /missing-model/u.test(failureEntry.message)));
+
+    const final = manager.detail(workspace, detail.id);
+    assert.equal(final.status, "failed");
+    assert.ok(final.failures.some((failureEntry) => /missing-model/u.test(failureEntry.message)));
+    assert.equal(final.limitations.includes(ZH.meetingInterruptedNote), false);
+
+    const onDisk = JSON.parse(readFileSync(join(workspace, ".roundtable", `${detail.id}.json`), "utf8"));
+    assert.equal(onDisk.status, "running");
+  } finally {
+    rmSync(workspace, { recursive: true, force: true });
+  }
+});
+
+test("a cancelled meeting keeps its terminal shadow when the write keeps failing", async () => {
+  const workspace = makeWorkspace();
+  try {
+    const spawner = makeSpawner({ pending: true });
+    const manager = makeManager(makeContext({ workspace, spawner }));
+    const failure = failTerminalWrites(manager);
+    const detail = await manager.create({ topic: "取消也要落盘", answerers: ROSTER, rounds: 0, workspace });
+    while (spawner.spawns.length === 0) await new Promise((resolve) => setTimeout(resolve, 5));
+
+    const cancelled = manager.cancel(workspace, detail.id);
+    assert.equal(cancelled.status, "cancelled");
+    assert.ok(cancelled.notes.includes(ZH.meetingCancelledNote));
+    assert.equal(failure.terminalCalls().length, 4, "the cancel path retries the terminal write too");
+
+    const run = manager.active.get(detail.id);
+    await run.promise;
+
+    // Cancelled in memory, `running` on disk: the shadow is what keeps this
+    // meeting from coming back as an interrupted leftover.
+    assert.equal(manager.terminalShadow.size, 1);
+    const shadow = [...manager.terminalShadow.values()][0];
+    assert.equal(shadow.status, "cancelled");
+    assert.ok(shadow.record.notes.includes(ZH.meetingCancelledNote));
+    assert.equal(manager.active.get(detail.id), run, "the cancelled run stays in active behind its shadow");
+    assert.equal(manager.detail(workspace, detail.id).status, "cancelled");
+
+    const onDisk = JSON.parse(readFileSync(join(workspace, ".roundtable", `${detail.id}.json`), "utf8"));
+    assert.equal(onDisk.status, "running");
   } finally {
     rmSync(workspace, { recursive: true, force: true });
   }
@@ -637,6 +946,91 @@ test("the page API serves workspaces, catalog, meetings, detail and export", asy
     assert.equal(missingBody.error.code, "meeting-not-found");
   } finally {
     rmSync(workspace, { recursive: true, force: true });
+  }
+});
+
+test("the page API only accepts a workspace the host has registered", async () => {
+  const workspace = makeWorkspace();
+  const unregistered = makeWorkspace();
+  const routes = new Map();
+  try {
+    const connection = {
+      fetch: {
+        register(route) {
+          if (routes.has(route.path)) throw new Error(`duplicate route ${route.path}`);
+          routes.set(route.path, route);
+          return async () => {
+            routes.delete(route.path);
+          };
+        },
+      },
+    };
+    const ctx = makeContext({ workspace, spawner: makeSpawner() });
+    const originalGet = ctx.get.bind(ctx);
+    ctx.get = (name) => (name === "connection" ? connection : originalGet(name));
+    const manager = makeManager(ctx);
+    registerRoundtableApi(ctx, {
+      ctx,
+      config,
+      manager,
+      copyFor: (locale) => copyFor(locale),
+      resolveLocale: () => "zh",
+    });
+    const postCreate = (workspaceValue) => routes.get("/api/roundtable/meetings").fetch(new Request(
+      "http://localhost/api/roundtable/meetings",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ topic: `工作区 ${workspaceValue}`, answerers: ROSTER, rounds: 0, workspace: workspaceValue }),
+      },
+    ));
+
+    // The directory exists, but the host never registered it: the API must not
+    // let a caller turn any writable directory into a roundtable workspace.
+    assert.equal(existsSync(unregistered), true);
+    const refusedList = await routes.get("/api/roundtable/meetings")
+      .fetch(new Request(`http://localhost/api/roundtable/meetings?workspace=${encodeURIComponent(unregistered)}`));
+    assert.equal(refusedList.status, 400);
+    const refusedListBody = await refusedList.json();
+    assert.equal(refusedListBody.ok, false);
+    assert.equal(refusedListBody.error.code, "workspace-not-registered");
+    assert.match(refusedListBody.error.message, /未注册/u);
+
+    const refusedCreate = await postCreate(unregistered);
+    assert.equal(refusedCreate.status, 400);
+    const refusedCreateBody = await refusedCreate.json();
+    assert.equal(refusedCreateBody.ok, false);
+    assert.equal(refusedCreateBody.error.code, "workspace-not-registered");
+    assert.equal(existsSync(join(unregistered, ".roundtable")), false, "nothing may be written outside a registered workspace");
+    assert.equal(manager.active.size, 0, "a refused create starts no run");
+
+    // The export route shares the resolver, so it refuses the same input.
+    const refusedExport = await routes.get("/api/roundtable/meeting/export")
+      .fetch(new Request(`http://localhost/api/roundtable/meeting/export?workspace=${encodeURIComponent(unregistered)}&id=01234567-89ab-cdef-0123-456789abcdef`));
+    assert.equal(refusedExport.status, 400);
+    assert.equal((await refusedExport.json()).error.code, "workspace-not-registered");
+
+    // The manager behind POST /meetings enforces exactly the same rule.
+    await assert.rejects(
+      () => manager.create({ topic: "未注册工作区", answerers: ROSTER, rounds: 0, workspace: unregistered }),
+      (error) => error instanceof MeetingError && error.status === 400 && error.code === "workspace-not-registered",
+    );
+
+    // A registered id and the registered path both still resolve to it.
+    const byId = await postCreate("ws-1");
+    assert.equal(byId.status, 202);
+    const byIdBody = await byId.json();
+    assert.equal(byIdBody.data.meeting.workspace, workspace, "the id resolved to the registered directory");
+    await manager.active.get(byIdBody.data.meeting.id)?.promise;
+
+    const byPath = await postCreate(workspace);
+    assert.equal(byPath.status, 202);
+    const byPathBody = await byPath.json();
+    assert.equal(byPathBody.data.meeting.workspace, workspace, "the registered path still resolves");
+    await manager.active.get(byPathBody.data.meeting.id)?.promise;
+  } finally {
+    rmSync(workspace, { recursive: true, force: true });
+    rmSync(unregistered, { recursive: true, force: true });
   }
 });
 
@@ -1058,7 +1452,14 @@ test("the concurrent-meeting cap is counted per workspace, not globally", async 
   const b = makeWorkspace();
   const c = makeWorkspace();
   const spawner = makeSpawner({ pending: true });
-  const manager = makeManager(makeContext({ workspace: a, spawner }), { maxConcurrentMeetings: 3 });
+  const manager = makeManager(makeContext({
+    workspaces: [
+      { id: "ws-a", path: a, title: "A" },
+      { id: "ws-b", path: b, title: "B" },
+      { id: "ws-c", path: c, title: "C" },
+    ],
+    spawner,
+  }), { maxConcurrentMeetings: 3 });
   const create = (workspace, topic) => manager.create({ topic, answerers: ROSTER, rounds: 0, workspace });
   try {
     // A already runs two meetings.

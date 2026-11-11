@@ -319,13 +319,37 @@ test("apply registers /roundtable and runs a cross-provider round", async () => 
     assert.ok(fake.spawns[0].request.agentOptions.model);
     assert.equal(fake.spawns[0].request.maxDepth, 1);
 
-    // The first child gets a web-only allow-list; later review/arbiter children
-    // get the same list plus structured_output through the guard.
-    assert.deepEqual(fake.restricted.current, { allow: ["web_search", "web_fetch"] });
-    assert.equal(fake.guard({ name: "write" }), "圆桌讨论的子任务只允许使用 web_search / web_fetch。");
-    assert.equal(fake.guard({ name: "web_search" }), undefined);
+    // Stage-specific capability: the two answer children keep the web tools,
+    // every later stage (discussion, two reviews, arbiter) is restricted to an
+    // empty allow-list. Each guard is the enforcement half of that decision.
+    assert.deepEqual(
+      fake.children.map(({ tools }) => tools.record.restricted),
+      [
+        { allow: ["web_search", "web_fetch"] },
+        { allow: ["web_search", "web_fetch"] },
+        { allow: [] },
+        { allow: [] },
+        { allow: [] },
+        { allow: [] },
+        { allow: [] },
+      ],
+    );
+    const answerGuard = fake.children[0].tools.record.guard;
+    assert.equal(answerGuard({ name: "web_search" }), undefined);
+    assert.equal(answerGuard({ name: "write" }), "圆桌讨论的子任务只允许使用 web_search / web_fetch。");
+    const discussionGuard = fake.children[2].tools.record.guard;
+    assert.equal(discussionGuard({ name: "web_search" }), "该阶段的圆桌讨论子任务不允许调用这个工具。");
+    assert.equal(discussionGuard({ name: "structured_output" }), "该阶段的圆桌讨论子任务不允许调用这个工具。");
+    const reviewGuard = fake.children[4].tools.record.guard;
+    assert.equal(reviewGuard({ name: "web_fetch" }), "该阶段的圆桌讨论子任务不允许调用这个工具。");
+    assert.equal(reviewGuard({ name: "structured_output" }), undefined);
+    // The last-created child is the arbiter; its guard is the shared probe.
+    assert.equal(fake.guard({ name: "web_search" }), "该阶段的圆桌讨论子任务不允许调用这个工具。");
     assert.equal(fake.guard({ name: "run_code" }), undefined);
     assert.equal(fake.guard({ name: "structured_output" }), undefined);
+    // The command path has no attachments, so the answer prompt keeps the
+    // historical twice-only web invitation.
+    assert.match(fake.spawns[0].request.prompt[0].text, /at most twice/u);
 
     // Blank-session retention ran once and renamed the session.
     assert.equal(fake.followups.length, 1);
@@ -333,6 +357,70 @@ test("apply registers /roundtable and runs a cross-provider round", async () => 
     assert.equal(fake.followups[0].source.kind, "user");
     assert.equal(fake.renamed(), "圆桌讨论");
     assert.deepEqual(fake.warnings, []);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("web capability is stage-specific and attachment-aware", async () => {
+  const { module, dir } = await loadPlugin();
+  try {
+    const engine = await import(pathToFileURL(join(dir, "lib", "engine.js")).href);
+    const { normalizeConfig } = await import(pathToFileURL(join(dir, "lib", "core.js")).href);
+    const { copyFor } = await import(pathToFileURL(join(dir, "lib", "copy.js")).href);
+    const copy = copyFor("zh");
+    const config = normalizeConfig({ childTimeoutMs: 2_000, runTimeoutMs: 30_000 });
+    const fake = fakeContext();
+    module.apply(fake.ctx, { language: "zh" });
+    const provider = fake.ctx.subagents.getProvider("spawn");
+    const entry = { key: "p1/m", provider: "p1", model: "m", modelName: "M", label: "M" };
+    const schema = { type: "object" };
+    const run = (stage, hasAttachments, outputSchema) => engine.runChild({
+      ctx: fake.ctx,
+      config,
+      parentAgent: fake.parent,
+      provider,
+      copy,
+      signal: new AbortController().signal,
+      stage,
+      hasAttachments,
+      stageLabel: stage,
+      entry,
+      prompt: `${stage} prompt`,
+      outputSchema,
+    });
+
+    await run("answer", false);
+    await run("answer", true);
+    await run("discussion", true);
+    await run("review", false, schema);
+    await run("arbiter", true, schema);
+
+    const [plainAnswer, attachedAnswer, discussion, review, arbiter] = fake.children.map(({ tools }) => tools.record);
+
+    // A topic-only answer keeps the historical two web tools.
+    assert.deepEqual(plainAnswer.restricted, { allow: ["web_search", "web_fetch"] });
+    assert.equal(plainAnswer.guard({ name: "web_search" }), undefined);
+    assert.equal(plainAnswer.guard({ name: "write" }), copy.toolDenied);
+
+    // An answer carrying an attachment loses web entirely; the guard refuses
+    // the exact call the prompt now also forbids.
+    assert.deepEqual(attachedAnswer.restricted, { allow: [] });
+    assert.equal(attachedAnswer.guard({ name: "web_search" }), copy.toolDeniedAttachments);
+    assert.equal(attachedAnswer.guard({ name: "web_fetch" }), copy.toolDeniedAttachments);
+
+    // Discussion: no tools at all, structured_output included.
+    assert.deepEqual(discussion.restricted, { allow: [] });
+    assert.equal(discussion.guard({ name: "web_search" }), copy.toolDeniedStage);
+    assert.equal(discussion.guard({ name: "structured_output" }), copy.toolDeniedStage);
+
+    // Review and arbiter: no web, but their structured output stays available.
+    for (const record of [review, arbiter]) {
+      assert.deepEqual(record.restricted, { allow: [] });
+      assert.equal(record.guard({ name: "web_search" }), copy.toolDeniedStage);
+      assert.equal(record.guard({ name: "web_fetch" }), copy.toolDeniedStage);
+      assert.equal(record.guard({ name: "structured_output" }), undefined);
+    }
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

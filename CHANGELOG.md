@@ -4,7 +4,30 @@ All notable changes to this project. The format loosely follows
 [Keep a Changelog](https://keepachangelog.com/), and the project uses semantic
 versioning.
 
-## 0.6.0
+## 0.6.1
+
+- A meeting's terminal record is **durable before the run is released**: on
+  `settle`/`terminate`/`cancel` the write is retried (4 attempts, 50/150/400 ms)
+  and, if the filesystem keeps failing, the terminal record is kept in memory as
+  a terminal shadow keyed by workspace + id. The run stays in `active` until the
+  shadow is healed, `reconcile()` reads the shadow first and never downgrades a
+  completed meeting to `interrupted`, and a late cancel cannot rewrite a
+  completed record.
+- `agents.create()` is now **abortable**: the hidden orchestrator creation races
+  the run's deadline/cancel signal, so a hung host call can no longer keep
+  `execute()` alive past `runTimeoutMs` or squat on a concurrency slot. A handle
+  that arrives after the abort is disposed exactly once instead of leaking.
+- Web tools became **stage-specific capability**, not a prompt request: the
+  answer stage gets `web_search`/`web_fetch` only when the meeting has no
+  attachments, and discussion/review/arbiter stages get none; the restriction is
+  applied to the child Agent's tool policy and re-read back after applying.
+- Workspaces must be **registered**: `resolveWorkspace()` no longer accepts an
+  arbitrary absolute directory, and answers `400 workspace-not-registered`
+  instead, so a caller cannot make the plugin create `.roundtable`, adopt
+  attachments, or write exports outside the workspaces the user opened.
+- Tests: 81 passing (was 69), including non-hollow checks run against the
+  previous release for every fix above.
+
 
 - Repository hygiene: `HANDOFF.md` (local handoff notes with machine paths,
   DSH profile/token locations and private workflow) is no longer tracked; it
@@ -163,3 +186,11 @@ Items the user reviewed on 2026-11-12 and accepted as "not a major bug, record a
   (rounded upper lip, no dashed rim), closed state is unchanged.
 - **Gemini right-jaw fill boundary** sits at ΔL* ≈ 0.94 at 1x (was 8.15);
   the 6x-only straight edge at the 26 CSS px seam is accepted as invisible.
+- **Advisor (gpt-6.1-sol) review of 0.6.1 is missing.** The three rounds of
+  advisor review cover the earlier permission/race fixes; the T1/T2/T3 work
+  above was verified independently by the verifier agent (81/81 tests,
+  non-hollow comparison against 0.6.0, behavioural injections for the timeout,
+  the shadow, and the stage tool table). The advisor session was interrupted by
+  its provider three times in a row, so this release ships on verifier evidence
+  alone — re-run the advisor review before the next release.
+

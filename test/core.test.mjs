@@ -261,6 +261,12 @@ test("prompts carry the topic and the language rule", () => {
   assert.match(discussionPrompt("topic", answers), /revised final answer/);
   assert.match(arbiterPrompt("topic", answers, [{ ranking: ["A"], consensus: [], contradictions: [], blindSpots: [], uniqueInsights: [] }]), /arbiter/);
   assert.match(answerPrompt("topic"), /Confidence/);
+  // A topic-only answer may still invite the capped web lookup; an answer that
+  // carries an attachment must not, matching the capability deny-list.
+  assert.match(answerPrompt("topic"), /at most twice/u);
+  assert.match(answerPrompt("topic", "attached text"), /at most twice/u);
+  assert.doesNotMatch(answerPrompt("topic", "attached text", "zh", { web: false }), /at most twice/u);
+  assert.match(answerPrompt("topic", "attached text", "zh", { web: false }), /Do not use web tools/u);
 });
 
 test("every stage prompt states the data boundary and the no-exfiltration rule", () => {

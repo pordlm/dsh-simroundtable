@@ -1,6 +1,6 @@
 {
   "name": "dsh-simroundtable",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "type": "module",
   "description": "Cross-provider roundtable for DeepSeek Harness: independent answers, peer revision, anonymous review, and a final arbiter — as a command, a model tool, and a dedicated Web page.",
   "license": "GPL-3.0-or-later",

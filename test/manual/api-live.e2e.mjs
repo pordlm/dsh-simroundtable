@@ -312,9 +312,9 @@ try {
     assert.equal(missing.payload.error.code, "meeting-not-found");
   });
   const badWorkspace = await call("GET", `${API_BASE}/meetings`, { query: { workspace: "/definitely/not/here" } });
-  check("an unknown workspace answers 400 invalid-workspace", () => {
+  check("an unregistered workspace answers 400 workspace-not-registered", () => {
     assert.equal(badWorkspace.status, 400);
-    assert.equal(badWorkspace.payload.error.code, "invalid-workspace");
+    assert.equal(badWorkspace.payload.error.code, "workspace-not-registered");
   });
   const badRoster = await call("POST", `${API_BASE}/meetings`, {
     body: { topic: TOPIC, answerers: [ROSTER[0]], workspace },
