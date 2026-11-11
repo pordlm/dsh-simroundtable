@@ -60,6 +60,8 @@ function fakeContext(options = {}) {
   const pending = [];
   const warnings = [];
   const spawns = [];
+  const children = [];
+  const deferred = [];
 
   const parent = {
     id: "parent",
@@ -77,16 +79,40 @@ function fakeContext(options = {}) {
     },
   };
 
+  // Global tools every fake composition exposes; `restrict({ allow })` removes
+  // them from the child's view exactly like the real ToolsService does.
+  const globals = new Set([
+    "web_search",
+    "web_fetch",
+    "write",
+    "edit",
+    "subagent",
+    ...(options.childGlobals ?? []),
+  ]);
+
   function childTools() {
+    const visible = new Set(globals);
+    const record = { restricted: undefined, guard: undefined };
     return {
+      record,
       get(name) {
-        return name === "web_search" || name === "web_fetch" ? { name } : undefined;
+        return visible.has(name) ? { name } : undefined;
       },
       restrict(filter) {
+        if (options.restrictThrows === true) throw new Error("restrict failed");
+        record.restricted = filter;
         restricted.current = filter;
+        if (options.restrictNoop !== true) {
+          const allow = new Set(filter?.allow ?? []);
+          for (const name of [...visible]) if (!allow.has(name)) visible.delete(name);
+        }
+        return () => {};
       },
       guard(fn) {
+        if (options.guardThrows === true) throw new Error("guard failed");
+        record.guard = fn;
         guard = fn;
+        return () => {};
       },
     };
   }
@@ -119,12 +145,38 @@ function fakeContext(options = {}) {
       getProvider: (name) => (name === "spawn" ? provider : undefined),
       async startActivation(spec) {
         spawns.push(spec);
+        const tools = childTools();
         const child = {
           id: spec.childId,
           session: { requestHeader: () => undefined },
-          ctx: { tools: childTools() },
+          ctx: { tools },
         };
-        for (const handler of listeners.get("agent/created") ?? []) handler({ agent: child });
+        children.push({ spec, child, tools });
+        const created = () => {
+          for (const handler of listeners.get("agent/created") ?? []) handler({ agent: child });
+        };
+        if (options.deferActivation === true) {
+          // Creation completes only when the test releases it, after the child
+          // deadline has already expired.
+          let release;
+          let markDisposed;
+          const handle = {
+            disposeCalls: 0,
+            disposed: new Promise((resolve) => {
+              markDisposed = resolve;
+            }),
+            result: new Promise(() => {}),
+            async dispose() {
+              handle.disposeCalls += 1;
+              markDisposed();
+            },
+          };
+          deferred.push({ spec, child, tools, handle, created, release: () => release(handle) });
+          return new Promise((resolve) => {
+            release = resolve;
+          });
+        }
+        created();
         const prompt = spec.request.prompt[0].text;
         let result;
         if (prompt.includes("review model in a roundtable")) {
@@ -227,6 +279,9 @@ function fakeContext(options = {}) {
     renamed: () => renamed,
     warnings,
     spawns,
+    children,
+    deferred,
+    listeners,
   };
 }
 
@@ -328,6 +383,324 @@ test("roundtable tool auto-picks a panel and returns model-facing markdown", asy
     const view = fake.tool.current.presentResult({ topic: "工具话题" }, { isError: false, content: [] });
     assert.equal(view.title, "圆桌讨论");
     assert.match(view.content[0].text, /完成/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("a child whose tool restriction throws never runs", async () => {
+  const { module, dir } = await loadPlugin();
+  try {
+    const fake = fakeContext({ restrictThrows: true });
+    module.apply(fake.ctx, { language: "zh" });
+    const result = await fake.command.current.handler({
+      agent: fake.parent,
+      signal: new AbortController().signal,
+      rawInput: "",
+    });
+
+    // Both answerers were attempted; neither produced an answer because its
+    // creation was rolled back (fail-closed) instead of running unrestricted.
+    assert.equal(fake.spawns.length, 2);
+    assert.equal(result.kind, "error");
+    assert.match(result.text, /成功返回答案/);
+    assert.equal(fake.restricted.current, undefined);
+    assert.equal(fake.guard, undefined);
+    for (const { tools } of fake.children) {
+      assert.equal(tools.record.restricted, undefined);
+      assert.equal(tools.record.guard, undefined);
+    }
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("a child whose tool guard throws never runs", async () => {
+  const { module, dir } = await loadPlugin();
+  try {
+    const fake = fakeContext({ guardThrows: true });
+    module.apply(fake.ctx, { language: "zh" });
+    const result = await fake.command.current.handler({
+      agent: fake.parent,
+      signal: new AbortController().signal,
+      rawInput: "",
+    });
+
+    // restrict() succeeded, but a child without the guard is not trusted.
+    assert.deepEqual(fake.restricted.current, { allow: ["web_search", "web_fetch"] });
+    assert.equal(fake.guard, undefined);
+    assert.equal(result.kind, "error");
+    assert.match(result.text, /成功返回答案/);
+    for (const { tools } of fake.children) {
+      assert.equal(tools.record.guard, undefined);
+    }
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("a restriction that leaves other tools visible refuses the child", async () => {
+  const { module, dir } = await loadPlugin();
+  try {
+    const fake = fakeContext({ restrictNoop: true });
+    module.apply(fake.ctx, { language: "zh" });
+    const result = await fake.command.current.handler({
+      agent: fake.parent,
+      signal: new AbortController().signal,
+      rawInput: "",
+    });
+
+    // restrict() returned normally but write/edit were still visible, so the
+    // read-back check failed and the child was never started.
+    assert.equal(result.kind, "error");
+    assert.match(result.text, /成功返回答案/);
+    assert.equal(fake.guard, undefined);
+    for (const { tools } of fake.children) {
+      assert.equal(tools.record.guard, undefined);
+    }
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("a child created after its deadline is disposed and gets no tools", async () => {
+  const { module, dir } = await loadPlugin();
+  try {
+    const fake = fakeContext({ deferActivation: true });
+    module.apply(fake.ctx, { language: "zh", childTimeoutMs: 20, runTimeoutMs: 60_000 });
+    // The fake activation never settles and the plugin's deadline timer is
+    // unref'd, so this interval is the only thing keeping the loop alive while
+    // the child deadline expires (a real harness has its own pending I/O).
+    const keepAlive = setInterval(() => {}, 5);
+    let result;
+    try {
+      result = await fake.command.current.handler({
+        agent: fake.parent,
+        signal: new AbortController().signal,
+        rawInput: "",
+      });
+    } finally {
+      clearInterval(keepAlive);
+    }
+
+    assert.equal(result.kind, "error");
+    assert.match(result.text, /成功返回答案/);
+    assert.equal(fake.deferred.length, 2);
+    const [first, second] = fake.deferred;
+
+    // A creation that lands after the timeout is refused outright: the run
+    // retired the plan, so the listener must fail the creation.
+    assert.throws(() => first.created(), /工具限制/);
+    assert.equal(first.tools.record.restricted, undefined);
+    assert.equal(first.tools.record.guard, undefined);
+
+    // The handle still resolves late; it must be disposed, not adopted.
+    first.release();
+    await first.handle.disposed;
+    assert.equal(first.handle.disposeCalls, 1);
+    assert.equal(first.tools.record.guard, undefined);
+
+    // Same for a handle that arrives with only a tombstone left.
+    second.release();
+    await second.handle.disposed;
+    assert.equal(second.handle.disposeCalls, 1);
+    assert.equal(second.tools.record.guard, undefined);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+async function engineOf(dir) {
+  return import(pathToFileURL(join(dir, "lib", "engine.js")).href);
+}
+
+/** Wait for a microtask-driven condition without sleeping on a fixed timer. */
+async function waitFor(check) {
+  for (let attempt = 0; attempt < 200; attempt += 1) {
+    if (check()) return true;
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+  return check();
+}
+
+async function runTimedOut(fake) {
+  // The fake activation never settles and the plugin's deadline timer is
+  // unref'd, so this interval is the only thing keeping the loop alive while
+  // the child deadline expires (a real harness has its own pending I/O).
+  const keepAlive = setInterval(() => {}, 5);
+  try {
+    return await fake.command.current.handler({
+      agent: fake.parent,
+      signal: new AbortController().signal,
+      rawInput: "",
+    });
+  } finally {
+    clearInterval(keepAlive);
+  }
+}
+
+test("a revoked child stays refused after its tombstone expires", async () => {
+  const { module, dir } = await loadPlugin();
+  try {
+    const engine = await engineOf(dir);
+    const fake = fakeContext({ deferActivation: true });
+    module.apply(fake.ctx, { language: "zh", childTimeoutMs: 20, runTimeoutMs: 60_000 });
+    const result = await runTimedOut(fake);
+
+    assert.equal(result.kind, "error");
+    assert.equal(fake.deferred.length, 2);
+    const [first, second] = fake.deferred;
+
+    const childId = String(first.child.id);
+    assert.equal(engine.childPlans.get(childId)?.state, "revoked");
+    // The tombstone timer drops the plan object; the child must stay refused
+    // instead of being mistaken for another feature's subagent.
+    engine.expireChildPlanTombstone(childId);
+    assert.equal(engine.childPlans.has(childId), false);
+    assert.equal(engine.isRefusedChild(childId), true);
+    assert.throws(() => first.created(), /工具限制/);
+    assert.equal(first.tools.record.restricted, undefined);
+    assert.equal(first.tools.record.guard, undefined);
+
+    const otherId = String(second.child.id);
+    engine.expireChildPlanTombstone(otherId);
+    assert.equal(engine.childPlans.has(otherId), false);
+    assert.throws(() => second.created(), /工具限制/);
+    assert.equal(second.tools.record.restricted, undefined);
+    assert.equal(second.tools.record.guard, undefined);
+
+    first.release();
+    second.release();
+    await first.handle.disposed;
+    await second.handle.disposed;
+    assert.equal(first.handle.disposeCalls, 1);
+    assert.equal(second.handle.disposeCalls, 1);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("a child whose plan was dropped is refused, a foreign agent is not", async () => {
+  const { module, dir } = await loadPlugin();
+  try {
+    const engine = await engineOf(dir);
+    const fake = fakeContext({ deferActivation: true });
+    module.apply(fake.ctx, { language: "zh", childTimeoutMs: 20, runTimeoutMs: 60_000 });
+    const result = await runTimedOut(fake);
+    assert.equal(result.kind, "error");
+
+    const [first] = fake.deferred;
+    const childId = String(first.child.id);
+    // Any path that drops the plan before the creation lands (teardown, a
+    // tombstone cleanup) leaves only the refusal marker behind, and that must
+    // still fail the creation.
+    engine.retireChildPlan(childId);
+    assert.equal(engine.childPlans.has(childId), false);
+    assert.throws(() => first.created(), /工具限制/);
+    assert.equal(first.tools.record.restricted, undefined);
+    assert.equal(first.tools.record.guard, undefined);
+
+    // An agent this plugin never started keeps its own policy: the refusal
+    // marker must not leak into unrelated child ids.
+    const handlers = fake.listeners.get("agent/created") ?? [];
+    assert.ok(handlers.length > 0);
+    for (const handler of handlers) {
+      assert.doesNotThrow(() => handler({ agent: { id: "another-feature-child" } }));
+    }
+    assert.equal(engine.isRefusedChild("another-feature-child"), false);
+
+    first.release();
+    await first.handle.disposed;
+    assert.equal(first.handle.disposeCalls, 1);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("a refused child survives thousands of unrelated plan retirements", async () => {
+  const { module, dir } = await loadPlugin();
+  try {
+    const engine = await engineOf(dir);
+    const fake = fakeContext({ deferActivation: true });
+    module.apply(fake.ctx, { language: "zh", childTimeoutMs: 20, runTimeoutMs: 60_000 });
+    const result = await runTimedOut(fake);
+    assert.equal(result.kind, "error");
+
+    const [first] = fake.deferred;
+    const childId = String(first.child.id);
+    engine.expireChildPlanTombstone(childId);
+    assert.equal(engine.childPlans.has(childId), false);
+    assert.equal(engine.isRefusedChild(childId), true);
+
+    // Refusal is bound to this activation, not to a fixed-size cache: other
+    // plans coming and going must never evict an id whose activation can still
+    // land, or that creation would run with no restriction at all.
+    for (let index = 0; index < 5000; index += 1) {
+      const fillerId = `filler-${index}`;
+      engine.childPlans.set(fillerId, {
+        allowed: new Set(),
+        outputSchema: false,
+        copy: {},
+        state: "revoked",
+        reason: undefined,
+        timer: undefined,
+        disposers: undefined,
+      });
+      engine.retireChildPlan(fillerId);
+    }
+    assert.equal(engine.isRefusedChild(childId), true);
+    assert.throws(() => first.created(), /工具限制/);
+    assert.equal(first.tools.record.restricted, undefined);
+    assert.equal(first.tools.record.guard, undefined);
+
+    // Disposing the late handle ends the activation, and only then may the id
+    // stop being refused.
+    first.release();
+    await first.handle.disposed;
+    assert.equal(first.handle.disposeCalls, 1);
+    assert.equal(await waitFor(() => engine.isRefusedChild(childId) === false), true);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("a settled child is released without clearing an unsettled one", async () => {
+  const { module, dir } = await loadPlugin();
+  try {
+    const engine = await engineOf(dir);
+    const fake = fakeContext({ deferActivation: true });
+    module.apply(fake.ctx, { language: "zh", childTimeoutMs: 20, runTimeoutMs: 60_000 });
+    const result = await runTimedOut(fake);
+    assert.equal(result.kind, "error");
+
+    const [first, second] = fake.deferred;
+    const firstId = String(first.child.id);
+    const secondId = String(second.child.id);
+    engine.expireChildPlanTombstone(firstId);
+    engine.expireChildPlanTombstone(secondId);
+    assert.equal(engine.isRefusedChild(firstId), true);
+    assert.equal(engine.isRefusedChild(secondId), true);
+
+    // The first activation lands and is disposed: that is a settled activation,
+    // so its id may be released. The second is still unresolved and must stay
+    // refused.
+    first.release();
+    await first.handle.disposed;
+    assert.equal(await waitFor(() => engine.isRefusedChild(firstId) === false), true);
+    assert.equal(engine.isRefusedChild(secondId), true);
+
+    // A settled id is treated like any other agent (no false refusal), while the
+    // unresolved one still fails its creation without touching any tool.
+    assert.doesNotThrow(() => first.created());
+    assert.equal(first.tools.record.restricted, undefined);
+    assert.equal(first.tools.record.guard, undefined);
+    assert.throws(() => second.created(), /工具限制/);
+    assert.equal(second.tools.record.restricted, undefined);
+    assert.equal(second.tools.record.guard, undefined);
+
+    second.release();
+    await second.handle.disposed;
+    assert.equal(second.handle.disposeCalls, 1);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

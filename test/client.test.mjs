@@ -1063,4 +1063,430 @@ const plateText = (node) => {
   assert.equal(bubble.props.style.fontSize, "10.5px", "compact bubbles use the smaller type");
 }
 
+// ---------------------------------------------------------------------------
+// Workspace selector: the preselected default is an id, exactly like every
+// `<option value>`; anything else must not be kept in the store.
+// ---------------------------------------------------------------------------
+{
+  const previousFetch = globalThis.fetch;
+  const page_answer = (data) => ({ ok: true, status: 200, json: async () => ({ ok: true, data }) });
+  globalThis.fetch = async (url) => {
+    const path = String(url);
+    if (path.startsWith("/api/roundtable/workspaces")) {
+      return page_answer({
+        workspaces: [
+          { id: "ws-a", path: "C:\\demo\\a", title: "A" },
+          { id: "ws-b", path: "C:\\demo\\b", title: "B" },
+        ],
+        defaultWorkspace: "ws-b",
+      });
+    }
+    if (path.startsWith("/api/roundtable/catalog")) return page_answer({ models: [], defaults: {}, limits: {} });
+    if (path.startsWith("/api/roundtable/meetings")) return page_answer({ meetings: [] });
+    throw new Error(`unexpected fetch ${path}`);
+  };
+  const selectOf = (tree) => findAll(
+    tree,
+    (n) => n.type === "select" && n.props && n.props["data-roundtable-workspace"] !== undefined,
+  )[0];
+  try {
+    store.reset();
+    await actions.initPage();
+    assert.equal(store.get().workspaceId, "ws-b", "the server default id is preselected");
+
+    const select = selectOf(page());
+    assert.ok(select, "workspace select rendered for two workspaces");
+    assert.equal(select.props.value, "ws-b", "the select shows the selected id");
+    const values = select.children.filter((n) => n && typeof n === "object").map((option) => option.props.value);
+    assert.deepEqual(values, ["ws-a", "ws-b"], "options carry ids, so the value matches one of them");
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+}
+
+{
+  // An older server sent the workspace *path*. The page must fall back to the
+  // first option instead of keeping a value no option can render (the select
+  // showed workspace A while requests used workspace B's path).
+  const previousFetch = globalThis.fetch;
+  const page_answer = (data) => ({ ok: true, status: 200, json: async () => ({ ok: true, data }) });
+  globalThis.fetch = async (url) => {
+    const path = String(url);
+    if (path.startsWith("/api/roundtable/workspaces")) {
+      return page_answer({
+        workspaces: [
+          { id: "ws-a", path: "C:\\demo\\a", title: "A" },
+          { id: "ws-b", path: "C:\\demo\\b", title: "B" },
+        ],
+        defaultWorkspace: "C:\\demo\\b",
+      });
+    }
+    if (path.startsWith("/api/roundtable/catalog")) return page_answer({ models: [], defaults: {}, limits: {} });
+    if (path.startsWith("/api/roundtable/meetings")) return page_answer({ meetings: [] });
+    throw new Error(`unexpected fetch ${path}`);
+  };
+  try {
+    store.reset();
+    await actions.initPage();
+    const stored = store.get().workspaceId;
+    assert.equal(stored, "ws-a", "an unrenderable default falls back to the first option");
+    const select = findAll(
+      page(),
+      (n) => n.type === "select" && n.props && n.props["data-roundtable-workspace"] !== undefined,
+    )[0];
+    assert.ok(select);
+    assert.equal(select.props.value, stored, "store and selector agree on the same id");
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Workspace generations: a response for the workspace the user left must not
+// overwrite the one on screen — slow A, fast B, A arrives last.
+// ---------------------------------------------------------------------------
+{
+  const previousFetch = globalThis.fetch;
+  const page_answer = (data) => ({ ok: true, status: 200, json: async () => ({ ok: true, data }) });
+  const deferred = () => {
+    let resolve;
+    let reject;
+    const promise = new Promise((res, rej) => {
+      resolve = res;
+      reject = rej;
+    });
+    return { promise, resolve, reject };
+  };
+  const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+  const lists = new Map();
+  const details = new Map();
+  globalThis.fetch = async (url) => {
+    const path = String(url);
+    const params = () => new URLSearchParams(path.slice(path.indexOf("?") + 1));
+    if (path.startsWith("/api/roundtable/meetings")) {
+      const call = deferred();
+      lists.set(params().get("workspace"), call);
+      return call.promise;
+    }
+    if (path.startsWith("/api/roundtable/meeting?")) {
+      const call = deferred();
+      details.set(params().get("id"), call);
+      return call.promise;
+    }
+    if (path.startsWith("/api/roundtable/catalog")) return page_answer({ models: [], defaults: {}, limits: {} });
+    throw new Error(`unexpected fetch ${path}`);
+  };
+  try {
+    resetStore({
+      boot: "ready",
+      workspaces: [{ id: "ws-a", title: "A" }, { id: "ws-b", title: "B" }],
+      workspaceId: "ws-a",
+      catalog: "ready",
+      meetingsState: "ready",
+      meetings: [],
+    });
+
+    const slowList = actions.loadMeetings();
+    assert.ok(lists.get("ws-a"), "the list request for workspace A is in flight");
+    actions.selectWorkspace("ws-b");
+    assert.equal(store.get().workspaceId, "ws-b");
+    assert.deepEqual(store.get().meetings, [], "a switch starts from an empty list, not A's history");
+
+    lists.get("ws-b").resolve(page_answer({ meetings: [{ id: "m-b", topic: "B" }] }));
+    await flush();
+    assert.deepEqual(store.get().meetings.map((m) => m.id), ["m-b"], "workspace B's list is shown");
+
+    lists.get("ws-a").resolve(page_answer({ meetings: [{ id: "m-a", topic: "A" }] }));
+    await slowList;
+    assert.deepEqual(store.get().meetings.map((m) => m.id), ["m-b"], "A's late list cannot overwrite B's");
+    assert.equal(store.get().meetingsState, "ready");
+
+    // The same rule applies to a meeting detail: opening a meeting in A, then
+    // switching to B, must not leave A's meeting (or A's error) on screen.
+    store.set({ workspaceId: "ws-a", view: "setup", detailId: null });
+    const slowDetail = actions.openDetail("m-a");
+    assert.ok(details.get("m-a"), "the detail request is in flight");
+    actions.selectWorkspace("ws-b");
+    lists.get("ws-b").resolve(page_answer({ meetings: [] }));
+    details.get("m-a").reject(new Error("A is gone"));
+    await slowDetail;
+    assert.equal(store.get().view, "setup", "the switched-to workspace keeps its setup view");
+    assert.equal(store.get().meeting, null, "A's late detail cannot populate B's view");
+    assert.equal(store.get().detailState, "loading", "A's late failure cannot mark B's detail as failed");
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// An upload that finishes after a workspace switch belongs to the old
+// workspace: it must not appear as an attachment of the new one.
+// ---------------------------------------------------------------------------
+{
+  const previousFetch = globalThis.fetch;
+  const page_answer = (data) => ({ ok: true, status: 200, json: async () => ({ ok: true, data }) });
+  let upload = null;
+  globalThis.fetch = async (url) => {
+    const path = String(url);
+    if (path === "/api/roundtable/upload") {
+      let resolve;
+      const promise = new Promise((res) => {
+        resolve = res;
+      });
+      upload = { promise, resolve };
+      return upload.promise;
+    }
+    if (path.startsWith("/api/roundtable/catalog")) return page_answer({ models: [], defaults: {}, limits: {} });
+    if (path.startsWith("/api/roundtable/meetings")) return page_answer({ meetings: [] });
+    throw new Error(`unexpected fetch ${path}`);
+  };
+  globalThis.FileReader = class FakeFileReader {
+    readAsDataURL(file) {
+      this.result = `data:${file.type || ""};base64,${Buffer.from(file.content || "").toString("base64")}`;
+      queueMicrotask(() => this.onload());
+    }
+  };
+  try {
+    resetStore({
+      boot: "ready",
+      workspaces: [{ id: "ws-a", title: "A" }, { id: "ws-b", title: "B" }],
+      workspaceId: "ws-a",
+      catalog: "ready",
+      catalogLimits: { attachments: { maxFiles: 4, maxFileBytes: 1_000_000 } },
+      attachments: [],
+      meetingsState: "ready",
+      meetings: [],
+    });
+    const uploadingA = actions.addAttachments([{ name: "a.md", type: "text/markdown", size: 3, content: "abc" }]);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.ok(upload, "the upload reached the server");
+    assert.equal(store.get().uploading, true, "the upload is in flight");
+
+    actions.selectWorkspace("ws-b");
+    assert.equal(store.get().uploading, false, "the new workspace is not stuck uploading");
+    assert.deepEqual(store.get().attachments, []);
+
+    upload.resolve(page_answer({ attachments: [{ id: "u-old", name: "a.md", kind: "text" }] }));
+    await uploadingA;
+    assert.deepEqual(store.get().attachments, [], "A's upload result does not become B's attachment");
+    assert.equal(store.get().uploadError, null, "the discarded upload reports no error for B");
+  } finally {
+    globalThis.fetch = previousFetch;
+    delete globalThis.FileReader;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// A meeting cannot start while an upload is in flight: the attachment ids it
+// would post do not exist yet, and the file could land in another workspace.
+// ---------------------------------------------------------------------------
+{
+  const previousFetch = globalThis.fetch;
+  let posts = 0;
+  globalThis.fetch = async (url) => {
+    if (String(url).startsWith("/api/roundtable/meetings")) posts += 1;
+    throw new Error(`unexpected fetch ${String(url)}`);
+  };
+  try {
+    resetStore({
+      boot: "ready",
+      workspaces: [{ id: "ws-a", title: "A" }],
+      workspaceId: "ws-a",
+      catalog: "ready",
+      models: [
+        { key: "a/model-1", provider: "a", providerName: "A", model: "model-1" },
+        { key: "b/model-2", provider: "b", providerName: "B", model: "model-2" },
+      ],
+      catalogDefaults: { rounds: 1 },
+      catalogLimits: { maxAnswerers: 8, maxReviewers: 8, maxRounds: 5, attachments: { maxFiles: 4, maxFileBytes: 1_000_000 } },
+      selected: ["a/model-1", "b/model-2"],
+      topic: "上传期间不能开始",
+      uploading: true,
+      meetingsState: "ready",
+      meetings: [],
+    });
+    const start = findByTestId(page(), "start");
+    assert.equal(start.props.disabled, true, "start is disabled while an attachment upload is in flight");
+
+    await actions.startMeeting();
+    assert.equal(posts, 0, "a start attempted while uploading makes no request");
+    assert.equal(store.get().starting, false);
+
+    store.set({ uploading: false });
+    assert.equal(findByTestId(page(), "start").props.disabled, false, "start is available again once the upload settled");
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// A meeting created for the workspace the user just left must not drag the
+// page into that workspace's detail view.
+// ---------------------------------------------------------------------------
+{
+  const previousFetch = globalThis.fetch;
+  const page_answer = (data) => ({ ok: true, status: 200, json: async () => ({ ok: true, data }) });
+  let resolveStart;
+  const startCall = new Promise((resolve) => {
+    resolveStart = resolve;
+  });
+  let detailCalls = 0;
+  globalThis.fetch = async (url, options) => {
+    const path = String(url);
+    if (path === "/api/roundtable/meetings" && options && options.method === "POST") return startCall;
+    if (path.startsWith("/api/roundtable/meeting?")) {
+      detailCalls += 1;
+      return page_answer({ meeting: { id: "m-a", status: "queued" } });
+    }
+    if (path.startsWith("/api/roundtable/meetings")) return page_answer({ meetings: [] });
+    if (path.startsWith("/api/roundtable/catalog")) return page_answer({ models: [], defaults: {}, limits: {} });
+    throw new Error(`unexpected fetch ${path}`);
+  };
+  try {
+    resetStore({
+      boot: "ready",
+      workspaces: [{ id: "ws-a", title: "A" }, { id: "ws-b", title: "B" }],
+      workspaceId: "ws-a",
+      catalog: "ready",
+      models: [
+        { key: "a/model-1", provider: "a", providerName: "A", model: "model-1" },
+        { key: "b/model-2", provider: "b", providerName: "B", model: "model-2" },
+      ],
+      catalogDefaults: { rounds: 1 },
+      catalogLimits: { maxAnswerers: 8, maxReviewers: 8, maxRounds: 5 },
+      selected: ["a/model-1", "b/model-2"],
+      topic: "创建期间切换工作区",
+      attachments: [],
+      meetingsState: "ready",
+      meetings: [],
+    });
+    const starting = actions.startMeeting();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.equal(store.get().starting, true, "the create request is in flight");
+
+    actions.selectWorkspace("ws-b");
+    resolveStart(page_answer({ meeting: { id: "m-a", status: "queued" } }));
+    await starting;
+    assert.equal(store.get().view, "setup", "a meeting created for the left workspace does not open");
+    assert.equal(store.get().detailId, null);
+    assert.equal(detailCalls, 0, "no detail request is made in the other workspace");
+    assert.equal(store.get().starting, false, "the new workspace is not stuck starting");
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// An export started in the previous workspace must not write into the new one:
+// the late "saved" reply (or its error) belongs to the workspace and meeting it
+// was started for, and the new workspace must not inherit the old panel state.
+// ---------------------------------------------------------------------------
+{
+  const previousFetch = globalThis.fetch;
+  const page_answer = (data) => ({ ok: true, status: 200, json: async () => ({ ok: true, data }) });
+  const file_answer = (text) => ({ ok: true, status: 200, text: async () => text });
+  let resolveExport;
+  const exportCall = new Promise((resolve) => {
+    resolveExport = resolve;
+  });
+  globalThis.fetch = async (url, options) => {
+    const path = String(url);
+    if (path.startsWith("/api/roundtable/meeting/export?") && (!options || !options.method)) {
+      return file_answer("# 圆桌讨论结果\n\nhello");
+    }
+    if (path === "/api/roundtable/meeting/export" && options && options.method === "POST") return exportCall;
+    if (path.startsWith("/api/roundtable/meetings")) return page_answer({ meetings: [] });
+    if (path.startsWith("/api/roundtable/catalog")) return page_answer({ models: [], defaults: {}, limits: {} });
+    throw new Error(`unexpected fetch ${path}`);
+  };
+  const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+  try {
+    resetStore({
+      boot: "ready",
+      workspaces: [{ id: "ws-a", title: "A" }, { id: "ws-b", title: "B" }],
+      workspaceId: "ws-a",
+      view: "detail",
+      detailId: "m-a",
+      meeting: { id: "m-a", status: "done", topic: "A 的会议" },
+      exportState: "idle",
+      catalog: "ready",
+      models: [],
+      catalogDefaults: { rounds: 1 },
+      catalogLimits: { maxAnswerers: 8, maxReviewers: 8, maxRounds: 5 },
+      meetingsState: "ready",
+      meetings: [],
+    });
+    const exporting = actions.exportMeeting();
+    await flush();
+    assert.equal(store.get().exportState, "working", "the export is in flight");
+    actions.selectWorkspace("ws-b");
+    assert.equal(store.get().exportState, "idle", "switching workspace closes the left export panel");
+    resolveExport(page_answer({ filename: "roundtable-m-a.md", path: "C:\\a\\roundtable-m-a.md", bytes: 10 }));
+    await exporting;
+    await flush();
+    assert.equal(store.get().exportState, "idle", "A's late export result cannot mark B as saved");
+    assert.equal(store.get().exportError, null, "A's late export result leaves B's export error empty");
+    assert.equal(store.get().exportInfo, null, "B never shows A's exported file");
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// A cancellation reply for the meeting the user just left must not land in the
+// detail of the next meeting opened in the same workspace.
+// ---------------------------------------------------------------------------
+{
+  const previousFetch = globalThis.fetch;
+  const page_answer = (data) => ({ ok: true, status: 200, json: async () => ({ ok: true, data }) });
+  let resolveCancel;
+  const cancelCall = new Promise((resolve) => {
+    resolveCancel = resolve;
+  });
+  let detailFetches = 0;
+  globalThis.fetch = async (url, options) => {
+    const path = String(url);
+    if (path === "/api/roundtable/meeting/cancel" && options && options.method === "POST") return cancelCall;
+    if (path.startsWith("/api/roundtable/meeting?")) {
+      detailFetches += 1;
+      return page_answer({ meeting: { id: "m-y", status: "done", topic: "Y 的会议" } });
+    }
+    if (path.startsWith("/api/roundtable/meetings")) return page_answer({ meetings: [] });
+    if (path.startsWith("/api/roundtable/catalog")) return page_answer({ models: [], defaults: {}, limits: {} });
+    throw new Error(`unexpected fetch ${path}`);
+  };
+  const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+  try {
+    resetStore({
+      boot: "ready",
+      workspaces: [{ id: "ws-a", title: "A" }],
+      workspaceId: "ws-a",
+      view: "detail",
+      detailId: "m-x",
+      meeting: { id: "m-x", status: "running", topic: "X 的会议" },
+      catalog: "ready",
+      models: [],
+      catalogDefaults: { rounds: 1 },
+      catalogLimits: { maxAnswerers: 8, maxReviewers: 8, maxRounds: 5 },
+      meetingsState: "ready",
+      meetings: [],
+    });
+    const cancelling = actions.cancelMeeting();
+    await flush();
+    assert.equal(store.get().cancelling, true, "the cancellation is in flight");
+    await actions.openDetail("m-y");
+    assert.equal(store.get().detailId, "m-y", "the other meeting is now open");
+    resolveCancel(page_answer({ meeting: { id: "m-x", status: "cancelled", topic: "X 的会议" } }));
+    await cancelling;
+    await flush();
+    assert.equal(store.get().detailId, "m-y", "the late reply leaves the open meeting alone");
+    assert.equal(store.get().meeting && store.get().meeting.id, "m-y", "X's late cancellation cannot replace Y's detail");
+    assert.equal(store.get().meeting.status, "done", "Y is not marked cancelled by X's reply");
+    assert.equal(store.get().cancelling, false);
+    assert.equal(detailFetches, 1, "no extra detail request is made");
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+}
+
 console.log("client.test.mjs: all assertions passed");

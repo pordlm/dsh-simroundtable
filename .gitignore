@@ -1,5 +1,11 @@
 node_modules/
 .e2e/
+
+# 开发者本地交接笔记：只留在工作区，不入库（含本机路径、DSH profile 与 token 位置）
+HANDOFF.md
+
+# 本机凭据文件：任何 *.token.txt 都不入库
+*.token.txt
 .roundtable/
 dist/
 *.log
@@ -62,6 +68,7 @@ preview/_evidence/t10/
 preview/_evidence/t8/
 preview/_evidence/t9/
 preview/_diag/*.png
+preview/_diag/_read_token.py
 preview/_diag/**/*.png
 preview/_diag/__pycache__/
 .agent-teams/
@@ -69,3 +76,4 @@ preview/_diag/__pycache__/
 # 调试用的 numpy 快照（体积大）
 *.npy
 *.npz
+.tmp-*/

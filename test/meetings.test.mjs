@@ -9,13 +9,14 @@
  */
 
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 
 import { normalizeConfig } from "../lib/core.js";
 import { copyFor } from "../lib/copy.js";
+import { storeUploads } from "../lib/attachments.js";
 import { MeetingManager, MeetingError } from "../lib/meetings.js";
 import { runDeliberation } from "../lib/engine.js";
 import { registerRoundtableApi } from "../lib/api.js";
@@ -71,6 +72,37 @@ function makeSpawner({ pending = false, failArbiter = false } = {}) {
       settle.resolve({ stopReason: "end", output: [{ type: "text", text: "independent answer" }] });
     });
     return handle;
+  };
+  return { spawns, startActivation };
+}
+
+/**
+ * Answering succeeds immediately; every later stage stalls until the run is
+ * aborted. Used to pin the rule that a deadline reached *after* a successful
+ * first stage fails the run instead of completing a degraded fallback.
+ */
+function makeStallingAfterAnswersSpawner() {
+  const spawns = [];
+  const startActivation = (spec) => {
+    spawns.push(spec);
+    const prompt = String(spec.request?.prompt?.[0]?.text ?? "");
+    if (/^You are one participant in a multi-model roundtable/u.test(prompt)) {
+      return {
+        childId: spec.childId,
+        result: Promise.resolve({ stopReason: "end", output: [{ type: "text", text: "independent answer" }] }),
+        dispose: async () => {},
+      };
+    }
+    let settle;
+    const result = new Promise((_resolve, reject) => {
+      settle = { reject };
+    });
+    spec.signal.addEventListener("abort", () => {
+      const error = new Error("aborted");
+      error.code = "ABORT_ERR";
+      settle.reject(error);
+    }, { once: true });
+    return { childId: spec.childId, result, dispose: async () => {} };
   };
   return { spawns, startActivation };
 }
@@ -247,6 +279,95 @@ test("cancelling a live meeting aborts its children and keeps a cancelled record
   }
 });
 
+test("a meeting whose first record cannot be persisted is never started", async () => {
+  const workspace = makeWorkspace();
+  try {
+    // A file where the meeting directory belongs makes the very first write
+    // fail. The request must fail as a whole: no run, no active entry, and no
+    // model calls behind a meeting the page could never list.
+    writeFileSync(join(workspace, ".roundtable"), "");
+    const spawner = makeSpawner();
+    const manager = makeManager(makeContext({ workspace, spawner }));
+
+    await assert.rejects(
+      () => manager.create({ topic: "写盘失败", answerers: ROSTER, rounds: 0, workspace }),
+      (error) => error instanceof MeetingError && error.status === 500 && /写盘失败|会议启动失败/u.test(error.message),
+    );
+    assert.equal(spawner.spawns.length, 0, "no child may be spawned");
+    assert.equal(manager.active.size, 0, "no run may be registered");
+    assert.equal(manager.list(workspace).meetings.length, 0);
+  } finally {
+    rmSync(workspace, { recursive: true, force: true });
+  }
+});
+
+test("a failed first record write hands adopted attachments back to the upload area", async () => {
+  const workspace = makeWorkspace();
+  try {
+    const stored = await storeUploads({
+      ctx: {},
+      workspace,
+      files: [{ name: "notes.md", mime: "text/plain", data: Buffer.from("# notes").toString("base64") }],
+      copy: ZH,
+      config,
+    });
+    const uploadId = stored.attachments[0].id;
+    const manager = makeManager(makeContext({ workspace, spawner: makeSpawner() }));
+    // The upload moved into the meeting directory before the record write; a
+    // failed write must put it back so the retry can reuse the same file.
+    manager.write = () => {
+      throw new Error("disk full");
+    };
+
+    await assert.rejects(
+      () => manager.create({ topic: "写盘失败带附件", answerers: ROSTER, rounds: 0, workspace, attachments: [uploadId] }),
+      (error) => error instanceof MeetingError && error.code === "meeting-persist-failed",
+    );
+    assert.ok(
+      existsSync(join(workspace, ".roundtable", "uploads", uploadId, "manifest.json")),
+      "the adopted attachment is back in the pending upload area",
+    );
+    const adoptedRoot = join(workspace, ".roundtable", "attachments");
+    assert.ok(!existsSync(adoptedRoot) || readdirSync(adoptedRoot).length === 0, "no meeting attachment directory survives");
+    assert.equal(manager.list(workspace).meetings.length, 0);
+  } finally {
+    rmSync(workspace, { recursive: true, force: true });
+  }
+});
+
+test("a live meeting cannot be cancelled through another workspace", async () => {
+  const workspace = makeWorkspace();
+  const other = makeWorkspace();
+  try {
+    const spawner = makeSpawner({ pending: true });
+    const manager = makeManager(makeContext({ workspace, spawner }));
+    const detail = await manager.create({ topic: "别处取消", answerers: ROSTER, rounds: 0, workspace });
+    const run = manager.active.get(detail.id);
+    assert.ok(run !== undefined);
+    while (spawner.spawns.length === 0) await new Promise((resolve) => setTimeout(resolve, 5));
+
+    // The active map is keyed by id alone, so the workspace has to be checked:
+    // a foreign cancel must look exactly like an unknown meeting.
+    assert.throws(
+      () => manager.cancel(other, detail.id),
+      (error) => error instanceof MeetingError && error.status === 404 && error.code === "meeting-not-found",
+    );
+    assert.equal(run.record.status, "running", "the live record is untouched");
+    assert.equal(manager.detail(workspace, detail.id).status, "running");
+    assert.ok(spawner.spawns.every((spec) => !spec.signal.aborted), "no child may be aborted");
+    assert.equal(existsSync(join(other, ".roundtable")), false, "the foreign workspace is not written to");
+
+    // The owning workspace still cancels normally.
+    const cancelled = manager.cancel(workspace, detail.id);
+    assert.equal(cancelled.status, "cancelled");
+    await run.promise;
+    assert.equal(manager.detail(workspace, detail.id).status, "cancelled");
+  } finally {
+    rmSync(workspace, { recursive: true, force: true });
+    rmSync(other, { recursive: true, force: true });
+  }
+});
+
 test("a meeting that outlives its deadline fails instead of hanging", async () => {
   const workspace = makeWorkspace();
   try {
@@ -275,6 +396,94 @@ test("a meeting that outlives its deadline fails instead of hanging", async () =
   } finally {
     rmSync(workspace, { recursive: true, force: true });
   }
+});
+
+test("a deadline that hits a later stage fails the meeting instead of completing a fallback", async () => {
+  const workspace = makeWorkspace();
+  try {
+    // The panel answers, then the review stage stalls. The whole-run deadline
+    // must end the meeting as `failed`; the degraded fallback final answer must
+    // never be persisted as a completed deliberation.
+    const spawner = makeStallingAfterAnswersSpawner();
+    const manager = makeManager(
+      makeContext({ workspace, spawner }),
+      { childTimeoutMs: 300, runTimeoutMs: 300 },
+    );
+    const detail = await manager.create({
+      topic: "超时降级",
+      answerers: ROSTER,
+      reviewers: [ROSTER[0]],
+      rounds: 0,
+      workspace,
+    });
+    const run = manager.active.get(detail.id);
+    assert.ok(run !== undefined);
+    while (spawner.spawns.length === 0) await new Promise((resolve) => setTimeout(resolve, 5));
+
+    // The plugin unrefs its own deadlines, so poll with referenced timers.
+    let final = manager.detail(workspace, detail.id);
+    for (let step = 0; step < 200 && (final.status === "running" || final.status === "queued"); step += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      final = manager.detail(workspace, detail.id);
+    }
+    await run.promise;
+    final = manager.detail(workspace, detail.id);
+
+    assert.equal(final.status, "failed");
+    assert.ok(
+      final.failures.some((failure) => failure.message === ZH.meetingTimedOut.replace("{ms}", "300")),
+      JSON.stringify(final.failures),
+    );
+    // The first stage really did answer before the deadline, which is exactly
+    // the state that used to be settled as a completed fallback.
+    assert.ok(
+      final.transcript.some((entry) => entry.stage === "answering" && entry.text === "independent answer"),
+      JSON.stringify(final.transcript),
+    );
+    // A dead run leaves no degraded final answer and no persisted answer rows.
+    assert.equal(final.finalAnswer, null);
+    assert.equal(final.answers.length, 0);
+    const onDisk = JSON.parse(readFileSync(join(workspace, ".roundtable", `${detail.id}.json`), "utf8"));
+    assert.equal(onDisk.status, "failed");
+    assert.equal(manager.active.size, 0);
+  } finally {
+    rmSync(workspace, { recursive: true, force: true });
+  }
+});
+
+test("runDeliberation rejects instead of returning a degraded result after an abort", async () => {
+  const spawner = makeStallingAfterAnswersSpawner();
+  const controller = new AbortController();
+  const ctx = retryContext(spawner);
+  const outcome = runDeliberation({
+    ctx,
+    config,
+    parentAgent: { id: "parent", session: {} },
+    provider: ctx.subagents.getProvider(),
+    directory: RETRY_DIRECTORY,
+    selection: {
+      topic: "中止测试",
+      answerers: RETRY_DIRECTORY.models,
+      reviewers: [RETRY_DIRECTORY.models[0]],
+      arbiter: RETRY_DIRECTORY.models[1],
+      rounds: 0,
+      autoArbiter: false,
+    },
+    copy: ZH,
+    signal: controller.signal,
+  }).then(
+    (data) => ({ data }),
+    (error) => ({ error }),
+  );
+
+  // Two answers succeeded and a reviewer is already running: without the abort
+  // gate the engine would turn the aborted arbiter into a fallback and resolve.
+  while (spawner.spawns.length < 3) await new Promise((resolve) => setTimeout(resolve, 5));
+  controller.abort(new Error("run deadline"));
+  const settled = await outcome;
+  assert.equal(settled.data, undefined);
+  assert.ok(settled.error instanceof Error, "an aborted deliberation must reject");
+  assert.match(settled.error.message, /run deadline/u);
 });
 
 test("a running record left by a dead process reads as interrupted", () => {
@@ -374,7 +583,12 @@ test("the page API serves workspaces, catalog, meetings, detail and export", asy
       .fetch(new Request("http://localhost/api/roundtable/workspaces"));
     const workspacesBody = await workspaces.json();
     assert.equal(workspacesBody.ok, true);
-    assert.equal(workspacesBody.data.defaultWorkspace, workspace);
+    assert.equal(workspacesBody.data.workspaces[0].id, "ws-1");
+    assert.equal(workspacesBody.data.workspaces[0].path, workspace);
+    // The page's selector uses ids as option values, so the default it preselects
+    // must be an id; the server maps that id back to the directory on every
+    // request. A path here would leave the first visit showing the wrong option.
+    assert.equal(workspacesBody.data.defaultWorkspace, "ws-1");
 
     const catalog = await routes.get("/api/roundtable/catalog")
       .fetch(new Request("http://localhost/api/roundtable/catalog"));
@@ -387,13 +601,21 @@ test("the page API serves workspaces, catalog, meetings, detail and export", asy
       {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ topic: "页面会议", answerers: ROSTER, rounds: 0, workspace }),
+        // Start the meeting with the id the selector would send. The server has
+        // to resolve it back to the workspace directory, exactly like a path.
+        body: JSON.stringify({
+          topic: "页面会议",
+          answerers: ROSTER,
+          rounds: 0,
+          workspace: workspacesBody.data.defaultWorkspace,
+        }),
       },
     ));
     assert.equal(create.status, 202);
     const created = await create.json();
     assert.equal(created.ok, true);
     const id = created.data.meeting.id;
+    assert.equal(created.data.meeting.workspace, workspace, "the id resolved to the registered directory");
     await manager.active.get(id).promise;
 
     const detail = await routes.get("/api/roundtable/meeting")
@@ -634,4 +856,245 @@ test("an arbiter that cannot close its JSON still produces a plain-text final an
   assert.equal(data.finalText, "plain final answer");
   assert.equal(data.arbiterResult.answerMarkdown, "plain final answer");
   assert.ok(data.notes.includes(ZH.arbiterPlainNote));
+});
+
+// ---------------------------------------------------------------------------
+// Language selector: one meeting-wide language, honored by every stage.
+// ---------------------------------------------------------------------------
+
+/** Every prompt the fake provider was given, in spawn order. */
+function promptsOf(spawner) {
+  return spawner.spawns.map((spec) => String(spec.request?.prompt?.[0]?.text ?? ""));
+}
+
+const AUTO_LANGUAGE_RULE = /- Write (?:all prose )?in the same language as the topic\./u;
+const ZH_LANGUAGE_RULE = /Simplified Chinese \(简体中文\)/u;
+const EN_LANGUAGE_RULE = /- Write (?:all prose )?in English,/u;
+
+/** Run one meeting to completion and return its final detail plus prompts. */
+async function runWithLanguage(language) {
+  const workspace = makeWorkspace();
+  const spawner = makeSpawner();
+  const manager = makeManager(makeContext({ workspace, spawner }));
+  const input = { topic: "语言测试", answerers: ROSTER, rounds: 1, workspace };
+  if (language !== undefined) input.language = language;
+  const detail = await manager.create(input);
+  const run = manager.active.get(detail.id);
+  assert.ok(run !== undefined);
+  await run.promise;
+  return {
+    workspace,
+    detail,
+    final: manager.detail(workspace, detail.id),
+    summary: manager.list(workspace).meetings[0],
+    onDisk: JSON.parse(readFileSync(join(workspace, ".roundtable", `${detail.id}.json`), "utf8")),
+    prompts: promptsOf(spawner),
+  };
+}
+
+test("an omitted language runs every stage with the topic-language rule", async () => {
+  const outcome = await runWithLanguage(undefined);
+  try {
+    assert.equal(outcome.detail.language, "auto");
+    assert.equal(outcome.final.language, "auto");
+    assert.equal(outcome.summary.language, "auto");
+    assert.equal(outcome.onDisk.language, "auto");
+
+    // 2 answers + 2 revisions + 2 reviews + 1 arbiter: every stage, not just
+    // the first answer, must carry the auto rule.
+    assert.equal(outcome.prompts.length, 7);
+    for (const prompt of outcome.prompts) {
+      assert.match(prompt, AUTO_LANGUAGE_RULE);
+      assert.doesNotMatch(prompt, ZH_LANGUAGE_RULE);
+      assert.doesNotMatch(prompt, EN_LANGUAGE_RULE);
+    }
+  } finally {
+    rmSync(outcome.workspace, { recursive: true, force: true });
+  }
+});
+
+test("language zh forces Chinese in answers, revisions, reviews and the arbiter", async () => {
+  const outcome = await runWithLanguage("zh");
+  try {
+    assert.equal(outcome.detail.language, "zh");
+    assert.equal(outcome.final.language, "zh");
+    assert.equal(outcome.summary.language, "zh");
+    assert.equal(outcome.onDisk.language, "zh");
+
+    assert.equal(outcome.prompts.length, 7);
+    for (const prompt of outcome.prompts) {
+      assert.match(prompt, ZH_LANGUAGE_RULE);
+      assert.doesNotMatch(prompt, AUTO_LANGUAGE_RULE);
+      // A Chinese topic must not be the thing that keeps the rule honest.
+      assert.doesNotMatch(prompt, EN_LANGUAGE_RULE);
+    }
+  } finally {
+    rmSync(outcome.workspace, { recursive: true, force: true });
+  }
+});
+
+test("language en forces English even when the topic is Chinese", async () => {
+  const outcome = await runWithLanguage("en");
+  try {
+    assert.equal(outcome.final.language, "en");
+    assert.equal(outcome.prompts.length, 7);
+    for (const prompt of outcome.prompts) {
+      assert.match(prompt, EN_LANGUAGE_RULE);
+      assert.doesNotMatch(prompt, AUTO_LANGUAGE_RULE);
+      assert.doesNotMatch(prompt, ZH_LANGUAGE_RULE);
+    }
+  } finally {
+    rmSync(outcome.workspace, { recursive: true, force: true });
+  }
+});
+
+test("the page API accepts, persists and returns the meeting language", async () => {
+  const workspace = makeWorkspace();
+  const routes = new Map();
+  try {
+    const connection = {
+      fetch: {
+        register(route) {
+          if (routes.has(route.path)) throw new Error(`duplicate route ${route.path}`);
+          routes.set(route.path, route);
+          return async () => {
+            routes.delete(route.path);
+          };
+        },
+      },
+    };
+    const ctx = makeContext({ workspace, spawner: makeSpawner() });
+    const originalGet = ctx.get.bind(ctx);
+    ctx.get = (name) => (name === "connection" ? connection : originalGet(name));
+    const manager = makeManager(ctx);
+    registerRoundtableApi(ctx, {
+      ctx,
+      config,
+      manager,
+      copyFor: (locale) => copyFor(locale),
+      resolveLocale: () => "zh",
+    });
+
+    const create = await routes.get("/api/roundtable/meetings").fetch(new Request(
+      "http://localhost/api/roundtable/meetings",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ topic: "接口语言", answerers: ROSTER, rounds: 0, language: "en", workspace }),
+      },
+    ));
+    assert.equal(create.status, 202);
+    const created = await create.json();
+    assert.equal(created.data.meeting.language, "en");
+    const id = created.data.meeting.id;
+    await manager.active.get(id).promise;
+
+    const listed = await routes.get("/api/roundtable/meetings")
+      .fetch(new Request(`http://localhost/api/roundtable/meetings?workspace=${encodeURIComponent(workspace)}`));
+    const listBody = await listed.json();
+    assert.equal(listBody.data.meetings[0].language, "en");
+
+    const detail = await routes.get("/api/roundtable/meeting")
+      .fetch(new Request(`http://localhost/api/roundtable/meeting?workspace=${encodeURIComponent(workspace)}&id=${id}`));
+    const detailBody = await detail.json();
+    assert.equal(detailBody.data.meeting.language, "en");
+  } finally {
+    rmSync(workspace, { recursive: true, force: true });
+  }
+});
+
+test("an unknown language is rejected instead of silently becoming auto", async () => {
+  const workspace = makeWorkspace();
+  try {
+    const spawner = makeSpawner();
+    const manager = makeManager(makeContext({ workspace, spawner }));
+    await assert.rejects(
+      () => manager.create({ topic: "坏语言", answerers: ROSTER, rounds: 0, language: "fr", workspace }),
+      (error) => error instanceof MeetingError && error.status === 400 && error.code === "invalid-request",
+    );
+    assert.equal(spawner.spawns.length, 0, "no child may be spawned");
+    assert.equal(manager.active.size, 0);
+    assert.equal(manager.list(workspace).meetings.length, 0);
+  } finally {
+    rmSync(workspace, { recursive: true, force: true });
+  }
+});
+
+test("a record written before the language selector reads back as auto", () => {
+  const workspace = makeWorkspace();
+  try {
+    const id = "bbbbbbbb-cccc-4ddd-8eee-ffffffffffff";
+    mkdirSync(join(workspace, ".roundtable"), { recursive: true });
+    writeFileSync(join(workspace, ".roundtable", `${id}.json`), JSON.stringify({
+      version: 1,
+      id,
+      topic: "旧记录",
+      workspace,
+      status: "completed",
+      stage: "completed",
+      rounds: 0,
+      createdAt: "2024-01-01T00:00:00.000Z",
+      updatedAt: "2024-01-01T00:01:00.000Z",
+      roster: { answerers: [], reviewers: [] },
+      transcript: [],
+      reviews: [],
+      ranking: [],
+      answers: [],
+      finalAnswer: null,
+      failures: [],
+      limitations: [],
+      notes: [],
+    }), "utf8");
+    const manager = makeManager(makeContext({ workspace, spawner: makeSpawner() }));
+    assert.equal(manager.detail(workspace, id).language, "auto");
+    assert.equal(manager.list(workspace).meetings[0].language, "auto");
+  } finally {
+    rmSync(workspace, { recursive: true, force: true });
+  }
+});
+
+test("the concurrent-meeting cap is counted per workspace, not globally", async () => {
+  const a = makeWorkspace();
+  const b = makeWorkspace();
+  const c = makeWorkspace();
+  const spawner = makeSpawner({ pending: true });
+  const manager = makeManager(makeContext({ workspace: a, spawner }), { maxConcurrentMeetings: 3 });
+  const create = (workspace, topic) => manager.create({ topic, answerers: ROSTER, rounds: 0, workspace });
+  try {
+    // A already runs two meetings.
+    await create(a, "A1");
+    await create(a, "A2");
+    // B runs one: three live runs in total, which used to fill a global cap.
+    await create(b, "B1");
+    assert.equal(manager.active.size, 3);
+
+    // A different workspace still has its own budget, so it can start.
+    const c1 = await create(c, "C1");
+    assert.ok(manager.active.has(c1.id));
+
+    // A's budget (3) still has one slot even though the global map holds four.
+    const a3 = await create(a, "A3");
+    assert.ok(manager.active.has(a3.id));
+
+    // Only when *this* workspace is full does the request fail.
+    await assert.rejects(
+      () => create(a, "A4"),
+      (error) => error instanceof MeetingError
+        && error.status === 400
+        && error.code === "meeting-too-many"
+        && /3/u.test(error.message),
+    );
+    // B is unaffected by A being full.
+    const b2 = await create(b, "B2");
+    assert.ok(manager.active.has(b2.id));
+
+    assert.equal(manager.activeIn(a), 3);
+    assert.equal(manager.activeIn(b), 2);
+    assert.equal(manager.activeIn(c), 1);
+  } finally {
+    await manager.dispose();
+    rmSync(a, { recursive: true, force: true });
+    rmSync(b, { recursive: true, force: true });
+    rmSync(c, { recursive: true, force: true });
+  }
 });

@@ -262,8 +262,7 @@ python assets\_raw\audit_poses.py preview\_p39w_0.png preview\_p39w_1.png ...
   路由只在文件存在时注册；**描述符里的路径必须是裸文件名**（写成 `prefix/file` 会 404）。
 - `lib/client.js`：`STAGE_CHARACTERS`（`scale` / `dx` / `dy` / `cut` / `book` / `mouth`）
   + `stageCharacterFor(seat)`（按座位 key/label 子串匹配，失败回落鲸鱼娘）。
-- 新角色要同时更新：`test/stage.test.mjs` 的镜像表、`docs/art-requirements-*.md`、
-  `HANDOFF.md` 的进度条目。
+- 新角色要同时更新：`test/stage.test.mjs` 的镜像表、`docs/art-requirements-*.md`、以及本地交接笔记（`HANDOFF.md`，不入库）的进度条目。
 
 ### 7.3 座位定标（重要）
 
@@ -293,7 +292,7 @@ k = scale * charH / canvasHeight          # 画布像素 → 舞台像素
 7. probe 1:1 看眼睛、嘴、发际线；差异对照原画并排贴图。
 8. 760 校验页看座位落位（头宽与既有角色持平、腰/胸落在桌沿）。
 9. `lib/stage.js` + `lib/client.js` 接入；`npm test` 46/46。
-10. 文档 + `HANDOFF.md` 条目 + 提交（`assets/**` 在 .gitignore，只能提交 `preview/*.html`、
+10. 文档 + 本地交接笔记（`HANDOFF.md`，不入库）条目 + 提交（`assets/**` 在 .gitignore，只能提交 `preview/*.html`、
     `docs/*.md`、`lib/*.js`、`test/*.mjs`）。
 
 ---
