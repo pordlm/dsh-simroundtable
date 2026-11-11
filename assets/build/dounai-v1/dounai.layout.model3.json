@@ -1,0 +1,68 @@
+{
+	"Version": 3,
+	"FileReferences": {
+		"Moc": "dounai.layout.moc3",
+		"Textures": [
+			"dounai.layout.4096/texture_00.png"
+		],
+		"Physics": "dounai.layout.physics3.json",
+		"DisplayInfo": "dounai.layout.cdi3.json",
+		"Expressions": [
+			{
+				"Name": "Smile",
+				"File": "dounai.layout.smile.exp3.json"
+			},
+			{
+				"Name": "Sad",
+				"File": "dounai.layout.sad.exp3.json"
+			},
+			{
+				"Name": "Angry",
+				"File": "dounai.layout.angry.exp3.json"
+			},
+			{
+				"Name": "Surprised",
+				"File": "dounai.layout.surprised.exp3.json"
+			}
+		],
+		"Motions": {
+			"Idle": [
+				{
+					"File": "dounai.layout.idle.motion3.json"
+				}
+			],
+			"Blink": [
+				{
+					"File": "dounai.layout.blink.motion3.json"
+				}
+			],
+			"Nod": [
+				{
+					"File": "dounai.layout.nod.motion3.json"
+				}
+			],
+			"Shake": [
+				{
+					"File": "dounai.layout.shake.motion3.json"
+				}
+			]
+		}
+	},
+	"Groups": [
+		{
+			"Target": "Parameter",
+			"Name": "EyeBlink",
+			"Ids": [
+				"ParamEyeLOpen",
+				"ParamEyeROpen"
+			]
+		},
+		{
+			"Target": "Parameter",
+			"Name": "LipSync",
+			"Ids": [
+				"ParamMouthOpenY"
+			]
+		}
+	]
+}

@@ -1,0 +1,269 @@
+{
+ "format": "psd2live-layout",
+ "version": 1,
+ "name": "dounai",
+ "canvas": {
+  "width": 2048,
+  "height": 2048
+ },
+ "layers": [
+  {
+   "name": "back hair",
+   "image": {
+    "path": "parts/back hair.png",
+    "width": 818,
+    "height": 879
+   },
+   "rect": {
+    "left": 614,
+    "top": 103,
+    "width": 818,
+    "height": 879
+   }
+  },
+  {
+   "name": "head base",
+   "image": {
+    "path": "parts/head_base.png",
+    "width": 846,
+    "height": 721
+   },
+   "rect": {
+    "left": 602,
+    "top": 327,
+    "width": 846,
+    "height": 721
+   }
+  },
+  {
+   "name": "footwear-l",
+   "image": {
+    "path": "parts/footwear-l.png",
+    "width": 219,
+    "height": 158
+   },
+   "rect": {
+    "left": 736,
+    "top": 1787,
+    "width": 219,
+    "height": 158
+   }
+  },
+  {
+   "name": "footwear-r",
+   "image": {
+    "path": "parts/footwear-r.png",
+    "width": 220,
+    "height": 158
+   },
+   "rect": {
+    "left": 1096,
+    "top": 1787,
+    "width": 220,
+    "height": 158
+   }
+  },
+  {
+   "name": "neck",
+   "image": {
+    "path": "parts/neck.png",
+    "width": 194,
+    "height": 57
+   },
+   "rect": {
+    "left": 939,
+    "top": 985,
+    "width": 194,
+    "height": 57
+   }
+  },
+  {
+   "name": "topwear",
+   "image": {
+    "path": "parts/topwear.png",
+    "width": 824,
+    "height": 895
+   },
+   "rect": {
+    "left": 613,
+    "top": 935,
+    "width": 824,
+    "height": 895
+   }
+  },
+  {
+   "name": "handwear-l",
+   "image": {
+    "path": "parts/handwear-l.png",
+    "width": 181,
+    "height": 275
+   },
+   "rect": {
+    "left": 613,
+    "top": 1324,
+    "width": 181,
+    "height": 275
+   }
+  },
+  {
+   "name": "handwear-r",
+   "image": {
+    "path": "parts/handwear-r.png",
+    "width": 185,
+    "height": 275
+   },
+   "rect": {
+    "left": 1252,
+    "top": 1324,
+    "width": 185,
+    "height": 275
+   }
+  },
+  {
+   "name": "face",
+   "image": {
+    "path": "parts/face.png",
+    "width": 608,
+    "height": 590
+   },
+   "rect": {
+    "left": 755,
+    "top": 421,
+    "width": 608,
+    "height": 590
+   }
+  },
+  {
+   "name": "eyewhite-l",
+   "image": {
+    "path": "parts/eyewhite-l.png",
+    "width": 218,
+    "height": 176
+   },
+   "rect": {
+    "left": 761,
+    "top": 556,
+    "width": 218,
+    "height": 176
+   },
+   "variant": {
+    "type": "toggle",
+    "parameter": "ParamEyeLOpen"
+   }
+  },
+  {
+   "name": "eyewhite-r",
+   "image": {
+    "path": "parts/eyewhite-r.png",
+    "width": 198,
+    "height": 143
+   },
+   "rect": {
+    "left": 1128,
+    "top": 573,
+    "width": 198,
+    "height": 143
+   },
+   "variant": {
+    "type": "toggle",
+    "parameter": "ParamEyeROpen"
+   }
+  },
+  {
+   "name": "irides-l",
+   "image": {
+    "path": "parts/irides-l.png",
+    "width": 218,
+    "height": 144
+   },
+   "rect": {
+    "left": 761,
+    "top": 572,
+    "width": 218,
+    "height": 144
+   },
+   "variant": {
+    "type": "toggle",
+    "parameter": "ParamEyeLOpen"
+   }
+  },
+  {
+   "name": "irides-r",
+   "image": {
+    "path": "parts/irides-r.png",
+    "width": 198,
+    "height": 142
+   },
+   "rect": {
+    "left": 1128,
+    "top": 574,
+    "width": 198,
+    "height": 142
+   },
+   "variant": {
+    "type": "toggle",
+    "parameter": "ParamEyeROpen"
+   }
+  },
+  {
+   "name": "mouth close",
+   "image": {
+    "path": "parts/mouth close.png",
+    "width": 178,
+    "height": 70
+   },
+   "rect": {
+    "left": 963,
+    "top": 780,
+    "width": 178,
+    "height": 70
+   }
+  },
+  {
+   "name": "mouth open",
+   "image": {
+    "path": "parts/mouth open.png",
+    "width": 195,
+    "height": 120
+   },
+   "rect": {
+    "left": 955,
+    "top": 774,
+    "width": 195,
+    "height": 120
+   },
+   "variant": {
+    "type": "toggle",
+    "parameter": "ParamMouthOpenY"
+   }
+  },
+  {
+   "name": "ears",
+   "image": {
+    "path": "parts/ears.png",
+    "width": 842,
+    "height": 164
+   },
+   "rect": {
+    "left": 604,
+    "top": 647,
+    "width": 842,
+    "height": 164
+   }
+  },
+  {
+   "name": "front hair",
+   "image": {
+    "path": "parts/front hair.png",
+    "width": 821,
+    "height": 629
+   },
+   "rect": {
+    "left": 614,
+    "top": 333,
+    "width": 821,
+    "height": 629
+   }
+  }
+ ]
+}

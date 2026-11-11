@@ -1,0 +1,19 @@
+I'm attaching TWO reference images of the same character ("MiniMax"):
+1. A chibi character design sheet — use it for the chibi proportions, hairstyle, outfit details and accessories.
+2. A full-grown version of the same character — use it for the ART STYLE: line weight, colouring, shading style, eye shape and overall rendering quality must match THIS image.
+
+Output ONE image, portrait 1024x1536, flat pure green #00FF00 background. No frame, border, text, watermark or cast shadow. Exactly one character, single front view, no second view, no colour swatches, no decoration.
+
+Anime chibi girl, about 3 heads tall, full body from the top of her beret to the soles of her shoes, standing straight and facing the viewer, shoulders level, legs together.
+
+Character design (must match the design sheet):
+- Short wavy peach-orange hair (chin to shoulder length) with wispy bangs; a white beret tilted on her head with a small pink ribbon bow and a tiny coral-pink wave logo on the front.
+- Small conch-shell shaped drop earrings in cream-and-orange, one on each ear.
+- Large coral-red eyes, bright cheerful open expression, small closed mouth, soft blush on the cheeks.
+- She wears a white short jacket with pink inner lining and a small coral wave logo on the chest, over a white pleated blouse; a pink lanyard around her neck with a white ID badge; a beige plaid skirt with a pink belt; white ankle socks and white-and-coral sneakers with pink laces.
+
+Hands: both hands empty and folded lightly in front of her waist — no conch shell, no bag, no recorder, no object.
+
+Framing: 40px of clear green above the top of her beret, 40px under her shoe soles, 40px of clear green on each side; the head occupies the top ~30% of her total height, eyes about 22% down from the top.
+
+使用赛璐璐着色绘制 (flat cel shading), clean thin line art matching the adult reference's style, white-coral-orange palette matching the reference, no shading on the green background.

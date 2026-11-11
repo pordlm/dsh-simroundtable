@@ -1,0 +1,19 @@
+I'm attaching TWO reference images of the same character ("Mimo"):
+1. A chibi character design sheet — use it for the chibi proportions, hairstyle, outfit details and accessories.
+2. A full-grown version of the same character — use it for the ART STYLE: line weight, colouring, shading style, eye shape and overall rendering quality must match THIS image.
+
+Output ONE image, portrait 1024x1536, flat pure green #00FF00 background. No frame, border, text, watermark or cast shadow. Exactly one character, single front view, no second view, no colour swatches, no decoration.
+
+Anime chibi girl, about 3 heads tall, full body from the top of her ears to the soles of her shoes, standing straight and facing the viewer, shoulders level, legs together.
+
+Character design (must match the design sheet):
+- A white hood worn up on her head, with two large upright orange-and-white rabbit ears attached to the hood, each ear with a small dark-orange "MI" tag near the base; the hood has a small tuft of hair (ahoge) poking out of the top.
+- Very long wavy silvery-white twintails with orange gradient streaks, tied with orange ribbon bows at the top; a small orange X-shaped hairpin above her bangs.
+- Large orange eyes, gentle expression, small closed mouth, soft blush on the cheeks.
+- She wears a white hoodie dress under an orange-and-white sporty tech jacket with black straps, buckles and a small orange "MI" logo patch on the sleeve; black pleated mini skirt; mismatched legwear — her right leg (viewer's left) in a white thigh sock with an orange band, her left leg (viewer's right) in a black thigh sock with white text-like stripes; orange-and-white chunky sneakers.
+
+Hands: both hands empty and folded lightly in front of her waist — no bunny plush, no object.
+
+Framing: 40px of clear green above the top of her ears, 40px under her shoe soles, 40px of clear green on each side; the head (including ears) occupies the top ~30% of her total height, eyes about 22% down from the top.
+
+使用赛璐璐着色绘制 (flat cel shading), clean thin line art matching the adult reference's style, orange-white-black palette matching the reference, no shading on the green background.

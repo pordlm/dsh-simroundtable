@@ -1,0 +1,19 @@
+I'm attaching TWO reference images of the same character ("Kimi"):
+1. A chibi character design sheet — use it for the chibi proportions, hairstyle, outfit details and accessories.
+2. A full-grown version of the same character — use it for the ART STYLE: line weight, colouring, shading style, eye shape and overall rendering quality must match THIS image.
+
+Output ONE image, portrait 1024x1536, flat pure green #00FF00 background. No frame, border, text, watermark or cast shadow. Exactly one character, single front view, no second view, no colour swatches, no decoration.
+
+Anime chibi girl, about 3 heads tall, full body from the top of her hair to the soles of her shoes, standing straight and facing the viewer, shoulders level, legs together.
+
+Character design (must match the design sheet):
+- Very long wavy silvery-lavender hair reaching below her knees, with a white frilled maid headband (headdress) on top; a crescent-moon headpiece holding a small dark triangle prism that casts a tiny rainbow beam, pinned above the headband on her left side (viewer's right).
+- A large navy-blue hair bow with a white letter "K" and small silver music-note charms hanging from it, on the same side as the moon headpiece.
+- Large purple-blue eyes, calm gentle expression, small closed mouth, soft blush on the cheeks, thin soft eyebrows.
+- She wears a navy-and-white gothic lolita dress: white blouse with puffy long sleeves and ruffle cuffs, a navy chest bow with a white "K" badge at the collar, a short navy capelet printed with tiny stars, moons and music notes, a navy corset-style bodice with silver buttons and thin gold chains, a chain belt with small hanging "K" letter charms, a layered white ruffled skirt with a navy overskirt printed with stars and music notes, white tights, and navy mary-jane heels with small bows.
+
+Hands: both hands empty and folded lightly in front of her waist — no flute, no book, no object.
+
+Framing: 40px of clear green above the top of her hair and headband, 40px under her shoe soles, 40px of clear green on each side; the head occupies the top ~30% of her total height, eyes about 22% down from the top.
+
+使用赛璐璐着色绘制 (flat cel shading), clean thin line art matching the adult reference's style, soft navy-white-lavender palette matching the reference, no shading on the green background.

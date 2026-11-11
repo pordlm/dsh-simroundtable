@@ -1,0 +1,68 @@
+{
+	"Version": 3,
+	"FileReferences": {
+		"Moc": "mimo.layout.moc3",
+		"Textures": [
+			"mimo.layout.4096/texture_00.png"
+		],
+		"Physics": "mimo.layout.physics3.json",
+		"DisplayInfo": "mimo.layout.cdi3.json",
+		"Expressions": [
+			{
+				"Name": "Smile",
+				"File": "mimo.layout.smile.exp3.json"
+			},
+			{
+				"Name": "Sad",
+				"File": "mimo.layout.sad.exp3.json"
+			},
+			{
+				"Name": "Angry",
+				"File": "mimo.layout.angry.exp3.json"
+			},
+			{
+				"Name": "Surprised",
+				"File": "mimo.layout.surprised.exp3.json"
+			}
+		],
+		"Motions": {
+			"Idle": [
+				{
+					"File": "mimo.layout.idle.motion3.json"
+				}
+			],
+			"Blink": [
+				{
+					"File": "mimo.layout.blink.motion3.json"
+				}
+			],
+			"Nod": [
+				{
+					"File": "mimo.layout.nod.motion3.json"
+				}
+			],
+			"Shake": [
+				{
+					"File": "mimo.layout.shake.motion3.json"
+				}
+			]
+		}
+	},
+	"Groups": [
+		{
+			"Target": "Parameter",
+			"Name": "EyeBlink",
+			"Ids": [
+				"ParamEyeLOpen",
+				"ParamEyeROpen"
+			]
+		},
+		{
+			"Target": "Parameter",
+			"Name": "LipSync",
+			"Ids": [
+				"ParamMouthOpenY"
+			]
+		}
+	]
+}

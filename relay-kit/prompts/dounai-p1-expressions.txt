@@ -1,0 +1,9 @@
+I'm attaching the master reference image: the chibi mascot girl "Dounai" (yellow skin, chestnut-brown bob hair) on a flat pure green #00FF00 background.
+
+Output ONE image, portrait 1024x1536, flat pure green #00FF00 background, no frame, border, text, watermark or shadow. Keep the EXACT same position, size, scale, pose, composition, colours and shading as the master — every pixel outside the two changed regions must be identical to the master. Do not re-draw, re-pose or re-compose the character.
+
+Change ONLY these two things:
+1. BOTH EYES fully closed: each eye becomes a single gentle downward-curved closed-lid line, exactly where the open eyes are now. Soft eyelid shading above each line, same style as the master. Everything else in the face (nose, cheeks, hair, blush, eyebrows) unchanged.
+2. The MOUTH open: replace the small closed smile with a small egg-shaped open mouth (about 45x50 px at this scale) with a dark pink mouth interior and a small tongue, positioned at the exact same spot as the closed mouth. Everything else in the face unchanged.
+
+使用与参考图一致的柔和光滑着色 (soft smooth toy-like shading matching the master), warm yellow-brown palette.

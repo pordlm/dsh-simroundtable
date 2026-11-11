@@ -1,0 +1,68 @@
+{
+	"Version": 3,
+	"FileReferences": {
+		"Moc": "kimi.layout.moc3",
+		"Textures": [
+			"kimi.layout.4096/texture_00.png"
+		],
+		"Physics": "kimi.layout.physics3.json",
+		"DisplayInfo": "kimi.layout.cdi3.json",
+		"Expressions": [
+			{
+				"Name": "Smile",
+				"File": "kimi.layout.smile.exp3.json"
+			},
+			{
+				"Name": "Sad",
+				"File": "kimi.layout.sad.exp3.json"
+			},
+			{
+				"Name": "Angry",
+				"File": "kimi.layout.angry.exp3.json"
+			},
+			{
+				"Name": "Surprised",
+				"File": "kimi.layout.surprised.exp3.json"
+			}
+		],
+		"Motions": {
+			"Idle": [
+				{
+					"File": "kimi.layout.idle.motion3.json"
+				}
+			],
+			"Blink": [
+				{
+					"File": "kimi.layout.blink.motion3.json"
+				}
+			],
+			"Nod": [
+				{
+					"File": "kimi.layout.nod.motion3.json"
+				}
+			],
+			"Shake": [
+				{
+					"File": "kimi.layout.shake.motion3.json"
+				}
+			]
+		}
+	},
+	"Groups": [
+		{
+			"Target": "Parameter",
+			"Name": "EyeBlink",
+			"Ids": [
+				"ParamEyeLOpen",
+				"ParamEyeROpen"
+			]
+		},
+		{
+			"Target": "Parameter",
+			"Name": "LipSync",
+			"Ids": [
+				"ParamMouthOpenY"
+			]
+		}
+	]
+}

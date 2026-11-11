@@ -1,0 +1,68 @@
+{
+	"Version": 3,
+	"FileReferences": {
+		"Moc": "gemini.layout.moc3",
+		"Textures": [
+			"gemini.layout.4096/texture_00.png"
+		],
+		"Physics": "gemini.layout.physics3.json",
+		"DisplayInfo": "gemini.layout.cdi3.json",
+		"Expressions": [
+			{
+				"Name": "Smile",
+				"File": "gemini.layout.smile.exp3.json"
+			},
+			{
+				"Name": "Sad",
+				"File": "gemini.layout.sad.exp3.json"
+			},
+			{
+				"Name": "Angry",
+				"File": "gemini.layout.angry.exp3.json"
+			},
+			{
+				"Name": "Surprised",
+				"File": "gemini.layout.surprised.exp3.json"
+			}
+		],
+		"Motions": {
+			"Idle": [
+				{
+					"File": "gemini.layout.idle.motion3.json"
+				}
+			],
+			"Blink": [
+				{
+					"File": "gemini.layout.blink.motion3.json"
+				}
+			],
+			"Nod": [
+				{
+					"File": "gemini.layout.nod.motion3.json"
+				}
+			],
+			"Shake": [
+				{
+					"File": "gemini.layout.shake.motion3.json"
+				}
+			]
+		}
+	},
+	"Groups": [
+		{
+			"Target": "Parameter",
+			"Name": "EyeBlink",
+			"Ids": [
+				"ParamEyeLOpen",
+				"ParamEyeROpen"
+			]
+		},
+		{
+			"Target": "Parameter",
+			"Name": "LipSync",
+			"Ids": [
+				"ParamMouthOpenY"
+			]
+		}
+	]
+}

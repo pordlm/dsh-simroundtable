@@ -1,0 +1,68 @@
+{
+	"Version": 3,
+	"FileReferences": {
+		"Moc": "claude.layout.moc3",
+		"Textures": [
+			"claude.layout.4096/texture_00.png"
+		],
+		"Physics": "claude.layout.physics3.json",
+		"DisplayInfo": "claude.layout.cdi3.json",
+		"Expressions": [
+			{
+				"Name": "Smile",
+				"File": "claude.layout.smile.exp3.json"
+			},
+			{
+				"Name": "Sad",
+				"File": "claude.layout.sad.exp3.json"
+			},
+			{
+				"Name": "Angry",
+				"File": "claude.layout.angry.exp3.json"
+			},
+			{
+				"Name": "Surprised",
+				"File": "claude.layout.surprised.exp3.json"
+			}
+		],
+		"Motions": {
+			"Idle": [
+				{
+					"File": "claude.layout.idle.motion3.json"
+				}
+			],
+			"Blink": [
+				{
+					"File": "claude.layout.blink.motion3.json"
+				}
+			],
+			"Nod": [
+				{
+					"File": "claude.layout.nod.motion3.json"
+				}
+			],
+			"Shake": [
+				{
+					"File": "claude.layout.shake.motion3.json"
+				}
+			]
+		}
+	},
+	"Groups": [
+		{
+			"Target": "Parameter",
+			"Name": "EyeBlink",
+			"Ids": [
+				"ParamEyeLOpen",
+				"ParamEyeROpen"
+			]
+		},
+		{
+			"Target": "Parameter",
+			"Name": "LipSync",
+			"Ids": [
+				"ParamMouthOpenY"
+			]
+		}
+	]
+}

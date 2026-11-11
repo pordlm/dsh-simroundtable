@@ -1,0 +1,325 @@
+{
+ "format": "psd2live-layout",
+ "version": 1,
+ "name": "glm",
+ "canvas": {
+  "width": 2048,
+  "height": 2048
+ },
+ "layers": [
+  {
+   "name": "back hair",
+   "image": {
+    "path": "parts/back hair.png",
+    "width": 1058,
+    "height": 1157
+   },
+   "rect": {
+    "left": 496,
+    "top": 103,
+    "width": 1058,
+    "height": 1157
+   }
+  },
+  {
+   "name": "tail",
+   "image": {
+    "path": "parts/tail.png",
+    "width": 670,
+    "height": 694
+   },
+   "rect": {
+    "left": 894,
+    "top": 1252,
+    "width": 670,
+    "height": 694
+   }
+  },
+  {
+   "name": "head base",
+   "image": {
+    "path": "parts/head_base.png",
+    "width": 758,
+    "height": 892
+   },
+   "rect": {
+    "left": 594,
+    "top": 109,
+    "width": 758,
+    "height": 892
+   }
+  },
+  {
+   "name": "legwear-l",
+   "image": {
+    "path": "parts/legwear-l.png",
+    "width": 201,
+    "height": 238
+   },
+   "rect": {
+    "left": 643,
+    "top": 1405,
+    "width": 201,
+    "height": 238
+   }
+  },
+  {
+   "name": "legwear-r",
+   "image": {
+    "path": "parts/legwear-r.png",
+    "width": 151,
+    "height": 245
+   },
+   "rect": {
+    "left": 838,
+    "top": 1405,
+    "width": 151,
+    "height": 245
+   }
+  },
+  {
+   "name": "footwear-l",
+   "image": {
+    "path": "parts/footwear-l.png",
+    "width": 179,
+    "height": 72
+   },
+   "rect": {
+    "left": 665,
+    "top": 1571,
+    "width": 179,
+    "height": 72
+   }
+  },
+  {
+   "name": "footwear-r",
+   "image": {
+    "path": "parts/footwear-r.png",
+    "width": 151,
+    "height": 134
+   },
+   "rect": {
+    "left": 838,
+    "top": 1571,
+    "width": 151,
+    "height": 134
+   }
+  },
+  {
+   "name": "bottomwear",
+   "image": {
+    "path": "parts/bottomwear.png",
+    "width": 878,
+    "height": 430
+   },
+   "rect": {
+    "left": 485,
+    "top": 1128,
+    "width": 878,
+    "height": 430
+   }
+  },
+  {
+   "name": "topwear",
+   "image": {
+    "path": "parts/topwear.png",
+    "width": 868,
+    "height": 532
+   },
+   "rect": {
+    "left": 496,
+    "top": 726,
+    "width": 868,
+    "height": 532
+   }
+  },
+  {
+   "name": "handwear",
+   "image": {
+    "path": "parts/handwear.png",
+    "width": 399,
+    "height": 421
+   },
+   "rect": {
+    "left": 658,
+    "top": 809,
+    "width": 399,
+    "height": 421
+   }
+  },
+  {
+   "name": "face",
+   "image": {
+    "path": "parts/face.png",
+    "width": 447,
+    "height": 398
+   },
+   "rect": {
+    "left": 818,
+    "top": 417,
+    "width": 447,
+    "height": 398
+   }
+  },
+  {
+   "name": "eyewhite-l",
+   "image": {
+    "path": "parts/eyewhite-l.png",
+    "width": 123,
+    "height": 118
+   },
+   "rect": {
+    "left": 850,
+    "top": 557,
+    "width": 123,
+    "height": 118
+   },
+   "variant": {
+    "type": "toggle",
+    "parameter": "ParamEyeLOpen"
+   }
+  },
+  {
+   "name": "eyewhite-r",
+   "image": {
+    "path": "parts/eyewhite-r.png",
+    "width": 129,
+    "height": 134
+   },
+   "rect": {
+    "left": 1085,
+    "top": 549,
+    "width": 129,
+    "height": 134
+   },
+   "variant": {
+    "type": "toggle",
+    "parameter": "ParamEyeROpen"
+   }
+  },
+  {
+   "name": "irides-l",
+   "image": {
+    "path": "parts/irides-l.png",
+    "width": 72,
+    "height": 64
+   },
+   "rect": {
+    "left": 891,
+    "top": 601,
+    "width": 72,
+    "height": 64
+   },
+   "variant": {
+    "type": "toggle",
+    "parameter": "ParamEyeLOpen"
+   }
+  },
+  {
+   "name": "irides-r",
+   "image": {
+    "path": "parts/irides-r.png",
+    "width": 55,
+    "height": 56
+   },
+   "rect": {
+    "left": 1114,
+    "top": 597,
+    "width": 55,
+    "height": 56
+   },
+   "variant": {
+    "type": "toggle",
+    "parameter": "ParamEyeROpen"
+   }
+  },
+  {
+   "name": "mouth close",
+   "image": {
+    "path": "parts/mouth close.png",
+    "width": 47,
+    "height": 13
+   },
+   "rect": {
+    "left": 1005,
+    "top": 714,
+    "width": 47,
+    "height": 13
+   }
+  },
+  {
+   "name": "mouth open",
+   "image": {
+    "path": "parts/mouth open.png",
+    "width": 41,
+    "height": 49
+   },
+   "rect": {
+    "left": 1006,
+    "top": 700,
+    "width": 41,
+    "height": 49
+   },
+   "variant": {
+    "type": "toggle",
+    "parameter": "ParamMouthOpenY"
+   }
+  },
+  {
+   "name": "neckwear",
+   "image": {
+    "path": "parts/neckwear.png",
+    "width": 153,
+    "height": 178
+   },
+   "rect": {
+    "left": 850,
+    "top": 775,
+    "width": 153,
+    "height": 178
+   }
+  },
+  {
+   "name": "ears",
+   "image": {
+    "path": "parts/ears.png",
+    "width": 623,
+    "height": 288
+   },
+   "rect": {
+    "left": 596,
+    "top": 161,
+    "width": 623,
+    "height": 288
+   }
+  },
+  {
+   "name": "front hair",
+   "image": {
+    "path": "parts/front hair.png",
+    "width": 639,
+    "height": 654
+   },
+   "rect": {
+    "left": 707,
+    "top": 341,
+    "width": 639,
+    "height": 654
+   }
+  },
+  {
+   "name": "headwear",
+   "image": {
+    "path": "parts/headwear.png",
+    "width": 521,
+    "height": 522
+   },
+   "rect": {
+    "left": 621,
+    "top": 113,
+    "width": 521,
+    "height": 522
+   }
+  }
+ ]
+}

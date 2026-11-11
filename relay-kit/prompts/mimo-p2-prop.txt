@@ -1,0 +1,9 @@
+I'm attaching the master reference image: an anime chibi girl with a white rabbit-ear hood and long silvery twintails on a flat pure green #00FF00 background.
+
+Output ONE image, portrait 1024x1536, flat pure green #00FF00 background, no frame, border, text, watermark or shadow. Keep the EXACT same position, size, scale, pose, composition, line art, colours and shading as the master — every pixel outside the one changed region must be identical to the master. Do not re-draw, re-pose or re-compose the character. Do not move the head or any part of the outfit.
+
+Change ONLY this one thing: she now HUGS her white bunny plush against her chest with both arms. The plush is a small round white bunny with long floppy ears, one orange inner-ear patch with a small orange "MI" logo, and a simple smiling face, exactly as in her character design sheet. Her arms wrap around the plush from both sides; the plush covers the front of her hoodie and the top of her skirt. Keep the arms at the same overall position — do not raise them, do not change the jacket or sleeves otherwise.
+
+Everything else unchanged: face, eyes (open), mouth (small closed mouth), hair, hood, rabbit ears, bows, X hairpin, jacket, skirt, socks, shoes, background.
+
+使用赛璐璐着色绘制 (flat cel shading), clean thin line art, same orange-white-black palette as the master.

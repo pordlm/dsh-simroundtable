@@ -1,0 +1,68 @@
+{
+	"Version": 3,
+	"FileReferences": {
+		"Moc": "glm.layout.moc3",
+		"Textures": [
+			"glm.layout.4096/texture_00.png"
+		],
+		"Physics": "glm.layout.physics3.json",
+		"DisplayInfo": "glm.layout.cdi3.json",
+		"Expressions": [
+			{
+				"Name": "Smile",
+				"File": "glm.layout.smile.exp3.json"
+			},
+			{
+				"Name": "Sad",
+				"File": "glm.layout.sad.exp3.json"
+			},
+			{
+				"Name": "Angry",
+				"File": "glm.layout.angry.exp3.json"
+			},
+			{
+				"Name": "Surprised",
+				"File": "glm.layout.surprised.exp3.json"
+			}
+		],
+		"Motions": {
+			"Idle": [
+				{
+					"File": "glm.layout.idle.motion3.json"
+				}
+			],
+			"Blink": [
+				{
+					"File": "glm.layout.blink.motion3.json"
+				}
+			],
+			"Nod": [
+				{
+					"File": "glm.layout.nod.motion3.json"
+				}
+			],
+			"Shake": [
+				{
+					"File": "glm.layout.shake.motion3.json"
+				}
+			]
+		}
+	},
+	"Groups": [
+		{
+			"Target": "Parameter",
+			"Name": "EyeBlink",
+			"Ids": [
+				"ParamEyeLOpen",
+				"ParamEyeROpen"
+			]
+		},
+		{
+			"Target": "Parameter",
+			"Name": "LipSync",
+			"Ids": [
+				"ParamMouthOpenY"
+			]
+		}
+	]
+}

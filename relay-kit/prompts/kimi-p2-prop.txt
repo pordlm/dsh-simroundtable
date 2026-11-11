@@ -1,0 +1,9 @@
+I'm attaching the master reference image: an anime chibi gothic-lolita girl with long silvery-lavender hair on a flat pure green #00FF00 background.
+
+Output ONE image, portrait 1024x1536, flat pure green #00FF00 background, no frame, border, text, watermark or shadow. Keep the EXACT same position, size, scale, pose, composition, line art, colours and shading as the master — every pixel outside the one changed region must be identical to the master. Do not re-draw, re-pose or re-compose the character. Do not move the arms, the head, or any part of the dress.
+
+Change ONLY this one thing: her folded hands now HOLD her silver flute. The flute is a slim silver transverse flute with small round keys, held diagonally across her front at waist level, grips angled down to the viewer's left, as in her character design sheet. Her fingers wrap naturally around the flute body; the flute partially covers her forearms and the front of her skirt. Keep the hands at the same place in front of her waist — do not raise them, do not change the sleeves.
+
+Everything else unchanged: face, eyes (open), mouth (small closed mouth), hair, headband, moon-and-prism headpiece, bows, dress, chains, legs, shoes, background.
+
+使用赛璐璐着色绘制 (flat cel shading), clean thin line art, same soft navy-white-lavender palette as the master.

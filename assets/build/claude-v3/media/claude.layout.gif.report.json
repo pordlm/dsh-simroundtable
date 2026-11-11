@@ -1,0 +1,1 @@
+{"target":"gif","compiler":"3.6.7","files":["claude.layout.gif"],"losses":[{"object":"*","feature":"structure","handling":"baked","note":"Rendered to pixels; deformers, parameters and meshes are not kept"},{"object":"*","feature":"texture_size","handling":"approximated","note":"GIF holds 256 colors and 1-bit transparency"}]}

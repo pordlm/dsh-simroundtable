@@ -1,0 +1,9 @@
+I'm attaching the master reference image: an anime chibi girl with short peach-orange hair and a white beret on a flat pure green #00FF00 background.
+
+Output ONE image, portrait 1024x1536, flat pure green #00FF00 background, no frame, border, text, watermark or shadow. Keep the EXACT same position, size, scale, pose, composition, line art, colours and shading as the master — every pixel outside the one changed region must be identical to the master. Do not re-draw, re-pose or re-compose the character. Do not move the arms, the head, or any part of the outfit.
+
+Change ONLY this one thing: her folded hands now HOLD her cream-and-orange conch shell in front of her waist. The conch is a small spiral seashell, cream white with warm orange stripes and a glossy highlight, pointed tip angled up to the viewer's right, exactly as in her character design sheet. Her fingers cup around the shell; the shell partially covers her hands and the front of her skirt. Keep the hands at the same place in front of her waist — do not raise them, do not change the sleeves.
+
+Everything else unchanged: face, eyes (open), mouth (small closed smile), hair, beret, bow, earrings, jacket, blouse, lanyard, badge, skirt, belt, socks, shoes, background.
+
+使用赛璐璐着色绘制 (flat cel shading), clean thin line art, same white-coral-orange palette as the master.

@@ -1,0 +1,9 @@
+I'm attaching the master reference image: an anime chibi girl with a white rabbit-ear hood and long silvery twintails on a flat pure green #00FF00 background.
+
+Output ONE image, portrait 1024x1536, flat pure green #00FF00 background, no frame, border, text, watermark or shadow. Keep the EXACT same position, size, scale, pose, composition, line art, colours and shading as the master — every pixel outside the two changed regions must be identical to the master. Do not re-draw, re-pose or re-compose the character.
+
+Change ONLY these two things:
+1. BOTH EYES fully closed: each eye becomes a single gentle downward-curved closed-lid line with the upper eyelash line pressing on top of it, exactly where the open eyes are now. Soft eyelid shading above each line, same style as the master. Everything else in the face (nose, cheeks, hair covering, blush, eyebrows) unchanged.
+2. The MOUTH open: replace the small closed mouth with a small egg-shaped open mouth (about 45x50 px at this scale) with a dark pink mouth interior and a small tongue, positioned at the exact same spot as the closed mouth. Everything else in the face unchanged.
+
+使用赛璐璐着色绘制 (flat cel shading), clean thin line art, same orange-white-black palette as the master.

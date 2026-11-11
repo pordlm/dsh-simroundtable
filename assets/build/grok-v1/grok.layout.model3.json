@@ -1,0 +1,68 @@
+{
+	"Version": 3,
+	"FileReferences": {
+		"Moc": "grok.layout.moc3",
+		"Textures": [
+			"grok.layout.4096/texture_00.png"
+		],
+		"Physics": "grok.layout.physics3.json",
+		"DisplayInfo": "grok.layout.cdi3.json",
+		"Expressions": [
+			{
+				"Name": "Smile",
+				"File": "grok.layout.smile.exp3.json"
+			},
+			{
+				"Name": "Sad",
+				"File": "grok.layout.sad.exp3.json"
+			},
+			{
+				"Name": "Angry",
+				"File": "grok.layout.angry.exp3.json"
+			},
+			{
+				"Name": "Surprised",
+				"File": "grok.layout.surprised.exp3.json"
+			}
+		],
+		"Motions": {
+			"Idle": [
+				{
+					"File": "grok.layout.idle.motion3.json"
+				}
+			],
+			"Blink": [
+				{
+					"File": "grok.layout.blink.motion3.json"
+				}
+			],
+			"Nod": [
+				{
+					"File": "grok.layout.nod.motion3.json"
+				}
+			],
+			"Shake": [
+				{
+					"File": "grok.layout.shake.motion3.json"
+				}
+			]
+		}
+	},
+	"Groups": [
+		{
+			"Target": "Parameter",
+			"Name": "EyeBlink",
+			"Ids": [
+				"ParamEyeLOpen",
+				"ParamEyeROpen"
+			]
+		},
+		{
+			"Target": "Parameter",
+			"Name": "LipSync",
+			"Ids": [
+				"ParamMouthOpenY"
+			]
+		}
+	]
+}

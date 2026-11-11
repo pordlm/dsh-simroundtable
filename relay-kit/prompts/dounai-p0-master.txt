@@ -1,0 +1,18 @@
+I'm attaching ONE reference image: a character design sheet of "Dounai", the mascot girl of Doubao AI — a small 3D-render style chibi girl shown in three views (front, right side, back). Use it for the design AND the rendering style: soft smooth toy-like shading, clean rounded shapes, minimal outlines, exactly like the sheet.
+
+Output ONE image, portrait 1024x1536, flat pure green #00FF00 background. No frame, border, text, watermark or cast shadow. Exactly one character, single front view, no second view, no colour swatches, no decoration.
+
+Anime chibi girl, about 2.5 heads tall, full body from the top of her hair to the soles of her feet, standing straight and facing the viewer, shoulders level, legs slightly apart as in the sheet's front view.
+
+Character design (must match the sheet):
+- A smooth glossy chestnut-brown bob haircut with a centre-parted fringe and two small rounded tufts on top of the head; the bob ends just below her ears with softly rounded tips.
+- Warm golden-yellow skin, big round dark-brown eyes with simple white highlights, thin soft brown eyebrows, a tiny button nose, a small closed gentle smile, and soft peach blush on both cheeks.
+- Small rounded ears poking out from under the hair on both sides.
+- The body is one smooth yellow one-piece suit shape: a rounded belly with a large cream-coloured oval patch on the front, short stubby arms with DARK GREY-BROWN rounded mitten hands, and short stubby legs with DARK GREY-BROWN rounded boot-like feet.
+- No clothes, no accessories, no tail — just the smooth toy-like body.
+
+Hands: both mitten hands rest relaxed at her sides, empty, no object.
+
+Framing: 40px of clear green above the top of her hair, 40px under her feet, 40px of clear green on each side; the head occupies the top ~45% of her total height, eyes about 30% down from the top.
+
+使用与参考图一致的柔和光滑着色 (soft smooth toy-like shading matching the reference, minimal line art), warm yellow-brown palette, no shading on the green background.
