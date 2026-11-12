@@ -14,6 +14,12 @@ import { STAGE_ORDER } from "../lib/stages.js";
 import { dataBoundary } from "../lib/prompts.js";
 import { PROTOCOL_HOOKS, ProtocolError } from "../lib/protocols/types.js";
 import { defaultProtocolId, listProtocols, requireProtocol } from "../lib/protocols/registry.js";
+import {
+  protocolEnabled,
+  protocolFor,
+  protocolVersionKey,
+  protocolVersions,
+} from "../lib/protocols/registry.js";
 
 test("requireProtocol defaults to roundtable for an omitted id", () => {
   const protocol = requireProtocol();
@@ -72,4 +78,24 @@ test("the shared data boundary is importable and the hook list is frozen", () =>
   assert.ok(boundary.includes("Scope for this stage."));
   assert.equal(PROTOCOL_HOOKS.length, 11);
   assert.ok(Object.isFrozen(PROTOCOL_HOOKS));
+});
+
+test("roundtable v2 is registered but disabled until PR-4 wires it", () => {
+  assert.equal(protocolVersionKey("roundtable", 2), "roundtable@2");
+  assert.deepEqual([...protocolVersions("roundtable")], ["1", "2"]);
+
+  const v2 = protocolFor("roundtable", 2);
+  assert.equal(v2.id, "roundtable");
+  assert.equal(v2.version, 2);
+  assert.equal(v2.experimental, true);
+  assert.equal(protocolEnabled("roundtable", 2), false, "PR-3 must not expose the v2 adapter");
+
+  const v1 = protocolFor("roundtable", 1);
+  assert.equal(v1, requireProtocol("roundtable"));
+  assert.equal(protocolEnabled("roundtable", 1), true);
+
+  assert.equal(protocolFor("roundtable", 9), null);
+  assert.equal(protocolEnabled("nope", 1), false);
+  // the public list still shows only the v1 roundtable
+  assert.deepEqual(listProtocols().map((protocol) => protocol.id), ["roundtable"]);
 });
