@@ -1,25 +1,26 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: GPL-3.0-or-later
 /**
- * Syntax-check every module under `lib/`.
+ * Syntax-check every module under `lib/`, at any depth.
  *
  * The npm script used to name the files by hand, so a newly added `lib/*.js`
- * could ship without ever being parsed. Walking the directory keeps the gate
- * honest without extra tooling or a dependency.
+ * could ship without ever being parsed. The walker keeps the gate honest
+ * without extra tooling or a dependency — including subdirectories such as
+ * `lib/protocols/` and `lib/personas/`.
  */
 import { spawnSync } from "node:child_process";
-import { readdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { walkFiles } from "./walker.mjs";
+
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const files = readdirSync(join(root, "lib"))
-  .filter((name) => name.endsWith(".js"))
-  .sort()
-  .map((name) => join("lib", name));
+const files = walkFiles(join(root, "lib"), { filter: (path) => path.endsWith(".js") }).map((path) =>
+  join("lib", path),
+);
 
 if (files.length === 0) {
-  console.error("dsh-simroundtable: no lib/*.js files found");
+  console.error("dsh-simroundtable: no lib/**/*.js files found");
   process.exit(1);
 }
 

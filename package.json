@@ -29,7 +29,7 @@
     "./icon": "./icon.svg"
   },
   "files": [
-    "lib/*.js",
+    "lib/**/*.js",
     "locale/*.json",
     "icon.svg",
     "cordis.patch.yml",

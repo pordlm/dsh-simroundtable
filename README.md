@@ -6,7 +6,7 @@
 >
 > 三种入口：会话命令 `/roundtable`、模型工具 `roundtable`、Web 左栏独立页面「圆桌会议」。
 
-当前开发版本 **0.6.0**（与 `package.json`、[`CHANGELOG.md`](CHANGELOG.md) 对齐）。
+当前开发版本 **0.6.1**（与 `package.json`、[`CHANGELOG.md`](CHANGELOG.md) 对齐）。
 
 ---
 
