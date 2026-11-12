@@ -21,3 +21,4 @@
         attachmentTextCharsPerFile: 20000
         attachmentTextCharsTotal: 60000
         language: auto
+        personaBinding: opt-in

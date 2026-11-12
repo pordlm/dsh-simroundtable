@@ -813,6 +813,7 @@ test("apply serves the page API once Connection is available", async () => {
       "/api/roundtable/meeting/cancel",
       "/api/roundtable/meeting/export",
       "/api/roundtable/meetings",
+      "/api/roundtable/personas",
       "/api/roundtable/stage/art/chair.png",
       "/api/roundtable/stage/art/table.png",
       "/api/roundtable/stage/model/c_0120.moc3",
