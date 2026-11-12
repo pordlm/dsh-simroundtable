@@ -109,17 +109,23 @@ test("check.mjs parses modules in new lib subdirectories", () => {
   const probeDir = join(libRoot, "__gate_probe__");
   const probe = join(probeDir, "nested", "probe.js");
   try {
+    const topLevel = readdirSync(libRoot).filter((name) => name.endsWith(".js")).length;
+    const baseline = walkFiles(libRoot, { filter: (path) => path.endsWith(".js") });
+    assert.ok(
+      baseline.length > topLevel,
+      "the repository already ships nested lib modules, so a flat listing would be incomplete",
+    );
+
     mkdirSync(dirname(probe), { recursive: true });
     writeFileSync(probe, "export const gateProbe = true;\n");
 
-    const topLevel = readdirSync(libRoot).filter((name) => name.endsWith(".js")).length;
     const recursive = walkFiles(libRoot, { filter: (path) => path.endsWith(".js") });
     assert.ok(recursive.includes("__gate_probe__/nested/probe.js"), "walker must see nested lib modules");
-    assert.equal(recursive.length, topLevel + 1, "only the nested probe sits outside the flat top level");
+    assert.equal(recursive.length, baseline.length + 1, "the probe must add exactly one file");
 
     const result = spawnSync(process.execPath, ["scripts/check.mjs"], { cwd: root, encoding: "utf8" });
     assert.equal(result.status, 0, result.stderr);
-    assert.match(result.stdout, new RegExp(`all ${topLevel + 1} files under lib/`));
+    assert.match(result.stdout, new RegExp(`all ${baseline.length + 1} files under lib/`));
   } finally {
     drop(probeDir);
   }
