@@ -80,7 +80,7 @@ test("the shared data boundary is importable and the hook list is frozen", () =>
   assert.ok(Object.isFrozen(PROTOCOL_HOOKS));
 });
 
-test("roundtable v2 is registered but disabled until PR-4 wires it", () => {
+test("roundtable v2 is registered and enabled for the runtime (B2 #1)", () => {
   assert.equal(protocolVersionKey("roundtable", 2), "roundtable@2");
   assert.deepEqual([...protocolVersions("roundtable")], ["1", "2"]);
 
@@ -88,7 +88,9 @@ test("roundtable v2 is registered but disabled until PR-4 wires it", () => {
   assert.equal(v2.id, "roundtable");
   assert.equal(v2.version, 2);
   assert.equal(v2.experimental, true);
-  assert.equal(protocolEnabled("roundtable", 2), false, "PR-3 must not expose the v2 adapter");
+  // B2 #8: v2 runs are reachable through the explicit protocol/participants
+  // request shape; the opt-in persona gate lives in the meeting layer, not here.
+  assert.equal(protocolEnabled("roundtable", 2), true);
 
   const v1 = protocolFor("roundtable", 1);
   assert.equal(v1, requireProtocol("roundtable"));
