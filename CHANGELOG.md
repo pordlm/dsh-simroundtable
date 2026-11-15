@@ -4,6 +4,84 @@ All notable changes to this project. The format loosely follows
 [Keep a Changelog](https://keepachangelog.com/), and the project uses semantic
 versioning.
 
+## 0.7.0
+
+### Roundtable v2 protocol
+
+- New v2 protocol with explicit seats (`participants` with roles), persona
+  injection, synthesized transcripts and a full terminal projection:
+  `reviews`, `failures`, roster member status, transcript and
+  `finalAnswer.ranking`/`anonymousId`/`arbiter` are all written on settlement
+  through `persistTerminal` (terminal-shadow semantics), so a page refresh
+  shows the complete result.
+- Seat personas are really injected: tasks carry the seat's `personaId`, the
+  composer resolves the persona snapshot, and seats without a persona fall
+  back byte-for-byte to the v1 prompts.
+- Text attachment bodies reach child agents again (the v2 prompt composer
+  passed an array where a string block is expected); image parts are routed by
+  stage — answer and arbiter see them, review/discussion do not.
+- Seat routes survive planning: `modelRouteKey` is kept on every participant
+  projection, so same-origin disclosure groups seats correctly instead of
+  lumping all seats into one group.
+- A meeting where every answering model fails settles as **failed** (with the
+  existing "no usable answer" message) instead of reporting `completed`.
+- Empty reviewer list falls back to the v1 default (the answerers review each
+  other) with a disclosed limitation; the 8-seat total cap still applies.
+- Arbiter fallback picks the top-ranked answer (`ranking[0]`) instead of the
+  first seat in roster order, and the fallback report quotes that answer's
+  text as `finalAnswer`.
+- Ranking salvage: an unparseable structured review falls back to text-salvaged
+  rankings instead of being dropped.
+- Refusal answers fail their task instead of being recorded as empty text, and
+  structured output schemas are only requested from providers that declare the
+  capability.
+- Stage-end checkpoints now carry the full protocol state (not just counts) and
+  checkpoint failures degrade to a logged limitation instead of killing the
+  run; state size is measured in UTF-8 bytes.
+- Child agent labels name their stage (review/arbiter/discussion/answer).
+- Attachment hardening: the file-name heading is escaped like the fence label,
+  and an upload manifest `payload` must be a bare file name (no separators or
+  `..`), so a tampered manifest cannot escape the meeting attachment area.
+- The plugin lifecycle controller is created per activation, so
+  enable → disable → enable no longer leaves commands/tool calls permanently
+  aborted.
+
+### Personas and records
+
+- Ten built-in role cards (architect, red-team attacker, defender, independent
+  verifier, pro/con advocate, Socratic facilitator, domain expert, operator,
+  judge) and a workspace store at `.roundtable/personas/personas.json` with
+  atomic writes, a field whitelist, size/count limits and read-only built-ins.
+- Personas are viewpoints, never capabilities: they are injected as fenced
+  reference data, cannot grant tools or pick a provider/model, and the page
+  selector only appears when `personaBinding` is `opt-in`.
+- Meetings freeze their persona snapshots, so editing or deleting a card later
+  cannot rewrite a past record; record v2 carries `protocol`, `participants`,
+  `personaSnapshots`, `protocolState` and `finalReport`.
+- Reading a v1 record never writes to disk and never gains v2 fields; history
+  summaries only add `protocol`/`stageIndex`/`stageCount` for v2 records, and
+  both versions export through the same `renderExport` path.
+
+### Packaging and gates
+
+- `npm run check` and `npm test` discover files recursively (`lib/**/*.js`,
+  `test/**/*.test.mjs`), and `npm pack` ships `lib/**/*.js`, so a new module
+  subdirectory can no longer drop out of the package or out of CI.
+- New golden test pins the v1 Markdown export to a committed fixture; the v2
+  suite pins "v1 records stay byte-identical, v2 records keep seats and a full
+  report".
+- Rollback is documented in `docs/rollback-v2.md`: disabling `personaBinding`
+  keeps v2 records readable and exportable, and code batches revert in reverse
+  closure order.
+
+### Known limitations (carried to 0.7.1)
+
+- No automatic resume from stage checkpoints; a crash leaves the record
+  readable but the meeting must be started again.
+- No compact retry after a malformed structured review (it would cost an extra
+  billed call); the local ranking salvage covers the common case.
+- A meeting is capped at eight seats in total.
+
 ## 0.6.1
 
 - A meeting's terminal record is **durable before the run is released**: on

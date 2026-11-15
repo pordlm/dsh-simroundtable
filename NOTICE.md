@@ -4,7 +4,7 @@
 
 `LICENSE` (**GPL-3.0-or-later**) covers **the code of this repository only**. The artwork and third-party runtimes shipped alongside it keep their own terms — see below.
 
-**当前版本 / Current release: `0.6.0`**（与 `package.json`、`CHANGELOG.md` 一致 / aligned with `package.json` and `CHANGELOG.md`）。
+**当前版本 / Current release: `0.7.0`**（与 `package.json`、`CHANGELOG.md` 一致 / aligned with `package.json` and `CHANGELOG.md`）。
 
 ---
 

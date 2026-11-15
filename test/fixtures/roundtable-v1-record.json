@@ -1,0 +1,162 @@
+{
+  "version": 1,
+  "id": "golden-v1-meeting",
+  "topic": "Should the roundtable export stay byte-stable?",
+  "workspace": "D:\\golden-workspace",
+  "sessionId": "golden-session",
+  "language": "en",
+  "status": "completed",
+  "stage": "deciding",
+  "stageLabel": "deciding",
+  "rounds": 1,
+  "currentRound": 1,
+  "roundsRun": 1,
+  "createdAt": "2026-11-01T00:00:00.000Z",
+  "startedAt": "2026-11-01T00:00:01.000Z",
+  "endedAt": "2026-11-01T00:05:00.000Z",
+  "updatedAt": "2026-11-01T00:05:00.000Z",
+  "attachments": [
+    {
+      "kind": "text",
+      "name": "brief.txt",
+      "bytes": 42,
+      "ref": "text-1"
+    },
+    {
+      "kind": "image",
+      "name": "diagram.png",
+      "bytes": 2048,
+      "ref": "image-1"
+    }
+  ],
+  "roster": {
+    "answerers": [
+      {
+        "key": "acme/alpha",
+        "label": "Alpha",
+        "provider": "acme",
+        "anonymousId": "A",
+        "status": "completed"
+      },
+      {
+        "key": "acme/beta",
+        "label": "Beta",
+        "provider": "acme",
+        "anonymousId": "B",
+        "status": "completed"
+      }
+    ],
+    "reviewers": [
+      {
+        "key": "acme/gamma",
+        "label": "Gamma",
+        "provider": "acme",
+        "anonymousId": "R",
+        "status": "completed"
+      }
+    ],
+    "arbiter": {
+      "key": "acme/delta",
+      "label": "Delta",
+      "provider": "acme",
+      "status": "completed"
+    }
+  },
+  "progress": {
+    "stageIndex": 3,
+    "stageCount": 5,
+    "stageLabel": "deciding",
+    "percent": 100,
+    "total": 4,
+    "done": 4,
+    "running": 0,
+    "failed": 0
+  },
+  "entries": [],
+  "transcript": [
+    {
+      "at": "2026-11-01T00:00:02.000Z",
+      "type": "stage",
+      "stage": "answering",
+      "actorKey": "acme/alpha",
+      "title": "answer",
+      "text": "A: keep it stable."
+    }
+  ],
+  "reviews": [
+    {
+      "reviewerKey": "acme/gamma",
+      "reviewerLabel": "Gamma",
+      "anonymous": true,
+      "selfReview": false,
+      "ranking": [
+        {
+          "answerId": "A",
+          "rank": 1,
+          "comment": "clear"
+        },
+        {
+          "answerId": "B",
+          "rank": 2
+        }
+      ]
+    }
+  ],
+  "ranking": [
+    {
+      "answerId": "A",
+      "sum": 1,
+      "votes": 1,
+      "averageRank": 1
+    },
+    {
+      "answerId": "B",
+      "sum": 2,
+      "votes": 1,
+      "averageRank": 2
+    }
+  ],
+  "answers": [
+    {
+      "id": "answer-1",
+      "anonymousId": "A",
+      "participantId": "a1",
+      "actorKey": "acme/alpha",
+      "provider": "acme",
+      "model": "alpha",
+      "text": "Keep the v1 bytes stable.",
+      "revised": 0
+    },
+    {
+      "id": "answer-2",
+      "anonymousId": "B",
+      "participantId": "a2",
+      "actorKey": "acme/beta",
+      "provider": "acme",
+      "model": "beta",
+      "text": "Freeze the export format.",
+      "revised": 1
+    }
+  ],
+  "finalAnswer": {
+    "answerId": "A",
+    "anonymousId": "A",
+    "authorKey": "acme/alpha",
+    "authorLabel": "Alpha",
+    "text": "Freeze the v1 export and evolve through v2 records.",
+    "ranking": [
+      {
+        "answerId": "A",
+        "sum": 1,
+        "votes": 1,
+        "averageRank": 1
+      }
+    ]
+  },
+  "failures": [],
+  "limitations": [
+    "one reviewer only"
+  ],
+  "notes": [],
+  "autoArbiter": true
+}
