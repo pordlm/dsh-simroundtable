@@ -1812,12 +1812,21 @@ test("C1: seat decisions come from the seats actually being sent (10-seat v1 sta
 test("C2: a late savePersona response for the workspace just left cannot touch the new workspace's form, note or busy flag", async () => {
   const previousFetch = globalThis.fetch;
   const page_answer = (data) => ({ ok: true, status: 200, json: async () => ({ ok: true, data }) });
-  let gate;
-  let resolveSave;
+  const deferred = () => {
+    let resolve;
+    let reject;
+    const promise = new Promise((res, rej) => { resolve = res; reject = rej; });
+    return { promise, resolve, reject };
+  };
+  // Each POST /personas is held on the currently armed deferred until the
+  // test settles it — that is how a genuinely "late" reply is manufactured.
+  let armedPost = deferred();
+  const armPost = () => { armedPost = deferred(); };
   globalThis.fetch = async (url, options) => {
     const path = String(url);
     if (path === "/api/roundtable/personas" && options && options.method === "POST") {
-      await gate;
+      const gate = armedPost; // capture at invocation: A and B hold their own gates
+      await gate.promise;
       return page_answer({ persona: { id: "p-new", name: "Saved" } });
     }
     if (path.startsWith("/api/roundtable/personas")) return page_answer({ binding: "opt-in", personas: [] });
@@ -1848,45 +1857,87 @@ test("C2: a late savePersona response for the workspace just left cannot touch t
     personaForm: { name: "红色攻击者", mission: "找漏洞" },
   };
   try {
-    // Late success from A: switch to B while A's POST is in flight.
+    // (1) Late FAILURE from A, settled by hand only after B has edited its
+    // own draft: A's rejection must not touch B's form/note/error/busy.
     resetStore(baseStore);
-    gate = new Promise((resolve) => { resolveSave = resolve; });
-    const saving = actions.savePersona();
+    armPost();
+    const savingA1 = actions.savePersona();
     await flush();
     assert.equal(store.get().personaBusy, true, "save starts busy in A");
     actions.selectWorkspace("ws-b");
     await flush();
-    // B types its own draft and must keep it.
     actions.setPersonaField("name", "B 的草稿");
-    const bForm = { ...store.get().personaForm };
-    resolveSave();
-    await saving;
+    actions.setPersonaField("mission", "B 的使命");
+    const bForm1 = { ...store.get().personaForm };
+    armedPost.reject(new Error("boom")); // the late failure lands now
+    await savingA1.catch(() => {});
     await flush();
-    assert.deepEqual(store.get().personaForm, bForm, "A's late success does not clear B's form");
-    assert.equal(store.get().personaNote, null, "A's late success does not flash its note in B");
-    assert.equal(store.get().personaError, null, "A's late success sets no error in B");
-    assert.equal(store.get().personaBusy, false, "B is not stuck busy after A's late success");
+    assert.deepEqual(store.get().personaForm, bForm1, "A's late failure does not clear B's form");
+    assert.equal(store.get().personaError, null, "A's late failure does not write B's error");
+    assert.equal(store.get().personaNote, null, "A's late failure writes no note in B");
+    assert.equal(store.get().personaBusy, false, "B is not stuck busy after A's late failure");
     assert.equal(store.get().workspaceId, "ws-b", "the user is still in B");
 
-    // Late failure from A must not surface as B's error either.
+    // (2) A pending while B starts its own save (busy=true): A's late SUCCESS
+    // must not clear busy or the form — B stays busy until B's own POST lands.
     resetStore(baseStore);
-    gate = Promise.reject(new Error("boom"));
-    const failing = actions.savePersona();
+    armPost();
+    const aPost2 = armedPost;
+    const savingA2 = actions.savePersona();
     await flush();
     actions.selectWorkspace("ws-b");
     await flush();
     actions.setPersonaField("name", "B 的草稿");
     const bForm2 = { ...store.get().personaForm };
-    await failing.catch(() => {});
+    armPost(); // B's POST gets its own deferred
+    const bPost2 = armedPost;
+    const savingB = actions.savePersona();
     await flush();
-    assert.deepEqual(store.get().personaForm, bForm2, "A's late failure does not clear B's form");
+    assert.equal(store.get().personaBusy, true, "B's own save is busy");
+    assert.equal(store.get().personaForm.name, "B 的草稿", "B's save does not clear B's draft");
+    aPost2.resolve(); // A's late success arrives while B is busy
+    await savingA2;
+    await flush();
+    assert.equal(store.get().personaBusy, true, "A's finally must not clear B's busy flag");
+    assert.deepEqual(store.get().personaForm, bForm2, "A's late success does not clear B's form");
+    assert.equal(store.get().personaNote, null, "A's late success does not flash its note in B");
+    assert.equal(store.get().personaError, null, "A's late success sets no error in B");
+    bPost2.resolve(); // B's own POST completes
+    await savingB;
+    await flush();
+    assert.equal(store.get().personaBusy, false, "busy clears only when B's own save finishes");
+    assert.deepEqual(store.get().personaForm, { name: "", mission: "" }, "B's successful save clears B's form");
+    assert.ok(store.get().personaNote, "B's successful save shows the note");
+
+    // (3) Same shape with A's late FAILURE while B is busy: B stays busy and
+    // no error from A leaks into B.
+    resetStore(baseStore);
+    armPost();
+    const aPost3 = armedPost;
+    const savingA3 = actions.savePersona();
+    await flush();
+    actions.selectWorkspace("ws-b");
+    await flush();
+    armPost();
+    const bPost3 = armedPost;
+    const savingB3 = actions.savePersona();
+    await flush();
+    assert.equal(store.get().personaBusy, true, "B's save is busy before A settles");
+    aPost3.reject(new Error("late boom"));
+    await savingA3.catch(() => {});
+    await flush();
+    assert.equal(store.get().personaBusy, true, "A's late failure does not clear B's busy flag");
     assert.equal(store.get().personaError, null, "A's late failure does not write B's error");
     assert.equal(store.get().personaNote, null, "A's late failure writes no note in B");
-    assert.equal(store.get().personaBusy, false, "B is not stuck busy after A's late failure");
+    bPost3.resolve();
+    await savingB3;
+    await flush();
+    assert.equal(store.get().personaBusy, false, "B's own completion clears busy");
 
     // Control: a save that stays in the same workspace still works end to end.
     resetStore(baseStore);
-    gate = Promise.resolve();
+    armPost();
+    armedPost.resolve();
     await actions.savePersona();
     await flush();
     assert.deepEqual(store.get().personaForm, { name: "", mission: "" }, "same-workspace save clears the form");
@@ -1894,7 +1945,7 @@ test("C2: a late savePersona response for the workspace just left cannot touch t
     assert.equal(store.get().personaBusy, false, "same-workspace save clears busy");
   } finally {
     globalThis.fetch = previousFetch;
-    gate = undefined;
+    armedPost = undefined;
   }
 });
 

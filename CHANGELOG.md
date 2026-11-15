@@ -16,22 +16,25 @@ versioning.
 - **savePersona 工作区归属保护**：成功、失败、异常三条路径全部经
   `stillValid(token)` 判定；工作区 A 发起保存后切到 B，A 的迟到响应不再清空
   B 的表单、不再给 B 置 busy 或闪提示。切换工作区时重置 `personaBusy`。
-- **Checkpoint degraded**：阶段末 checkpoint 写盘失败降级为记录 limitation
-  继续开会（degraded 标记），不再中断整场会议。
+- **Checkpoint degraded**：阶段末 checkpoint 写盘失败不再静默丢失——持久层返回 `false`（该返回值此前未被识别为失败信号）或抛错，现在都会记录 `persistence.degraded`（含失败阶段与原因，sticky）、追加 limitation「过程状态保存失败，会议继续执行」并继续运行；降级对用户可见。
 - **追加式失败历史**：席位失败记录为 append-only 的 `failures` 历史，
   重试不覆盖旧失败证据。
-- **incomplete 终态**：部分席位失败时会议结算为 `incomplete`（含失败明细），
-  而不是伪装 `completed`。
-- **selfReview 治理**：评审席位不得评审自己的回答（可通过配置关闭以显式允许）。
+- **incomplete 报告标记**：部分席位失败时会议终态仍写 `status:"completed"`，
+  但 `finalReport.incomplete === true`（判定 = 无任何评审成功 或 errorLog 非零），
+  失败明细保留在 `failures` / `errorLog`；报告标记不改变会议终态。
+- **selfReview 披露**：按 `modelRouteKey` 识别「评审者与被评审回答同源」并在
+  记录（`reviews[].selfReview`）、UI（“含自评”标注）与导出（limitations）中
+  披露；不合并席位、不禁止自评、无配置开关。
 - **席位上限前置提示**：v2 场景席位超限时前端前置禁用启动并写明席位构成，
   后端保留 400 拦截兜底；v1 圆桌不受 8 席限制约束。
 - **registry 执行权威**：协议以 registry 注册信息为准执行；未知协议 id /
   版本返回 400。
 - **文档更正（README）**：披露「API 允许显式声明 v2 而无需 Persona（v2 同时
   是席位协议）」；更正 `personaBinding: off` 时 `/personas` 路由仍注册
-  （GET 返回 `binding:"off"` 与空列表）；回滚章节去掉「无条件安全 / Markdown
-  完全相同」的过强表述，改为实际约束（v1 记录读时字节不变有测试证据；
-  v2 记录回滚前必须备份；跨版本导出以 `renderExport` 为唯一出口）。
+  （GET 返回 `binding:"off"` 与内置+自定义角色卡列表，POST 返回 400）；
+  回滚章节证据收窄为两条独立证据（固定 v1 Markdown fixture 一致；completed/
+  terminal v1 记录读前后 bytes/mtime 不变），注明非终态重启修复可写
+  `interrupted`、孤儿记录可被 reconcile 写盘，并链接 `docs/rollback-v2.md`。
 
 ## 0.7.0
 
@@ -103,13 +106,14 @@ versioning.
   keeps v2 records readable and exportable, and code batches revert in reverse
   closure order.
 
-### Known limitations (carried to 0.7.1)
+### Known limitations（仍为 0.7.1 的限制，未解决）
 
 - No automatic resume from stage checkpoints; a crash leaves the record
   readable but the meeting must be started again.
 - No compact retry after a malformed structured review (it would cost an extra
   billed call); the local ranking salvage covers the common case.
-- A meeting is capped at eight seats in total.
+- A meeting is capped at eight seats in total — this cap applies to v2
+  (participants) meetings only; plain v1 roundtables are not limited by it.
 
 ## 0.6.1
 
