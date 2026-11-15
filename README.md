@@ -145,6 +145,24 @@ plugin_manager list_plugins
 
 ---
 
+## 会议模式与角色卡（0.7）
+
+会议模式完成度（如实说明，不以规划充当交付）：
+
+| 模式 | 状态 |
+|---|---|
+| Persona 角色卡（协议 v2） | **已交付**（0.7.0） |
+| Red Team / Pro-Con / Socratic / Pre-mortem | **未实现**专用协议阶段，不是 0.7 交付内容 |
+
+- **Persona 开关** `personaBinding`：`off`（默认，不注册 `/personas`，页面不显示角色卡）或 `opt-in`（按工作区启用）。角色卡存在 `<workspace>/.roundtable/personas/personas.json`；内置卡只读，自定义卡有数量与体积上限。API：`GET/POST /api/roundtable/personas?workspace=`。
+- **v1/v2 分流**：只有当至少一个将要发送的席位真的选了角色卡时，创建请求才携带 `participants` + `protocol:{id:"roundtable",version:2}` 走 v2；普通圆桌始终走 v1，行为与 0.6 完全一致。评审与裁决席位不继承回答者的角色卡。
+- **席位上限**：v2 的总席位（回答者 + 评审 + 裁决）最多 8。页面只在 v2 场景（有席位选了角色卡）显示席位计数、超限时前置禁用启动并写明构成；v1 圆桌不受该限制约束。未选评审者时自动回退为“作答模型互相评审”，并在记录的 `limitations` 里明示。
+- **阶段级工具权限**：只有 answer 阶段（且会议不带附件）允许 `web_search` / `web_fetch`（每席位最多两次查询）；discussion / review / arbiter 阶段以及任何非 roundtable 协议一律无工具（fail-closed）。图片附件只发给 answer / arbiter 席位，评审与讨论阶段看不到图片。
+- **已知限制（同模型多席位）**：让同一 provider/model 占多个席位目前只能通过 API 的 `participants` 实现；GUI 不提供同模型重复席位（Seat Card 计划 0.8）。
+- **记录差异与回滚**：v2 会议记录在 v1 字段之外新增 `participants` / `protocol` / `protocolFullState` / `sameRouteNotes` 等；旧版本读取时只取它认识的字段，多余键被忽略。导出的 Markdown 两种协议格式一致，回滚插件版本不影响历史列表与导出。
+
+---
+
 ## HTTP API
 
 页面与宿主之间的接口都是 Connection 的**精确 Fetch 路由**（不支持动态段，因此详情用查询参数），统一信封：
@@ -159,10 +177,12 @@ plugin_manager list_plugins
 | GET | `/api/roundtable/workspaces` | 工作区列表 |
 | GET | `/api/roundtable/catalog` | provider/模型目录（并发查询、单 provider 超时不影响整体） |
 | GET | `/api/roundtable/meetings?workspace=` | 历史列表 |
-| POST | `/api/roundtable/meetings` | 创建并启动一场会议；`attachments` 传上传返回的 id |
+| POST | `/api/roundtable/meetings` | 创建并启动一场会议；`attachments` 传上传返回的 id。带 `participants` + `protocol:{id:"roundtable",version:2}` 时走 v2（Persona）协议 |
+| POST | `/api/roundtable/personas` | 创建自定义角色卡（按 `workspace` 隔离；内置卡只读） |
 | POST | `/api/roundtable/upload` | 上传附件（base64 JSON，返回 `{attachments, limits}`） |
 | POST | `/api/roundtable/upload/remove` | 撤回尚未启动的上传 |
 | GET | `/api/roundtable/capabilities?provider=&model=` | 该路由是否声明了图片输入（`image: true/false/null`） |
+| GET | `/api/roundtable/personas?workspace=` | 该工作区的角色卡列表与 `personaBinding`（`off` / `opt-in`；旧后端无此路由时页面按 `off` 处理） |
 | GET | `/api/roundtable/meeting?id=` | 会议详情（含进度、记录、评审、终稿） |
 | POST | `/api/roundtable/meeting/cancel` | 取消进行中的会议 |
 | GET/POST | `/api/roundtable/meeting/export` | 导出 Markdown（GET 下载，POST 写工作区） |
@@ -245,10 +265,10 @@ plugin_manager list_plugins
 
 ```powershell
 npm run check   # 对 lib/ 下每个 .js 逐个跑 node --check
-npm test        # 自动收集 test/*.test.mjs 全部用例（含 stage-math）
+npm test        # 递归收集 test/**/*.test.mjs 全部用例（test/manual/ 除外）
 ```
 
-测试不依赖网络与真实凭据。`npm test` 只收集 `test/` 顶层的 `*.test.mjs`，新增测试文件无需再改脚本；手动真实模型探针位于 `test/manual/`，会消耗 token，默认不参与 `npm test`；配置方式见 [test/manual/README.md](test/manual/README.md)。
+测试不依赖网络与真实凭据。`npm test` **递归**收集 `test/` 下任意深度的 `*.test.mjs`（新增子目录里的测试文件不会被漏掉），只有 `test/manual/` 不参与；手动真实模型探针位于 `test/manual/`，会消耗 token，配置方式见 [test/manual/README.md](test/manual/README.md)。
 
 开发者的本地交接笔记 `HANDOFF.md` 只保留在工作区，不入库（已加入 `.gitignore`）；仓库内的事实来源是 README、CHANGELOG、NOTICE 与 `docs/`。
 
@@ -259,6 +279,8 @@ lib/prompts.js   四阶段提示词 + 紧凑排名/纯文本裁决兜底 + JSON 
 lib/engine.js    圆桌引擎：子 Agent 调度、四阶段流水线、事件钩子、失败降级
 lib/attachments.js 议题附件：上传校验、落盘/迁移、文本内联预算、图片能力探测
 lib/meetings.js  会议管理器：校验、落盘、进度、取消、崩溃恢复、导出
+lib/protocols/   协议实现：roundtable-v2（Persona 席位制）+ 通用 runner
+lib/personas/    角色卡存储与 schema（工作区隔离，内置卡只读）
 lib/api.js       /api/roundtable/* 路由 + JSON 信封
 lib/index.js     插件 apply：命令、工具、生命周期接线
 lib/client.js    独立页面 + 左栏入口 + commandview
@@ -268,7 +290,7 @@ lib/client.js    独立页面 + 左栏入口 + commandview
 
 ## English summary
 
-`dsh-simroundtable` is a DeepSeek Harness plugin that seats models from different providers at one table: independent answers → peer revision → anonymous review → a final arbiter. It ships as a `/roundtable` command, a `roundtable` model tool, and a dedicated Web page with live progress, history, cancellation and Markdown export. A meeting can carry topic attachments: images travel only to routes that declare image input, while code/tables/documents are inlined as bounded text for every participant. Meetings and attachments are persisted per workspace under `.roundtable/`; nothing leaves the machine except what the chosen providers receive.
+`dsh-simroundtable` is a DeepSeek Harness plugin that seats models from different providers at one table: independent answers → peer revision → anonymous review → a final arbiter. It ships as a `/roundtable` command, a `roundtable` model tool, and a dedicated Web page with live progress, history, cancellation and Markdown export. Since 0.7 it also supports opt-in Persona role cards (protocol v2, at most 8 seats total, images only for answerer/arbiter seats); the dedicated Red Team / Pro-Con / Socratic / Pre-mortem modes are not implemented yet. A meeting can carry topic attachments: images travel only to routes that declare image input, while code/tables/documents are inlined as bounded text for every participant. Meetings and attachments are persisted per workspace under `.roundtable/`; nothing leaves the machine except what the chosen providers receive.
 
 Requires DSH `>= 0.2.1-rc.4` (web profile) and Node `>= 20`. Install the folder as a DSH bundle, then toggle the plugin off/on; if the Web entry does not appear, restart DSH once.
 

@@ -1614,4 +1614,102 @@ test("A1: persona gating, workspace-scoped personas, reviewer/arbiter never inhe
   }
 });
 
+test("B1: 8-seat cap is visible and blocking only for v2 (persona) meetings", async () => {
+  const previousFetch = globalThis.fetch;
+  const page_answer = (data) => ({ ok: true, status: 200, json: async () => ({ ok: true, data }) });
+  const posts = [];
+  globalThis.fetch = async (url, options) => {
+    const path = String(url);
+    if (path === "/api/roundtable/meetings" && options && options.method === "POST") {
+      posts.push(JSON.parse(options.body));
+      return page_answer({ meeting: { id: "m-cap", topic: "cap", status: "queued" } });
+    }
+    if (path.startsWith("/api/roundtable/meeting?")) return page_answer({ meeting: { id: "m-cap", status: "completed", transcript: [] } });
+    if (path.startsWith("/api/roundtable/meetings")) return page_answer({ meetings: [] });
+    if (path.startsWith("/api/roundtable/catalog")) return page_answer({ models: [], defaults: {}, limits: {} });
+    if (path.startsWith("/api/roundtable/personas")) return page_answer({ binding: "opt-in", personas: [{ id: "p-1", name: "Red" }] });
+    throw new Error(`unexpected fetch ${path}`);
+  };
+  const models = [
+    { key: "a/model-1", provider: "a", providerName: "A", model: "model-1" },
+    { key: "b/model-2", provider: "b", providerName: "B", model: "model-2" },
+    { key: "a/model-3", provider: "a", providerName: "A", model: "model-3" },
+    { key: "b/model-4", provider: "b", providerName: "B", model: "model-4" },
+    { key: "a/model-5", provider: "a", providerName: "A", model: "model-5" },
+  ];
+  const baseStore = {
+    boot: "ready",
+    workspaces: [{ id: "ws-1", title: "1" }],
+    workspaceId: "ws-1",
+    catalog: "ready",
+    models,
+    catalogDefaults: { rounds: 1 },
+    catalogLimits: { maxAnswerers: 8, maxReviewers: 8, maxRounds: 5 },
+    topic: "席位上限",
+    reviewersMode: "peers",
+    meetingsState: "ready",
+    meetings: [],
+    attachments: [],
+  };
+  const seatCountNodes = (tree) => findAll(tree, (n) => n.props && n.props["data-roundtable-seat-count"] === "1");
+  const startBtn = (tree) => findByTestId(tree, "start");
+  try {
+    // (1) 8 seats with a persona → v2, start is allowed, count line shown.
+    resetStore({
+      ...baseStore,
+      selected: ["a/model-1", "b/model-2", "a/model-3", "b/model-4"],
+      personaBinding: "opt-in",
+      personas: [{ id: "p-1", name: "Red" }],
+      personaBySeat: { a1: "p-1" },
+    });
+    const ready = page();
+    assert.equal(seatCountNodes(ready).length, 1, "seat count line renders for a v2-bound meeting");
+    assert.equal(startBtn(ready).props.disabled, false, "8 seats stay startable");
+    await actions.startMeeting();
+    let body = posts[posts.length - 1];
+    assert.equal(body.participants.length, 8, "8 seats are sent as participants");
+    assert.equal(store.get().actionError, null, "8 seats produce no error");
+
+    // (2) 9+ seats with a persona → blocked up front with the composition,
+    // before any POST is sent; the count line shows the over-limit state.
+    resetStore({
+      ...baseStore,
+      selected: ["a/model-1", "b/model-2", "a/model-3", "b/model-4", "a/model-5"],
+      personaBinding: "opt-in",
+      personas: [{ id: "p-1", name: "Red" }],
+      personaBySeat: { a1: "p-1" },
+      arbiterKey: "a/model-5",
+    });
+    const over = page();
+    assert.equal(startBtn(over).props.disabled, true, "start is disabled above 8 seats with a persona");
+    const countLine = seatCountNodes(over)[0];
+    assert.ok(countLine, "seat count line renders in the over-limit state");
+    assert.ok(countLine.children.join("").includes("回答者 5") && countLine.children.join("").includes("裁决 1"), "count line names the composition");
+    const before = posts.length;
+    await actions.startMeeting();
+    assert.equal(posts.length, before, "no POST is sent while over the cap");
+    assert.ok(String(store.get().actionError).includes("最多 8"), "action error explains the seat limit");
+
+    // (3) the same oversized roster without any persona stays a plain v1
+    // roundtable: no count line, no seat-cap error, start proceeds.
+    resetStore({
+      ...baseStore,
+      selected: ["a/model-1", "b/model-2", "a/model-3", "b/model-4", "a/model-5"],
+      personaBinding: "opt-in",
+      personas: [{ id: "p-1", name: "Red" }],
+      personaBySeat: {},
+      arbiterKey: "a/model-5",
+    });
+    const plain = page();
+    assert.equal(seatCountNodes(plain).length, 0, "v1 roundtable shows no seat-cap hint");
+    assert.equal(startBtn(plain).props.disabled, false, "v1 roundtable is not blocked by the v2 seat cap");
+    await actions.startMeeting();
+    body = posts[posts.length - 1];
+    assert.equal(body.participants, undefined, "v1 roundtable sends no participants payload");
+    assert.equal(store.get().actionError, null, "v1 roundtable hits no seat-cap error");
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
 console.log("client.test.mjs: all assertions passed");
