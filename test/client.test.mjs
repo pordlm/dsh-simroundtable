@@ -1712,4 +1712,190 @@ test("B1: 8-seat cap is visible and blocking only for v2 (persona) meetings", as
   }
 });
 
+test("C1: seat decisions come from the seats actually being sent (10-seat v1 stays startable; removing a persona seat leaves no residue)", async () => {
+  const previousFetch = globalThis.fetch;
+  const page_answer = (data) => ({ ok: true, status: 200, json: async () => ({ ok: true, data }) });
+  const posts = [];
+  globalThis.fetch = async (url, options) => {
+    const path = String(url);
+    if (path === "/api/roundtable/meetings" && options && options.method === "POST") {
+      posts.push(JSON.parse(options.body));
+      return page_answer({ meeting: { id: "m-c1", topic: "c1", status: "queued" } });
+    }
+    if (path.startsWith("/api/roundtable/meeting?")) return page_answer({ meeting: { id: "m-c1", status: "completed", transcript: [] } });
+    if (path.startsWith("/api/roundtable/meetings")) return page_answer({ meetings: [] });
+    if (path.startsWith("/api/roundtable/catalog")) return page_answer({ models: [], defaults: {}, limits: {} });
+    if (path.startsWith("/api/roundtable/personas")) return page_answer({ binding: "opt-in", personas: [{ id: "p-1", name: "Red" }] });
+    throw new Error(`unexpected fetch ${path}`);
+  };
+  const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+  const models = [
+    { key: "a/model-1", provider: "a", providerName: "A", model: "model-1" },
+    { key: "b/model-2", provider: "b", providerName: "B", model: "model-2" },
+    { key: "a/model-3", provider: "a", providerName: "A", model: "model-3" },
+    { key: "b/model-4", provider: "b", providerName: "B", model: "model-4" },
+    { key: "a/model-5", provider: "a", providerName: "A", model: "model-5" },
+  ];
+  const baseStore = {
+    boot: "ready",
+    workspaces: [{ id: "ws-1", title: "1" }],
+    workspaceId: "ws-1",
+    catalog: "ready",
+    models,
+    catalogDefaults: { rounds: 1 },
+    catalogLimits: { maxAnswerers: 8, maxReviewers: 8, maxRounds: 5 },
+    topic: "席位判定",
+    reviewersMode: "peers",
+    meetingsState: "ready",
+    meetings: [],
+    attachments: [],
+    personaBinding: "opt-in",
+    personas: [{ id: "p-1", name: "Red" }],
+  };
+  const seatCountNodes = (tree) => findAll(tree, (n) => n.props && n.props["data-roundtable-seat-count"] === "1");
+  const startBtn = (tree) => findByTestId(tree, "start");
+  try {
+    // (1) 5 no-persona answerers + peers review = 10 seats. A leftover card on
+    // a seat that will NOT be sent (a6, from a roster that has since shrunk)
+    // must not flip the UI into v2: the button stays enabled and the request
+    // walks v1 (no participants).
+    resetStore({
+      ...baseStore,
+      selected: ["a/model-1", "b/model-2", "a/model-3", "b/model-4", "a/model-5"],
+      personaBySeat: { a6: "p-1" }, // stale: seat a6 is not in the planned roster
+    });
+    const tree = page();
+    assert.equal(seatCountNodes(tree).length, 0, "stale seat card does not render the v2 seat-count line");
+    assert.equal(startBtn(tree).props.disabled, false, "10-seat v1 roundtable is not blocked by a leftover card");
+    await actions.startMeeting();
+    let body = posts[posts.length - 1];
+    assert.equal(body.participants, undefined, "leftover card does not upgrade the request to v2");
+    assert.equal(body.protocol, undefined, "leftover card does not declare protocol v2");
+    assert.equal(store.get().actionError, null, "no seat-cap error on the v1 path");
+
+    // (2) removing the last seat (which carried a persona) clears its card:
+    // the button stays usable and no persona state residue remains.
+    resetStore({
+      ...baseStore,
+      selected: ["a/model-1", "b/model-2", "a/model-3", "b/model-4", "a/model-5"],
+      personaBySeat: { a5: "p-1" },
+    });
+    const beforeTree = page();
+    assert.equal(seatCountNodes(beforeTree).length, 1, "a live persona seat shows the v2 seat-count line");
+    assert.deepEqual(store.get().personaBySeat, { a5: "p-1" }, "persona assignment present before the toggle");
+    actions.toggleModel("a/model-5");
+    await flush();
+    assert.deepEqual(store.get().personaBySeat, {}, "removing the last seat clears its personaBySeat entry");
+    const afterTree = page();
+    assert.equal(seatCountNodes(afterTree).length, 0, "no v2 seat-count line after the persona seat is removed");
+    assert.equal(startBtn(afterTree).props.disabled, false, "start button is usable after removing the persona seat");
+    await actions.startMeeting();
+    body = posts[posts.length - 1];
+    assert.equal(body.participants, undefined, "the request after removal walks v1");
+    assert.equal(body.answerers.length, 4, "the request carries the shrunken roster");
+
+    // (3) removing a middle seat drops the cards of seats that moved; the
+    // untouched prefix keeps its own cards.
+    resetStore({
+      ...baseStore,
+      selected: ["a/model-1", "b/model-2", "a/model-3", "b/model-4"],
+      personaBySeat: { a1: "p-1", a3: "p-1" },
+    });
+    actions.toggleModel("b/model-2"); // middle removal: a3/a4 shift down
+    await flush();
+    assert.deepEqual(store.get().personaBySeat, { a1: "p-1" }, "prefix card survives, shifted cards are dropped");
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
+test("C2: a late savePersona response for the workspace just left cannot touch the new workspace's form, note or busy flag", async () => {
+  const previousFetch = globalThis.fetch;
+  const page_answer = (data) => ({ ok: true, status: 200, json: async () => ({ ok: true, data }) });
+  let gate;
+  let resolveSave;
+  globalThis.fetch = async (url, options) => {
+    const path = String(url);
+    if (path === "/api/roundtable/personas" && options && options.method === "POST") {
+      await gate;
+      return page_answer({ persona: { id: "p-new", name: "Saved" } });
+    }
+    if (path.startsWith("/api/roundtable/personas")) return page_answer({ binding: "opt-in", personas: [] });
+    if (path.startsWith("/api/roundtable/meetings")) return page_answer({ meetings: [] });
+    if (path.startsWith("/api/roundtable/catalog")) return page_answer({ models: [], defaults: {}, limits: {} });
+    throw new Error(`unexpected fetch ${path}`);
+  };
+  const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+  const baseStore = {
+    boot: "ready",
+    workspaces: [
+      { id: "ws-a", title: "A" },
+      { id: "ws-b", title: "B" },
+    ],
+    workspaceId: "ws-a",
+    catalog: "ready",
+    models: [{ key: "a/model-1", provider: "a", providerName: "A", model: "model-1" }],
+    catalogDefaults: { rounds: 1 },
+    catalogLimits: { maxAnswerers: 8, maxReviewers: 8, maxRounds: 5 },
+    topic: "保存归属",
+    reviewersMode: "peers",
+    meetingsState: "ready",
+    meetings: [],
+    attachments: [],
+    personaBinding: "opt-in",
+    personas: [],
+    personaBySeat: {},
+    personaForm: { name: "红色攻击者", mission: "找漏洞" },
+  };
+  try {
+    // Late success from A: switch to B while A's POST is in flight.
+    resetStore(baseStore);
+    gate = new Promise((resolve) => { resolveSave = resolve; });
+    const saving = actions.savePersona();
+    await flush();
+    assert.equal(store.get().personaBusy, true, "save starts busy in A");
+    actions.selectWorkspace("ws-b");
+    await flush();
+    // B types its own draft and must keep it.
+    actions.setPersonaField("name", "B 的草稿");
+    const bForm = { ...store.get().personaForm };
+    resolveSave();
+    await saving;
+    await flush();
+    assert.deepEqual(store.get().personaForm, bForm, "A's late success does not clear B's form");
+    assert.equal(store.get().personaNote, null, "A's late success does not flash its note in B");
+    assert.equal(store.get().personaError, null, "A's late success sets no error in B");
+    assert.equal(store.get().personaBusy, false, "B is not stuck busy after A's late success");
+    assert.equal(store.get().workspaceId, "ws-b", "the user is still in B");
+
+    // Late failure from A must not surface as B's error either.
+    resetStore(baseStore);
+    gate = Promise.reject(new Error("boom"));
+    const failing = actions.savePersona();
+    await flush();
+    actions.selectWorkspace("ws-b");
+    await flush();
+    actions.setPersonaField("name", "B 的草稿");
+    const bForm2 = { ...store.get().personaForm };
+    await failing.catch(() => {});
+    await flush();
+    assert.deepEqual(store.get().personaForm, bForm2, "A's late failure does not clear B's form");
+    assert.equal(store.get().personaError, null, "A's late failure does not write B's error");
+    assert.equal(store.get().personaNote, null, "A's late failure writes no note in B");
+    assert.equal(store.get().personaBusy, false, "B is not stuck busy after A's late failure");
+
+    // Control: a save that stays in the same workspace still works end to end.
+    resetStore(baseStore);
+    gate = Promise.resolve();
+    await actions.savePersona();
+    await flush();
+    assert.deepEqual(store.get().personaForm, { name: "", mission: "" }, "same-workspace save clears the form");
+    assert.ok(store.get().personaNote, "same-workspace save shows the saved note");
+    assert.equal(store.get().personaBusy, false, "same-workspace save clears busy");
+  } finally {
+    globalThis.fetch = previousFetch;
+    gate = undefined;
+  }
+});
+
 console.log("client.test.mjs: all assertions passed");

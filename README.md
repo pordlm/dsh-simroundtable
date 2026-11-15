@@ -154,12 +154,12 @@ plugin_manager list_plugins
 | Persona 角色卡（协议 v2） | **已交付**（0.7.0） |
 | Red Team / Pro-Con / Socratic / Pre-mortem | **未实现**专用协议阶段，不是 0.7 交付内容 |
 
-- **Persona 开关** `personaBinding`：`off`（默认，不注册 `/personas`，页面不显示角色卡）或 `opt-in`（按工作区启用）。角色卡存在 `<workspace>/.roundtable/personas/personas.json`；内置卡只读，自定义卡有数量与体积上限。API：`GET/POST /api/roundtable/personas?workspace=`。
-- **v1/v2 分流**：只有当至少一个将要发送的席位真的选了角色卡时，创建请求才携带 `participants` + `protocol:{id:"roundtable",version:2}` 走 v2；普通圆桌始终走 v1，行为与 0.6 完全一致。评审与裁决席位不继承回答者的角色卡。
+- **Persona 开关** `personaBinding`：`off`（默认；页面不显示角色卡）或 `opt-in`（按工作区启用）。注意：`off` 时 `/personas` 路由**仍然注册**——`GET /api/roundtable/personas?workspace=` 会返回 `binding:"off"` 与空角色卡列表，POST 则按开关拒绝。角色卡存在 `<workspace>/.roundtable/personas/personas.json`；内置卡只读，自定义卡有数量与体积上限。API：`GET/POST /api/roundtable/personas?workspace=`。
+- **v1/v2 分流**：GUI 只在有席位选了角色卡时才走 v2；同时，API 允许**显式声明 v2 而无需 Persona**（v2 同时是席位协议——空评审自动回退互评、阶段门控等规则在无 Persona 时同样生效）。GUI 侧只有当至少一个将要发送的席位真的选了角色卡时，创建请求才携带 `participants` + `protocol:{id:"roundtable",version:2}` 走 v2；普通圆桌始终走 v1，行为与 0.6 完全一致。评审与裁决席位不继承回答者的角色卡。
 - **席位上限**：v2 的总席位（回答者 + 评审 + 裁决）最多 8。页面只在 v2 场景（有席位选了角色卡）显示席位计数、超限时前置禁用启动并写明构成；v1 圆桌不受该限制约束。未选评审者时自动回退为“作答模型互相评审”，并在记录的 `limitations` 里明示。
 - **阶段级工具权限**：只有 answer 阶段（且会议不带附件）允许 `web_search` / `web_fetch`（每席位最多两次查询）；discussion / review / arbiter 阶段以及任何非 roundtable 协议一律无工具（fail-closed）。图片附件只发给 answer / arbiter 席位，评审与讨论阶段看不到图片。
 - **已知限制（同模型多席位）**：让同一 provider/model 占多个席位目前只能通过 API 的 `participants` 实现；GUI 不提供同模型重复席位（Seat Card 计划 0.8）。
-- **记录差异与回滚**：v2 会议记录在 v1 字段之外新增 `participants` / `protocol` / `protocolFullState` / `sameRouteNotes` 等；旧版本读取时只取它认识的字段，多余键被忽略。导出的 Markdown 两种协议格式一致，回滚插件版本不影响历史列表与导出。
+- **记录差异与回滚**：v2 会议记录在 v1 字段之外新增 `participants` / `protocol` / `protocolFullState` / `sameRouteNotes` 等；旧版本读取时只取它认识的字段，多余键被忽略。回滚约束（如实）：v1 记录在新版本读取时字节不变（有测试钉死：`test/roundtable-golden.test.mjs`）；**v2 记录回滚前必须先备份**——旧版本无法重建 v2 的阶段状态；跨版本导出一律以 `renderExport` 为唯一出口，不要手工拼装历史记录。
 
 ---
 

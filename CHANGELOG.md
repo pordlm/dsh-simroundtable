@@ -4,6 +4,35 @@ All notable changes to this project. The format loosely follows
 [Keep a Changelog](https://keepachangelog.com/), and the project uses semantic
 versioning.
 
+## 0.7.1 (Unreleased)
+
+### Fixed
+
+- **GUI v1/v2 分流修复**：席位判定改为「本次实际发送席位」——与创建请求的
+  `participants` 共用同一组装来源（`plannedSeats`），不再扫描已取消席位的遗留
+  `personaBySeat`。此前「5 个无 Persona 回答者 + peers 互评共 10 席」本应走 v1
+  却被启动按钮误禁用；取消（末席或中间席）模型时同步清理该席的角色卡残留，
+  不会让移除的席位继续伪装成 v2。
+- **savePersona 工作区归属保护**：成功、失败、异常三条路径全部经
+  `stillValid(token)` 判定；工作区 A 发起保存后切到 B，A 的迟到响应不再清空
+  B 的表单、不再给 B 置 busy 或闪提示。切换工作区时重置 `personaBusy`。
+- **Checkpoint degraded**：阶段末 checkpoint 写盘失败降级为记录 limitation
+  继续开会（degraded 标记），不再中断整场会议。
+- **追加式失败历史**：席位失败记录为 append-only 的 `failures` 历史，
+  重试不覆盖旧失败证据。
+- **incomplete 终态**：部分席位失败时会议结算为 `incomplete`（含失败明细），
+  而不是伪装 `completed`。
+- **selfReview 治理**：评审席位不得评审自己的回答（可通过配置关闭以显式允许）。
+- **席位上限前置提示**：v2 场景席位超限时前端前置禁用启动并写明席位构成，
+  后端保留 400 拦截兜底；v1 圆桌不受 8 席限制约束。
+- **registry 执行权威**：协议以 registry 注册信息为准执行；未知协议 id /
+  版本返回 400。
+- **文档更正（README）**：披露「API 允许显式声明 v2 而无需 Persona（v2 同时
+  是席位协议）」；更正 `personaBinding: off` 时 `/personas` 路由仍注册
+  （GET 返回 `binding:"off"` 与空列表）；回滚章节去掉「无条件安全 / Markdown
+  完全相同」的过强表述，改为实际约束（v1 记录读时字节不变有测试证据；
+  v2 记录回滚前必须备份；跨版本导出以 `renderExport` 为唯一出口）。
+
 ## 0.7.0
 
 ### Roundtable v2 protocol
