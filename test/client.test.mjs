@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { test } from "node:test";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -1488,5 +1489,129 @@ const plateText = (node) => {
     globalThis.fetch = previousFetch;
   }
 }
+
+// ---------------------------------------------------------------------------
+// A1 fixes: opt-in binding alone must NOT force v2; personas are validated
+// against the current workspace's list; a late /personas reply must not
+// overwrite the new workspace; reviewers/arbiter never inherit an answerer
+// persona; switching workspace clears persona state and reloads.
+// ---------------------------------------------------------------------------
+test("A1: persona gating, workspace-scoped personas, reviewer/arbiter never inherit a persona", async () => {
+  const previousFetch = globalThis.fetch;
+  const page_answer = (data) => ({ ok: true, status: 200, json: async () => ({ ok: true, data }) });
+  const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+  const posts = [];
+  let personasGate; // holds the pending /personas promise for ws-a while a test needs a late reply
+  globalThis.fetch = async (url, options) => {
+    const path = String(url);
+    if (path === "/api/roundtable/meetings" && options && options.method === "POST") {
+      posts.push(JSON.parse(options.body));
+      return page_answer({ meeting: { id: "m-p", topic: "persona", status: "queued" } });
+    }
+    if (path.startsWith("/api/roundtable/meeting?")) return page_answer({ meeting: { id: "m-p", status: "completed", transcript: [] } });
+    if (path.startsWith("/api/roundtable/meetings")) return page_answer({ meetings: [] });
+    if (path.startsWith("/api/roundtable/catalog")) return page_answer({ models: [], defaults: {}, limits: {} });
+    if (path.startsWith("/api/roundtable/personas")) {
+      const ws = path.slice(path.indexOf("workspace=") + "workspace=".length);
+      if (ws === "ws-late" && personasGate) return personasGate;
+      return page_answer({ binding: "opt-in", personas: [{ id: `p-${ws}`, name: `P of ${ws}` }] });
+    }
+    throw new Error(`unexpected fetch ${path}`);
+  };
+  const baseStore = {
+    boot: "ready",
+    workspaces: [{ id: "ws-1", title: "1" }, { id: "ws-2", title: "2" }, { id: "ws-late", title: "L" }],
+    workspaceId: "ws-1",
+    catalog: "ready",
+    models: [
+      { key: "a/model-1", provider: "a", providerName: "A", model: "model-1" },
+      { key: "b/model-2", provider: "b", providerName: "B", model: "model-2" },
+    ],
+    catalogDefaults: { rounds: 1 },
+    catalogLimits: { maxAnswerers: 8, maxReviewers: 8, maxRounds: 5 },
+    selected: ["a/model-1", "b/model-2"],
+    topic: "persona 分流",
+    reviewersMode: "peers",
+    meetingsState: "ready",
+    meetings: [],
+    attachments: [],
+  };
+  try {
+    // (1) opt-in with NO persona selected → plain v1 request.
+    resetStore({ ...baseStore, personaBinding: "opt-in", personas: [], personaBySeat: {} });
+    await actions.startMeeting();
+    let body = posts[posts.length - 1];
+    assert.equal(body.participants, undefined, "no persona → no participants");
+    assert.equal(body.protocol, undefined, "no persona → no protocol v2");
+
+    // (2) one answerer persona (belongs to ws-1) → v2; reviewer r1 must NOT
+    // inherit a1's persona, arbiter has none.
+    resetStore({
+      ...baseStore,
+      personaBinding: "opt-in",
+      personas: [{ id: "p-1", name: "Red" }],
+      personaBySeat: { a1: "p-1" },
+      arbiterKey: "b/model-2",
+    });
+    await actions.startMeeting();
+    body = posts[posts.length - 1];
+    assert.equal(body.protocol && body.protocol.id, "roundtable", "persona selected → protocol roundtable");
+    assert.equal(body.protocol && body.protocol.version, 2, "protocol version 2");
+    const answererSeat = body.participants.find((seat) => seat.id === "a1");
+    const reviewerSeat = body.participants.find((seat) => seat.id === "r1");
+    const arbiterSeat = body.participants.find((seat) => seat.id === "j1");
+    assert.equal(answererSeat && answererSeat.personaId, "p-1", "answerer keeps its persona");
+    assert.equal(reviewerSeat && reviewerSeat.personaId, undefined, "reviewer does not inherit the answerer persona");
+    assert.equal(arbiterSeat && arbiterSeat.personaId, undefined, "arbiter gets no persona without a seatKey");
+
+    // (3) a persona id that is not in the workspace list is dropped from the
+    // payload (and no v2 upgrade happens for a payload with nothing left).
+    resetStore({
+      ...baseStore,
+      personaBinding: "opt-in",
+      personas: [{ id: "p-1", name: "Red" }],
+      personaBySeat: { a1: "p-gone" },
+    });
+    await actions.startMeeting();
+    body = posts[posts.length - 1];
+    assert.equal(body.participants, undefined, "unknown persona is stripped → plain v1");
+    assert.equal(body.protocol, undefined, "unknown persona → no protocol");
+    assert.equal(store.get().personaNote, "已忽略不属于当前工作区的角色卡，请重新选择。", "unknown persona is surfaced to the user");
+
+    // (4) switching workspace clears persona state and reloads from the new
+    // workspace's list.
+    resetStore({
+      ...baseStore,
+      personaBinding: "opt-in",
+      personas: [{ id: "p-1", name: "Red" }],
+      personaBySeat: { a1: "p-1" },
+    });
+    actions.selectWorkspace("ws-2");
+    await flush();
+    assert.deepEqual(store.get().personaBySeat, {}, "switching workspace clears seat assignments");
+    assert.equal(store.get().personas.some((persona) => persona.id === "p-ws-2"), true, "the new workspace's personas are loaded");
+
+    // (5) a late /personas reply for the workspace just left is dropped and
+    // cannot overwrite the new workspace's list.
+    resetStore({ ...baseStore, workspaceId: "ws-late", personaBinding: "opt-in", personas: [], personaBySeat: {} });
+    let resolveLate;
+    personasGate = new Promise((resolve) => {
+      resolveLate = resolve;
+    });
+    const lateLoad = actions.loadPersonas();
+    await flush();
+    actions.selectWorkspace("ws-2"); // bumps the generation, reloads ws-2 personas
+    await flush();
+    assert.equal(store.get().personas.some((persona) => persona.id === "p-ws-2"), true, "ws-2 list is in place");
+    resolveLate(page_answer({ binding: "opt-in", personas: [{ id: "p-stale", name: "Stale" }] }));
+    await lateLoad;
+    await flush();
+    assert.equal(store.get().personas.some((persona) => persona.id === "p-stale"), false, "the stale reply is dropped");
+    assert.equal(store.get().personas.some((persona) => persona.id === "p-ws-2"), true, "ws-2 list is untouched");
+  } finally {
+    globalThis.fetch = previousFetch;
+    personasGate = undefined;
+  }
+});
 
 console.log("client.test.mjs: all assertions passed");
