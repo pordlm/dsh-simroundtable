@@ -1,0 +1,28 @@
+554: function stillValid(token, options) {
+681: if (!stillValid(workspace, { detailId: id })) return;
+686: if (!stillValid(workspace, { detailId: id })) return;
+692: if (pollToken !== token || !stillValid(workspace, { detailId: id })) return;
+740: if (!stillValid(token)) return;
+762: if (!stillValid(token)) return;
+773: if (!stillValid(token)) return;
+788: if (!stillValid(token)) return;
+826: if (!stillValid(token)) return;
+829: if (!stillValid(token)) return;
+832: if (!stillValid(token)) return;
+835: if (stillValid(token)) store.set({ personaBusy: false });
+843: if (!stillValid(token)) return;
+849: if (!stillValid(token)) return;
+928: if (!stillValid(token)) return;
+933: if (!stillValid(token)) return;
+968: if (!stillValid(token)) return;
+1099: if (!stillValid(token)) return;
+1110: if (!stillValid(token)) return;
+1143: if (pollToken !== poll || !stillValid(workspace, { detailId: id })) return;
+1148: if (pollToken !== poll || !stillValid(workspace, { detailId: id })) return;
+1183: if (!stillValid(token, { detailId: id })) return;
+1186: if (!stillValid(token, { detailId: id })) return;
+1212: if (!stillValid(token, { detailId: id })) return;
+1216: if (!stillValid(token, { detailId: id })) return;
+1220: if (!stillValid(token, { detailId: id })) return;
+1241: if (!stillValid(token, { detailId: id })) return;
+1253: if (!stillValid(token, { detailId: id })) return;

@@ -4,7 +4,7 @@ All notable changes to this project. The format loosely follows
 [Keep a Changelog](https://keepachangelog.com/), and the project uses semantic
 versioning.
 
-## 0.7.1 (Unreleased)
+## 0.7.1 — 2026-11-16
 
 ### Fixed
 
